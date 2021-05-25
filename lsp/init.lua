@@ -85,6 +85,21 @@ function lsp.start_server(filename, project_directory)
         end)
 
         client:add_event_listener("initialized", function(server, ...)
+          core.log("["..server.name.."] " .. "Initialized")
+          if server.settings then
+            server:push_request(
+              "workspace/didChangeConfiguration",
+              {settings = server.settings},
+              function(server, response)
+                if server.verbose then
+                  server:log(
+                    "Completion response: %s",
+                    Util.jsonprettify(Json.encode(response))
+                  )
+                end
+              end
+            )
+          end
           if server.capabilities then
             if
               server.capabilities.completionProvider
@@ -163,7 +178,8 @@ function lsp.request_completion(doc, line, col)
           {
             text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
           }
-        }
+        },
+        syncKind = 1
       }
     )
 

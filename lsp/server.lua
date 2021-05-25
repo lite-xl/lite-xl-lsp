@@ -17,6 +17,7 @@ function server.new(options)
       file_patterns = options.file_patterns,
       current_request = 0,
       init_options = options.init_options or {},
+      settings = options.settings or nil,
       event_listeners = {},
       message_listeners = {},
       request_list = {},
@@ -91,7 +92,11 @@ function server:initialize(path, editor_name, editor_version)
         version = editor_version or "0.1"
       },
       -- TODO: locale
+      rootPath = path,
       rootUri = root_uri,
+      workspaceFolders = {
+        {uri = root_uri, name = "root"}
+      },
       initializationOptions = self.init_options,
       capabilities = {
         -- workspace = nil, -- workspaces are not supported at all
