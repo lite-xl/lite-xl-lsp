@@ -419,6 +419,19 @@ function server:process_responses()
   return responses
 end
 
+--- Along with process_requests() and process_responses() this one should
+-- be called to prevent the server from stalling because of not flushing
+-- the stderr.
+function server:process_errors()
+  local errors = self:read_errors(0)
+
+  if errors then
+    self:log("Error: \n'%s'", errors)
+  end
+
+  return errors
+end
+
 function server:push_notification(method, params)
   if self.verbose then
     self:log(
@@ -595,6 +608,33 @@ function server:read_responses(timeout)
   end
 
   return false
+end
+
+--- Get messages thrown by the stderr
+-- @param timeout Time in seconds, set to 0 to not wait for response
+-- @return Response Table or false if failed
+function server:read_errors(timeout)
+  timeout = timeout or server.DEFAULT_TIMEOUT
+
+  local max_time = os.time() + timeout
+  if timeout == 0 then max_time = max_time + 1 end
+  local output = nil
+  while max_time > os.time() and output == nil do
+    output = self.proc:read_errors()
+    if timeout == 0 then break end
+  end
+
+  if timeout == 0 and output ~= nil then
+    local new_output = ""
+    while new_output ~= nil do
+      new_output = self.proc:read_errors()
+      if new_output ~= nil then
+        output = output .. new_output
+      end
+    end
+  end
+
+  return output
 end
 
 --- Try to send a request to a server in a specific amount of time.

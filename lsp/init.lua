@@ -226,6 +226,19 @@ function lsp.request_completion(doc, line, col)
             or server.get_completion_items_kind(symbol.kind)
             or ""
 
+          -- Fix some issues as with clangd
+          if
+            symbol.label and
+            symbol.insertText and
+            #symbol.label > #symbol.insertText
+          then
+            label = symbol.insertText
+            info = symbol.label
+            if symbol.detail then
+              info = info .. ": " .. symbol.detail
+            end
+          end
+
           symbols.items[label] = info
         end
 
@@ -249,6 +262,7 @@ core.add_thread(function()
       server:process_notifications()
       server:process_requests()
       server:process_responses()
+      server:process_errors()
     end
 
     if system.window_has_focus() then
