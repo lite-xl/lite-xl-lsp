@@ -60,3 +60,9 @@ lsp.add_server {
 * Add hover support for function arguments and symbols
 * Generate list of current document symbols for easy document navigation
 * Goto definition
+
+## Screenshots
+
+![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion01.png)
+
+![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion02.png)
