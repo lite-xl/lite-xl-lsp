@@ -257,6 +257,9 @@ local function draw_suggestions_box(av)
   local start_index = suggestions_idx > ah and (suggestions_idx-(ah-1)) or 1
 
   for i=start_index, start_index+show_count-1, 1 do
+    if not suggestions[i] then
+      break
+    end
     local s = suggestions[i]
     local color = (i == suggestions_idx) and style.accent or style.text
     common.draw_text(font, color, s.text, "left", rx + style.padding.x, y, rw, lh)
