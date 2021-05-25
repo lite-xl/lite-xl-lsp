@@ -247,16 +247,15 @@ core.add_thread(function()
   while true do
     for name,server in pairs(lsp.servers_running) do
       server:process_notifications()
-
       server:process_requests()
-
       server:process_responses()
     end
 
-    -- wait for next scan (config.project_scan_rate
     if system.window_has_focus() then
+      -- scan the fastest possible while not eating too much cpu
       coroutine.yield(0.01)
     else
+      -- if window is unfocused lower the thread rate to lower cpu usage
       coroutine.yield(config.project_scan_rate)
     end
   end
