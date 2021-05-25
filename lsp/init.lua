@@ -250,13 +250,15 @@ core.add_thread(function()
 
       server:process_requests()
 
-      coroutine.yield()
-
       server:process_responses()
     end
 
     -- wait for next scan (config.project_scan_rate
-    coroutine.yield()
+    if system.window_has_focus() then
+      coroutine.yield(0.01)
+    else
+      coroutine.yield(config.project_scan_rate)
+    end
   end
 end)
 
