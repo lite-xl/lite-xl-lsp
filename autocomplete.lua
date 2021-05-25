@@ -231,6 +231,10 @@ local function get_suggestions_rect(av)
   -- additional line to display total items
   max_items = max_items + 1
 
+  if max_width < 150 then
+    max_width = 150
+  end
+
   return
     x - style.padding.x,
     y - style.padding.y,
