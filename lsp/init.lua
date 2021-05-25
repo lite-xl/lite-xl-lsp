@@ -172,9 +172,9 @@ function lsp.request_completion(doc, line, col)
       get_buffer_position_params(doc, line, col),
       function(server, response)
         if server.verbose then
-          core.log_quiet(
-            "["..server.name.."] "
-            .. Util.jsonprettify(Json.encode(response))
+          server:log(
+            "Completion response: %s",
+            Util.jsonprettify(Json.encode(response))
           )
         end
 
