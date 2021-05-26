@@ -181,10 +181,7 @@ function lsp.open_document(doc)
 end
 
 function lsp.save_document(doc)
-  lsp.start_server(doc.filename, core.project_dir)
-
   local active_servers = lsp.get_active_servers(doc.filename)
-
   if #active_servers > 0 then
     for index, name in pairs(active_servers) do
       lsp.servers_running[name]:push_notification(
@@ -193,10 +190,28 @@ function lsp.save_document(doc)
           textDocument = {
             uri = Util.touri(system.absolute_path(doc.filename)),
             languageId = Util.file_extension(doc.filename),
-            version = 0
+            version = doc.clean_change_id
           },
           includeText = true,
           text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+        }
+      )
+    end
+  end
+end
+
+function lsp.close_document(doc)
+  local active_servers = lsp.get_active_servers(doc.filename)
+  if #active_servers > 0 then
+    for index, name in pairs(active_servers) do
+      lsp.servers_running[name]:push_notification(
+        'textDocument/didClose',
+        {
+          textDocument = {
+            uri = Util.touri(system.absolute_path(doc.filename)),
+            languageId = Util.file_extension(doc.filename),
+            version = doc.clean_change_id
+          }
         }
       )
     end
@@ -402,6 +417,12 @@ Doc.save = function(self, ...)
   end)
   return res
 end
+
+core.add_close_hook(function(doc)
+  core.add_thread(function()
+    lsp.close_document(doc)
+  end)
+end)
 
 RootView.on_text_input = function(...)
   root_view_on_text_input(...)
