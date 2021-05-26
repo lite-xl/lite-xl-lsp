@@ -576,13 +576,6 @@ function server:read_responses(timeout)
       if self.verbose then
         self:log("Output withuot header: %s", util.jsonprettify(output))
       end
-
-      for data in string.gmatch(output, "%b{}") do
-        if self.verbose then
-          self:log("Output withuot header: %s", util.jsonprettify(data))
-        end
-        table.insert(responses, data)
-      end
     end
   end
 

@@ -2,6 +2,8 @@
 -- @license MIT
 -- Some functions adapted from: https://github.com/orbitalquark/textadept-lsp
 
+local config = require "core.config"
+
 local util = {}
 
 function util.split(s, delimiter)
@@ -51,17 +53,30 @@ function util.touri(filename)
   return filename
 end
 
--- Returns the start and end buffer positions for the given LSP Range.
+-- Converts a document range returned bu lsp to a valid document selection.
 -- @param range LSP Range.
-function util.tobufferrange(range)
-  local s = buffer:position_from_line(range.start.line + 1) + range.start.character + 1
-  local e = buffer:position_from_line(range['end'].line + 1) + range['end'].character + 1
-  return s, e
+function util.toselection(range)
+  local line1 = range.start.line + 1
+  local col1 = range.start.character + 1
+  local line2 = range['end'].line + 1
+  local col2 = range['end'].character + 1
+
+  return line1, col1, line2, col2
 end
 
 function util.jsonprettify(json)
+  if config.lsp.log_file and #config.lsp.log_file > 0 then
+    local log = io.open(config.lsp.log_file, "a+")
+    log:write("Output: \n" .. tostring(json) .. "\n\n")
+    log:close()
+  end
+
+  -- TODO implement/integrate something that really makes it prettier :)
+  if config.lsp.prettify_json then
+    return json:gsub("{", "{\n"):gsub("}", "\n}"):gsub(",", ",\n")
+  end
+
   return json
-  --return json:gsub("{", "{\n"):gsub("}", "\n}"):gsub(",", ",\n")
 end
 
 function util.intable(value, table_array)

@@ -5,6 +5,7 @@
 -- @license MIT
 
 local core = require "core"
+local common = require "core.common"
 local config = require "core.config"
 local command = require "core.command"
 local Doc = require "core.doc"
@@ -18,6 +19,20 @@ local Server = require "plugins.lsp.server"
 local Util = require "plugins.lsp.util"
 local autocomplete = require "plugins.autocomplete"
 
+--
+-- Plugin settings
+--
+config.lsp = {}
+
+-- Set to a file to log all json
+config.lsp.log_file = ""
+
+-- Set to true break json for more readability on the log
+config.lsp.prettify_json = false
+
+--
+-- Main plugin functionality
+--
 local lsp = {}
 
 lsp.servers = {}
@@ -41,6 +56,10 @@ local function get_buffer_position_params(doc, line, col)
       character = col - 1
     }
   }
+end
+
+local function log(server, message, ...)
+  core.log("["..server.name.."] " .. message, ...)
 end
 
 function lsp.add_server(server)
@@ -162,10 +181,6 @@ function lsp.open_document(doc)
 end
 
 function lsp.request_completion(doc, line, col)
-  --if autocomplete.is_open() then
-  --  return
-  --end
-
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     lsp.servers_running[name]:push_notification(
       'textDocument/didChange',
@@ -248,6 +263,66 @@ function lsp.request_completion(doc, line, col)
   end
 end
 
+function lsp.goto_symbol(doc, line, col, implementation)
+  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+    local server = lsp.servers_running[name]
+
+    if not server.capabilities then
+      return
+    end
+
+    local method = ""
+    if not implementation then
+      if server.capabilities.definitionProvider then
+        method = method .. "definition"
+      elseif server.capabilities.declarationProvider then
+        method = method .. "declaration"
+      elseif server.capabilities.typeDefinitionProvider then
+        method = method .. "typeDefinition"
+      else
+        log(server, "Goto definition not supported")
+        return
+      end
+    else
+      if server.capabilities.implementationProvider then
+        method = method .. "implementation"
+      else
+        log(server, "Goto implementation not supported")
+        return
+      end
+    end
+
+    server:push_request(
+      "textDocument/" .. method,
+      get_buffer_position_params(doc, line, col),
+      function(server, response)
+        local location = response.result
+
+        if not location or not location.uri and #location == 0 then
+          log(server, "No %s found", method)
+          return
+        end
+
+        -- TODO display a box showing different definition points to go
+        if not location.uri then
+          if #location >= 1 then
+            location = location[1]
+          end
+        end
+
+        -- Open first matching result and goto the line
+        core.root_view:open_doc(
+          core.open_doc(
+            common.home_expand(Util.tofilename(location.uri))
+          )
+        )
+        local line1, col1 = Util.toselection(location.range)
+        core.active_view.doc:set_selection(line1, col1, line1, col1)
+      end
+    )
+  end
+end
+
 function lsp.request_hover(filename, position)
   table.insert(lsp.documents, filename)
 end
@@ -325,11 +400,37 @@ command.add("core.docview", {
   end,
 })
 
+command.add("core.docview", {
+  ["lsp:goto-definition"] = function()
+    local doc = core.active_view.doc
+    if doc then
+      local line1, col1, line2, col2 = doc:get_selection()
+      if line1 == line2 and col1 == col2 then
+        lsp.goto_symbol(doc, line1, col1)
+      end
+    end
+  end,
+})
+
+command.add("core.docview", {
+  ["lsp:goto-implementation"] = function()
+    local doc = core.active_view.doc
+    if doc then
+      local line1, col1, line2, col2 = doc:get_selection()
+      if line1 == line2 and col1 == col2 then
+        lsp.goto_symbol(doc, line1, col1, true)
+      end
+    end
+  end,
+})
+
 --
 -- Default Keybindings
 --
 keymap.add {
   ["ctrl+space"]    = "lsp:complete",
+  ["alt+d"]         = "lsp:goto-definition",
+  ["alt+shift+d"]   = "lsp:goto-implementation",
 }
 
 return lsp

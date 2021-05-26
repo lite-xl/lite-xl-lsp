@@ -8,8 +8,8 @@ To test, clone this project, place the __lsp__ directory in your plugins
 directory, then replace the __autocomplete.lua__ plugin with the version
 on this repository which should later be merged into upstream.
 
-To add an lsp server in your user.lua file you can see the __serverlist.lua__
-as an example or:
+To add an lsp server in your user init.lua file you can see the
+__serverlist.lua__ as an example or:
 
 ```lua
 local lsp = require "plugins.lsp"
@@ -59,7 +59,8 @@ lsp.add_server {
 * More improvements to autocomplete.lua plugin
 * Add hover support for function arguments and symbols
 * Generate list of current document symbols for easy document navigation
-* Goto definition
+* Goto definition (Partially)
+  * Display select box when more than one result
 
 ## Screenshots
 
