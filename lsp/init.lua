@@ -180,6 +180,29 @@ function lsp.open_document(doc)
   end
 end
 
+function lsp.save_document(doc)
+  lsp.start_server(doc.filename, core.project_dir)
+
+  local active_servers = lsp.get_active_servers(doc.filename)
+
+  if #active_servers > 0 then
+    for index, name in pairs(active_servers) do
+      lsp.servers_running[name]:push_notification(
+        'textDocument/didSave',
+        {
+          textDocument = {
+            uri = Util.touri(system.absolute_path(doc.filename)),
+            languageId = Util.file_extension(doc.filename),
+            version = 0
+          },
+          includeText = true,
+          text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+        }
+      )
+    end
+  end
+end
+
 function lsp.request_completion(doc, line, col)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     lsp.servers_running[name]:push_notification(
@@ -361,12 +384,21 @@ end
 -- Events patching
 --
 local doc_load = Doc.load
+local doc_save = Doc.save
 local root_view_on_text_input = RootView.on_text_input
 
 Doc.load = function(self, ...)
   local res = doc_load(self, ...)
   core.add_thread(function()
     lsp.open_document(self)
+  end)
+  return res
+end
+
+Doc.save = function(self, ...)
+  local res = doc_save(self, ...)
+  core.add_thread(function()
+    lsp.save_document(self)
   end)
   return res
 end
@@ -398,9 +430,7 @@ command.add("core.docview", {
       end
     end
   end,
-})
 
-command.add("core.docview", {
   ["lsp:goto-definition"] = function()
     local doc = core.active_view.doc
     if doc then
@@ -410,9 +440,7 @@ command.add("core.docview", {
       end
     end
   end,
-})
 
-command.add("core.docview", {
   ["lsp:goto-implementation"] = function()
     local doc = core.active_view.doc
     if doc then

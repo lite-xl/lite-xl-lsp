@@ -79,6 +79,23 @@ function util.jsonprettify(json)
   return json
 end
 
+--- Gets the last component of a path. For example:
+-- /my/path/to/somwhere would return somewhere
+function util.getpathname(path)
+  local components = {}
+  if PLATFORM == "Windows" then
+    components = util.split(path, "\\")
+  else
+    components = util.split(path, "/")
+  end
+
+  if #components > 0 then
+    return components[#components]
+  end
+
+  return path
+end
+
 function util.intable(value, table_array)
   for i, element in pairs(table_array) do
     if element == value then

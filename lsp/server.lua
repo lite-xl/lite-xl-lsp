@@ -25,6 +25,8 @@ function server.new(options)
       command = options.command,
       restarts = options.restarts or 3,
       restart_retries = 0,
+      write_fails = 0,
+      write_fails_before_restart = 10,
       verbose = options.verbose or false,
       initialized = false
     },
@@ -74,14 +76,16 @@ function server.get_symbols_kind()
 end
 
 function server:initialize(path, editor_name, editor_version)
-  path = path or nil
-
   local root_uri = "";
   if PLATFORM ~= "Windows" then
     root_uri = 'file://' .. path
   else
     root_uri = 'file:///' .. path:gsub('\\', '/')
   end
+
+  self.path = path or ""
+  self.editor_name = editor_name or "unknwon"
+  self.editor_version = editor_version or "0.1"
 
   self:push_request(
     'initialize',
@@ -95,7 +99,7 @@ function server:initialize(path, editor_name, editor_version)
       rootPath = path,
       rootUri = root_uri,
       workspaceFolders = {
-        {uri = root_uri, name = "root"}
+        {uri = root_uri, name = util.getpathname(path)}
       },
       initializationOptions = self.init_options,
       capabilities = {

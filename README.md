@@ -54,6 +54,7 @@ lsp.add_server {
 
 ## TODO
 
+* Exit LSP server if no open document needs it.
 * Fix issues when parsing stdout from some lsp servers (eg: css-languageserver).
 * Detect if lsp server hangs and restart it (eg: clangd)
 * More improvements to autocomplete.lua plugin
