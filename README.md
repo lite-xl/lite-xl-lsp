@@ -58,7 +58,9 @@ lsp.add_server {
 * Fix issues when parsing stdout from some lsp servers (eg: css-languageserver).
 * Detect if lsp server hangs and restart it (eg: clangd)
 * More improvements to autocomplete.lua plugin
-* Add hover support for function arguments and symbols
+* Add hover support for function arguments (partially)
+  * Add custom tooltip that accents active parameter and signature
+* Add hover support for symbols
 * Generate list of current document symbols for easy document navigation
 * Goto definition (Partially)
   * Display select box when more than one result
