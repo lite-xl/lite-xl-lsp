@@ -18,6 +18,7 @@ local Json = require "plugins.lsp.json"
 local Server = require "plugins.lsp.server"
 local Util = require "plugins.lsp.util"
 local autocomplete = require "plugins.autocomplete"
+local listbox = require "plugins.lsp.listbox"
 
 --
 -- Plugin settings
@@ -301,6 +302,56 @@ function lsp.request_completion(doc, line, col)
   end
 end
 
+function lsp.request_signature(doc, line, col, forced)
+  local char = doc:get_char(line, col-1)
+  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+    local server = lsp.servers_running[name]
+    if
+      server.capabilities
+      and
+      server.capabilities.signatureHelpProvider
+      and
+      (
+        forced
+        or
+        (
+          server.capabilities.signatureHelpProvider.triggerCharacters
+          and
+          #server.capabilities.signatureHelpProvider.triggerCharacters > 0
+          and
+          Util.intable(
+            char, server.capabilities.signatureHelpProvider.triggerCharacters
+          )
+        )
+      )
+    then
+      server:push_request(
+        'textDocument/signatureHelp',
+        get_buffer_position_params(doc, line, col),
+        function(server, response)
+          if
+            response.result
+            and
+            response.result.signatures
+            and
+            #response.result.signatures > 0
+          then
+            local active_parameter = response.result.activeParameter or 0
+            local active_signature = response.result.activeSignature or 0
+            local signatures = response.result.signatures
+            local text = ""
+            for index, signature in pairs(signatures) do
+              text = text .. signature.label .. "\n"
+            end
+            listbox.show_text(text:gsub("\n$", ""))
+          end
+        end
+      )
+      break
+    end
+  end
+end
+
 function lsp.goto_symbol(doc, line, col, implementation)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
@@ -434,6 +485,7 @@ RootView.on_text_input = function(...)
 
     if line1 == line2 and col1 == col2 then
       lsp.request_completion(av.doc, line1, col1)
+      lsp.request_signature(av.doc, line1, col1)
     end
   end
 end
@@ -471,15 +523,27 @@ command.add("core.docview", {
       end
     end
   end,
+
+  ["lsp:show-signature"] = function()
+    local doc = core.active_view.doc
+    if doc then
+      local line1, col1, line2, col2 = doc:get_selection()
+      if line1 == line2 and col1 == col2 then
+        lsp.request_signature(doc, line1, col1, true)
+      end
+    end
+  end,
 })
 
 --
 -- Default Keybindings
 --
 keymap.add {
-  ["ctrl+space"]    = "lsp:complete",
-  ["alt+d"]         = "lsp:goto-definition",
-  ["alt+shift+d"]   = "lsp:goto-implementation",
+  ["ctrl+space"]        = "lsp:complete",
+  ["ctrl+shift+space"]  = "lsp:show-signature",
+  ["alt+a"]             = "lsp:listbox-test",
+  ["alt+d"]             = "lsp:goto-definition",
+  ["alt+shift+d"]       = "lsp:goto-implementation",
 }
 
 return lsp
