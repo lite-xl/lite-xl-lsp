@@ -59,7 +59,7 @@ local function get_suggestions_rect(active_view)
     y = y + active_view:get_line_height() + style.padding.y
   end
 
-  local font = active_view:get_font()
+  local font = settings.is_list and active_view:get_font() or style.font
   local text_height = font:get_height()
 
   local max_width = 0
@@ -73,7 +73,7 @@ local function get_suggestions_rect(active_view)
   end
 
   local max_items = #settings.shown_items
-  if max_items > settings.max_height then
+  if settings.is_list and max_items > settings.max_height then
     max_items = settings.max_height
   end
 
@@ -86,11 +86,18 @@ local function get_suggestions_rect(active_view)
     max_width = 150
   end
 
+  local height = 0
+  if not settings.is_list then
+    height = max_items * (text_height) + style.padding.y
+  else
+    height = max_items * (text_height + style.padding.y) + style.padding.y
+  end
+
   return
     x - style.padding.x,
     y - style.padding.y,
     max_width + style.padding.x * 2,
-    max_items * (text_height + style.padding.y) + style.padding.y
+    height
 end
 
 local function draw_listbox(av)
@@ -116,13 +123,18 @@ local function draw_listbox(av)
   renderer.draw_rect(rx, ry, rw, rh, style.background3)
 
   -- draw text
-  local font = av:get_font()
-  local line_height = font:get_height() + style.padding.y
+  local font = settings.is_list and av:get_font() or style.font
+  local line_height = font:get_height()
+  if settings.is_list then
+    line_height = line_height + style.padding.y
+  end
   local y = ry + style.padding.y / 2
 
   local max_height = settings.max_height
 
-  local show_count = #settings.shown_items <= max_height and
+  local show_count = (
+    #settings.shown_items <= max_height or not settings.is_list
+    ) and
     #settings.shown_items or max_height
 
   local start_index = settings.selected_item_idx > max_height and
