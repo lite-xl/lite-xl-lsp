@@ -147,11 +147,7 @@ function lsp.start_server(filename, project_directory)
           end
         end)
 
-        client:initialize(
-          project_directory,
-          "Lite XL",
-          "0.16.0"
-        )
+        client:initialize(project_directory, "Lite XL", VERSION)
       end
     end
   end
@@ -219,6 +215,22 @@ function lsp.close_document(doc)
   end
 end
 
+function lsp.request_item_resolve(index, item)
+  local completion_item = item.data.completion_item
+  item.data.server:push_request(
+    'completionItem/resolve',
+    completion_item,
+    function(server, response)
+      if response.result then
+        local symbol = response.result
+        -- TODO overwrite the item.desc to show documentation of
+        -- symbol is available but nothing seems to be returned,
+        -- maybe some missing initialization option?
+      end
+    end
+  )
+end
+
 function lsp.request_completion(doc, line, col)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     lsp.servers_running[name]:push_notification(
@@ -237,68 +249,91 @@ function lsp.request_completion(doc, line, col)
       }
     )
 
-    lsp.servers_running[name]:push_request(
-      'textDocument/completion',
-      get_buffer_position_params(doc, line, col),
-      function(server, response)
-        if server.verbose then
-          server:log(
-            "Completion response: %s",
-            Util.jsonprettify(Json.encode(response))
-          )
-        end
-
-        if not response.result then
-          return
-        end
-
-        local result = response.result
-        if result.isIncomplete then
+    if
+      lsp.servers_running[name].capabilities
+      and
+      lsp.servers_running[name].capabilities.completionProvider
+    then
+      lsp.servers_running[name]:push_request(
+        'textDocument/completion',
+        get_buffer_position_params(doc, line, col),
+        function(server, response)
           if server.verbose then
-            core.log_quiet(
-              "["..server.name.."] " .. "Completion list incomplete"
+            server:log(
+              "Completion response: %s",
+              Util.jsonprettify(Json.encode(response))
             )
           end
-          return
-        end
 
-        local symbols = {
-          name = lsp.servers_running[name].name,
-          files = lsp.servers_running[name].file_patterns,
-          items = {}
-        }
+          if not response.result then
+            return
+          end
 
-        for _, symbol in ipairs(result.items) do
-          local label = symbol.label
-            or (
-              symbol.textEdit
-              and symbol.textEdit.newText
-              or symbol.insertText
-            )
+          local result = response.result
+          if result.isIncomplete then
+            if server.verbose then
+              core.log_quiet(
+                "["..server.name.."] " .. "Completion list incomplete"
+              )
+            end
+            return
+          end
 
-          local info = symbol.detail
-            or server.get_completion_items_kind(symbol.kind)
-            or ""
+          local symbols = {
+            name = lsp.servers_running[name].name,
+            files = lsp.servers_running[name].file_patterns,
+            items = {}
+          }
 
-          -- Fix some issues as with clangd
-          if
-            symbol.label and
-            symbol.insertText and
-            #symbol.label > #symbol.insertText
-          then
-            label = symbol.insertText
-            info = symbol.label
-            if symbol.detail then
-              info = info .. ": " .. symbol.detail
+          for _, symbol in ipairs(result.items) do
+            local label = symbol.label
+              or (
+                symbol.textEdit
+                and symbol.textEdit.newText
+                or symbol.insertText
+              )
+
+            local info = server.get_completion_items_kind(symbol.kind) or ""
+
+            local desc = symbol.detail or ""
+
+            -- Fix some issues as with clangd
+            if
+              symbol.label and
+              symbol.insertText and
+              #symbol.label > #symbol.insertText
+            then
+              label = symbol.insertText
+              if symbol.label ~= label then
+                desc = symbol.label
+              end
+              if symbol.detail then
+                desc = desc .. ": " .. symbol.detail
+              end
+              desc = desc .. "\n"
+            end
+
+            if symbol.documentation and symbol.documentation.value then
+              desc = desc .. "\n" .. symbol.documentation.value
+            end
+
+            desc = desc:gsub("\n$", "")
+
+            if server.capabilities.completionProvider.resolveProvider then
+              symbols.items[label] = {
+                info = info, desc = desc,
+                data = {server = server, completion_item = symbol},
+                cb = lsp.request_item_resolve
+              }
+            else
+              symbols.items[label] = {info = info, desc = desc}
             end
           end
 
-          symbols.items[label] = info
+          autocomplete.complete(symbols)
         end
-
-        autocomplete.complete(symbols)
-      end
-    )
+      )
+    end
   end
 end
 
@@ -344,6 +379,44 @@ function lsp.request_signature(doc, line, col, forced)
               text = text .. signature.label .. "\n"
             end
             listbox.show_text(text:gsub("\n$", ""))
+          end
+        end
+      )
+      break
+    end
+  end
+end
+
+function lsp.request_hover(doc, line, col)
+  local char = doc:get_char(line, col-1)
+  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+    local server = lsp.servers_running[name]
+    if server.capabilities and server.capabilities.hoverProvider then
+      server:push_request(
+        'textDocument/hover',
+        get_buffer_position_params(doc, line, col),
+        function(server, response)
+          if response.result and response.result.contents then
+            local content = response.result.contents
+            local text = ""
+            if type(content) == "table" then
+              if content.value then
+                text = content.value
+              else
+                for _, element in pairs(content) do
+                  if type(element) == "string" then
+                    text = text .. element
+                  elseif type(element) == "table" and element.value then
+                    text = text .. element.value
+                  end
+                end
+              end
+            else -- content should be a string
+              text = content
+            end
+            if text and #text > 0 then
+              listbox.show_text(text:gsub("\n+$", ""))
+            end
           end
         end
       )
@@ -410,10 +483,6 @@ function lsp.goto_symbol(doc, line, col, implementation)
       end
     )
   end
-end
-
-function lsp.request_hover(filename, position)
-  table.insert(lsp.documents, filename)
 end
 
 --
@@ -533,6 +602,16 @@ command.add("core.docview", {
       end
     end
   end,
+
+  ["lsp:symbol-info"] = function()
+    local doc = core.active_view.doc
+    if doc then
+      local line1, col1, line2, col2 = doc:get_selection()
+      if line1 == line2 and col1 == col2 then
+        lsp.request_hover(doc, line1, col1)
+      end
+    end
+  end,
 })
 
 --
@@ -541,7 +620,7 @@ command.add("core.docview", {
 keymap.add {
   ["ctrl+space"]        = "lsp:complete",
   ["ctrl+shift+space"]  = "lsp:show-signature",
-  ["alt+a"]             = "lsp:listbox-test",
+  ["alt+a"]             = "lsp:symbol-info",
   ["alt+d"]             = "lsp:goto-definition",
   ["alt+shift+d"]       = "lsp:goto-implementation",
 }
