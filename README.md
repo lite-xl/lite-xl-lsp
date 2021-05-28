@@ -64,11 +64,28 @@ lsp.add_server {
 * Generate list of current document symbols for easy document navigation
 * Goto definition (Partially)
   * Display select box when more than one result
+* Figure out how to get an autocompletion item full documentation with
+'completionItem/resolve' or any other in order to better populate
+the new autocomplete item description
+
 
 ## Screenshots
 
+Some images to easily visualize the progress :)
+
+### Completion
 ![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion01.png)
 
 ![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion02.png)
 
-![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/signatures01.png)
+![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion03.png)
+
+![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion04.png)
+
+### Symbol hover
+![Hover](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/hover01.png)
+
+![Hover](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/hover02.png)
+
+### Function signatures
+![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/signatures01.png)
