@@ -59,13 +59,17 @@ function server.get_completion_items_kind(id)
   return list
 end
 
-function server.get_symbols_kind()
+function server.get_symbols_kind(id)
   local kinds = {
     'File', 'Module', 'Namespace', 'Package', 'Class', 'Method', 'Property',
     'Field', 'Constructor', 'Enum', 'Interface', 'Function', 'Variable',
     'Constant', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Key',
     'Null', 'EnumMember', 'Struct', 'Event', 'Operator', 'TypeParameter'
   }
+
+  if id then
+    return kinds[id]
+  end
 
   local list = {}
   for i = 1, #kinds do

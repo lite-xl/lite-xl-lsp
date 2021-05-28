@@ -59,6 +59,50 @@ local function get_buffer_position_params(doc, line, col)
   }
 end
 
+--- Recursive function to generate a list of symbols ready
+-- to use for the lsp.request_document_symbols() action.
+local function get_symbol_lists(list, parent)
+  local symbols = {}
+  local symbol_names = {}
+  parent = parent or ""
+  parent = #parent > 0 and (parent .. "/") or parent
+
+  for _, symbol in pairs(list) do
+    -- Include symbol kind to be able to filter by it
+    local symbol_name = parent
+      .. symbol.name
+      .. "||" .. Server.get_symbols_kind(symbol.kind)
+
+    table.insert(symbol_names, symbol_name)
+
+    symbols[symbol_name] = { kind = symbol.kind }
+
+    if symbol.location then
+      symbols[symbol_name].location = symbol.location
+    else
+      if symbol.range then
+        symbols[symbol_name].range = symbol.range
+      end
+      if symbol.uri then
+        symbols[symbol_name].uri = symbol.uri
+      end
+    end
+
+    if symbol.children and #symbol.children > 0 then
+      local child_symbols, child_names = get_symbol_lists(
+        symbol.children, parent .. symbol.name
+      )
+
+      for _, name in pairs(child_names) do
+        table.insert(symbol_names, name)
+        symbols[name] = child_symbols[name]
+      end
+    end
+  end
+
+  return symbols, symbol_names
+end
+
 local function log(server, message, ...)
   core.log("["..server.name.."] " .. message, ...)
 end
@@ -388,7 +432,6 @@ function lsp.request_signature(doc, line, col, forced)
 end
 
 function lsp.request_hover(doc, line, col)
-  local char = doc:get_char(line, col-1)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
     if server.capabilities and server.capabilities.hoverProvider then
@@ -422,6 +465,73 @@ function lsp.request_hover(doc, line, col)
       )
       break
     end
+  end
+end
+
+function lsp.request_document_symbols(doc)
+  local servers_found = false;
+  local symbols_retrieved = false;
+  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+    servers_found = true
+    local server = lsp.servers_running[name]
+    if server.capabilities and server.capabilities.documentSymbolProvider then
+      log(server, "Retrieving document symbols...")
+      server:push_request(
+        'textDocument/documentSymbol',
+        {
+          textDocument = {
+            uri = Util.touri(system.absolute_path(doc.filename)),
+          }
+        },
+        function(server, response)
+          if response.result and response.result and #response.result > 0 then
+            local symbols, symbol_names = get_symbol_lists(response.result)
+            core.command_view:enter("Find Symbol",
+              function(text, item)
+                if item then
+                  local symbol = symbols[item.name]
+                  -- The lsp may return a location object with range
+                  -- and uri inside of it or just range as part of
+                  -- the symbol it self.
+                  symbol = symbol.location and symbol.location or symbol
+                  if not symbol.uri then
+                    local line1, col1 = Util.toselection(symbol.range)
+                    doc:set_selection(line1, col1, line1, col1)
+                  else
+                    core.root_view:open_doc(
+                      core.open_doc(
+                        common.home_expand(Util.tofilename(symbol.uri))
+                      )
+                    )
+                    local line1, col1 = Util.toselection(symbol.range)
+                    core.active_view.doc:set_selection(line1, col1, line1, col1)
+                  end
+                end
+              end,
+              function(text)
+                local res = common.fuzzy_match(symbol_names, text)
+                for i, name in ipairs(res) do
+                  res[i] = {
+                    text = Util.split(name, "||")[1],
+                    info = Server.get_symbols_kind(symbols[name].kind),
+                    name = name
+                  }
+                end
+                return res
+              end
+            )
+          end
+        end
+      )
+      symbols_retrieved = true
+      break
+    end
+  end
+
+  if not servers_found then
+    core.log("[LSP] " .. "No server running")
+  elseif not symbols_retrieved then
+    core.log("[LSP] " .. "Document symbols not supported")
   end
 end
 
@@ -603,13 +713,20 @@ command.add("core.docview", {
     end
   end,
 
-  ["lsp:symbol-info"] = function()
+  ["lsp:show-symbol-info"] = function()
     local doc = core.active_view.doc
     if doc then
       local line1, col1, line2, col2 = doc:get_selection()
       if line1 == line2 and col1 == col2 then
         lsp.request_hover(doc, line1, col1)
       end
+    end
+  end,
+
+  ["lsp:view-document-symbols"] = function()
+    local doc = core.active_view.doc
+    if doc then
+      lsp.request_document_symbols(doc)
     end
   end,
 })
@@ -620,9 +737,10 @@ command.add("core.docview", {
 keymap.add {
   ["ctrl+space"]        = "lsp:complete",
   ["ctrl+shift+space"]  = "lsp:show-signature",
-  ["alt+a"]             = "lsp:symbol-info",
+  ["alt+a"]             = "lsp:show-symbol-info",
   ["alt+d"]             = "lsp:goto-definition",
   ["alt+shift+d"]       = "lsp:goto-implementation",
+  ["alt+f"]             = "lsp:view-document-symbols",
 }
 
 return lsp
