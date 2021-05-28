@@ -605,6 +605,7 @@ core.add_thread(function()
       server:process_notifications()
       server:process_requests()
       server:process_responses()
+      server:process_client_responses()
       server:process_errors()
     end
 

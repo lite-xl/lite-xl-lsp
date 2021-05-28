@@ -9,6 +9,24 @@ local server = {
   DEFAULT_TIMEOUT = 10
 }
 
+server.error_code = {
+  ParseError                      = -32700,
+	InvalidRequest                  = -32600,
+	MethodNotFound                  = -32601,
+	InvalidParams                   = -32602,
+	InternalError                   = -32603,
+	jsonrpcReservedErrorRangeStart  = -32099,
+	serverErrorStart                = -32099,
+	ServerNotInitialized            = -32002,
+	UnknownErrorCode                = -32001,
+	jsonrpcReservedErrorRangeEnd    = -32000,
+	serverErrorEnd                  = -32000,
+	lspReservedErrorRangeStart      = -32899,
+	ContentModified                 = -32801,
+	RequestCancelled                = -32800,
+	lspReservedErrorRangeEnd        = -32800,
+}
+
 function server.new(options)
   local srv = setmetatable(
     {
@@ -20,7 +38,9 @@ function server.new(options)
       settings = options.settings or nil,
       event_listeners = {},
       message_listeners = {},
+      request_listeners = {},
       request_list = {},
+      response_list = {},
       notification_list = {},
       command = options.command,
       restarts = options.restarts or 3,
@@ -323,6 +343,29 @@ function server:respond(id, result)
   end
 end
 
+function server:respond_error(id, error_message, error_code)
+  local message = {
+    jsonrpc = '2.0',
+    id = id,
+    error = {
+      code = error_code or server.error_code.MethodNotFound,
+      message = error_message
+    }
+  }
+
+  local data = json.encode(message)
+
+  if self.verbose then
+    self:log("Responding error: %s", util.jsonprettify(data))
+  end
+
+  local written = self:write_request(data)
+
+  if not written and self.verbose then
+    self:log("Could not send response: %s", util.jsonprettify(data))
+  end
+end
+
 --- Sends the pushed notifications.
 function server:process_notifications()
   -- only process when initialized
@@ -417,14 +460,60 @@ function server:process_responses()
       if not response.id then
         -- A notification, event or generic message was received
         self:send_message_signal(response)
-      else
+      elseif response.result then
         -- An actual request response was received
         self:send_response_signal(response)
+      else
+        -- The server is making a request
+        self:send_request_signal(response)
       end
     end
   end
 
   return responses
+end
+
+--- Sends the pushed client responses to server.
+function server:process_client_responses()
+  -- only process when server initialized
+  if not self.initialized then
+    return
+  end
+
+  for index, response in ipairs(self.response_list) do
+    local message = {
+      jsonrpc = '2.0',
+      id = response.id
+    }
+
+    if response.result then
+      message.result = response.result
+    else
+      message.error = response.error
+    end
+
+    local data = json.encode(message)
+
+    if self.verbose then
+        self:log("Sending client response '%s'", util.jsonprettify(data))
+    end
+
+    local written = self:write_request(data, 0)
+
+    if self.verbose then
+      if not written or written < 0 then
+        self:log(
+          "Failed sending client response '%s' - '%s'",
+          response.id,
+          util.jsonprettify(data)
+        )
+      end
+    end
+
+    if written and written > 0 then
+      table.remove(self.response_list, index)
+    end
+  end
 end
 
 --- Along with process_requests() and process_responses() this one should
@@ -472,6 +561,24 @@ function server:push_request(method, params, callback)
     callback = callback or nil,
     sent = false
   }
+end
+
+--- Add a client response to a server request.
+function server:push_response(method, id, result, error)
+  if self.verbose then
+    self:log("Adding response %s to %s", tostring(id), tostring(method))
+  end
+
+  -- Store the response for later processing on loop
+  self.response_list[id] = {
+    id = id
+  }
+
+  if result then
+    self.response_list[id].result = result
+  else
+    self.response_list[id].error = error
+  end
 end
 
 --- Retrieve a request and removes it from the internal requests list
@@ -696,6 +803,53 @@ function server:on_response(response)
       util.jsonprettify(json.encode(response))
     )
   end
+end
+
+--- Register a request handler
+-- @param method The name of method, eg: "workspace/configuration"
+-- @param callback A function with parameters (server, request)
+function server:add_request_listener(method, callback)
+  if self.verbose then
+    self:log(
+      "Registering listener for '%s' requests",
+      method
+    )
+  end
+  self.request_listeners[method] = callback
+end
+
+--- Call an apropriate signal handler for a given request.
+-- @param request A request object sent by server.
+function server:send_request_signal(request)
+  if self.request_listeners[request.method] then
+    self.request_listeners[request.method](
+      self, request
+    )
+  else
+    self:on_request(request)
+  end
+end
+
+--- Called for each request that doesn't has a signal handler.
+-- @param request Table with data as received from server
+function server:on_request(request)
+  if self.verbose then
+    self:log(
+      "Recieved request '%s' with data '%s'",
+      request.method,
+      util.jsonprettify(json.encode(request))
+    )
+  end
+
+  self:push_response(
+    request.method,
+    request.id,
+    nil,
+    {
+      code = server.error_code.MethodNotFound,
+      message = "Method not found"
+    }
+  )
 end
 
 --- Register a specialized message or notification listener.
