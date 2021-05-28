@@ -43,3 +43,54 @@ lsp.add_server {
   },
   verbose = true
 }
+
+lsp.add_server {
+  name = "lua-language-server",
+  language = "lua",
+  file_patterns = {"%.lua$"},
+  command = {
+    "/path/to/lua-language-server/bin/Linux/lua-language-server",
+    "-E",
+    "/path/to/lua-language-server/main.lua"
+  },
+  verbose = true,
+  settings = {
+    Lua = {
+      completion = {
+        enable = true,
+        keywordSnippet = "Disable"
+      },
+      develop = {
+        enable = false,
+        debuggerPor = 11412,
+        debuggerWait = false
+      },
+      diagnostics = {
+        enable = true,
+      },
+      hover = {
+        enable = true,
+        viewNumber = true,
+        viewString = true,
+        viewStringMax = 1000
+      },
+      runtime = {
+        version = 'Lua 5.4',
+        path = {
+          "?.lua",
+          "?/init.lua",
+          "?/?.lua",
+          "/usr/share/5.4/?.lua",
+          "/usr/share/lua/5.4/?/init.lua"
+        }
+      },
+      signatureHelp = {
+        enable = true
+      },
+      workspace = {
+        maxPreload = 2000,
+        preloadFileSize = 1000
+      }
+    }
+  }
+}

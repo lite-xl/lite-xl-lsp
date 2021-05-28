@@ -27,6 +27,12 @@ server.error_code = {
 	lspReservedErrorRangeEnd        = -32800,
 }
 
+server.completion_trigger_Kind = {
+	Invoked = 1,
+	TriggerCharacter = 2,
+	TriggerForIncompleteCompletions = 3
+}
+
 function server.new(options)
   local srv = setmetatable(
     {
