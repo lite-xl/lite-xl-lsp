@@ -24,8 +24,24 @@ local mt = { __tostring = function(t) return t.text end }
 function autocomplete.add(t)
   local items = {}
   for text, info in pairs(t.items) do
-    info = (type(info) == "string") and info
-    table.insert(items, setmetatable({ text = text, info = info }, mt))
+    if type(info) == "table" then
+      table.insert(
+        items,
+        setmetatable(
+          {
+            text = text,
+            info = info.info,
+            desc = info.desc,  -- Description shown on item selected
+            cb = info.cb,      -- A callback called once when item is selected
+            data = info.data   -- Optional data that can be used on cb
+          },
+          mt
+        )
+      )
+    else
+      info = (type(info) == "string") and info
+      table.insert(items, setmetatable({ text = text, info = info }, mt))
+    end
   end
   autocomplete.map[t.name] =  { files = t.files or ".*", items = items }
 end
@@ -242,6 +258,39 @@ local function get_suggestions_rect(av)
     max_items * (th + style.padding.y) + style.padding.y
 end
 
+local function draw_description_box(text, av, sx, sy, sw, sh)
+  local width = 0
+
+  local lines = {}
+  for line in string.gmatch(text.."\n", "(.-)\n") do
+    width = math.max(width, style.font:get_width(line))
+    table.insert(lines, line)
+  end
+
+  local height = #lines * style.font:get_height()
+
+  -- draw background rect
+  renderer.draw_rect(
+    sx + sw + style.padding.x / 4,
+    sy,
+    width + style.padding.x * 2,
+    height + style.padding.y * 2,
+    style.background3
+  )
+
+  -- draw text
+  local lh = style.font:get_height()
+  local y = sy + style.padding.y
+  local x = sx + sw + style.padding.x / 4
+
+  for _, line in pairs(lines) do
+    common.draw_text(
+      style.font, style.text, line, "left", x + style.padding.x, y, width, lh
+    )
+    y = y + lh
+  end
+end
+
 local function draw_suggestions_box(av)
   if #suggestions <= 0 then
     return
@@ -272,6 +321,16 @@ local function draw_suggestions_box(av)
       common.draw_text(style.font, color, s.info, "right", rx, y, rw - style.padding.x, lh)
     end
     y = y + lh
+    if suggestions_idx == i then
+      if s.cb then
+        s.cb(suggestions_idx, s)
+        s.cb = nil
+        s.data = nil
+      end
+      if s.desc and #s.desc > 0 then
+        draw_description_box(s.desc, av, rx, ry, rw, rh)
+      end
+    end
   end
 
   renderer.draw_rect(rx, y, rw, 2, style.caret)
