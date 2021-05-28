@@ -23,6 +23,15 @@ function util.file_extension(filename)
   return filename
 end
 
+function util.file_exists(file_path)
+  local file = io.open(file_path, "r")
+  if file ~= nil then
+    file:close()
+    return true
+  end
+ return false
+end
+
 -- Converts the given LSP DocumentUri into a valid filename and returns it.
 -- @param uri LSP DocumentUri to convert into a filename.
 function util.tofilename(uri)

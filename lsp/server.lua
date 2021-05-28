@@ -576,15 +576,16 @@ function server:push_response(method, id, result, error)
   end
 
   -- Store the response for later processing on loop
-  self.response_list[id] = {
+  local response = {
     id = id
   }
-
   if result then
-    self.response_list[id].result = result
+    response.result = result
   else
-    self.response_list[id].error = error
+    response.error = error
   end
+
+  table.insert(self.response_list, response)
 end
 
 --- Retrieve a request and removes it from the internal requests list
@@ -827,6 +828,16 @@ end
 --- Call an apropriate signal handler for a given request.
 -- @param request A request object sent by server.
 function server:send_request_signal(request)
+  if not request.method then
+    if self.verbose and request.id then
+      self:log(
+        "Received empty response for previous request '%s'",
+        request.id
+      )
+    end
+    return
+  end
+
   if self.request_listeners[request.method] then
     self.request_listeners[request.method](
       self, request

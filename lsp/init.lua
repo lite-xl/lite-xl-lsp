@@ -4,6 +4,11 @@
 -- @copyright Jefferson Gonzalez
 -- @license MIT
 
+-- TODO Change the code to make it possible to use more than one LSP server
+-- for a single file if possible and needed, for eg:
+--   One lsp may not support goto definition but another one registered
+--   for the current document filetype may do.
+
 local core = require "core"
 local common = require "core.common"
 local config = require "core.config"
@@ -28,7 +33,7 @@ config.lsp = {}
 -- Set to a file to log all json
 config.lsp.log_file = ""
 
--- Set to true break json for more readability on the log
+-- Setting to true breaks json for more readability on the log
 config.lsp.prettify_json = false
 
 --
@@ -39,6 +44,9 @@ local lsp = {}
 lsp.servers = {}
 lsp.servers_running = {}
 
+--
+-- Private functions
+--
 local function matches_any(filename, patterns)
   for _, ptn in ipairs(patterns) do
     if filename:find(ptn) then
@@ -107,10 +115,23 @@ local function log(server, message, ...)
   core.log("["..server.name.."] " .. message, ...)
 end
 
+local function get_active_view()
+  if getmetatable(core.active_view) == DocView then
+    return core.active_view
+  end
+  return nil
+end
+
+--
+-- Public functions
+--
+
+--- Register an LSP server to be launched on demand
 function lsp.add_server(server)
   lsp.servers[server.name] = server
 end
 
+--- Get valid running lsp servers for a given filename
 function lsp.get_active_servers(filename)
   local servers = {}
   for name, server in pairs(lsp.servers) do
@@ -123,6 +144,10 @@ function lsp.get_active_servers(filename)
   return servers
 end
 
+--- Start all applicable lsp servers for a given file.
+-- TODO Update workspace folders of already running lsp servers if required
+-- TODO figure a way to check if the server command exists before trying to
+-- execute it and if not exists warn the user
 function lsp.start_server(filename, project_directory)
   for name, server in pairs(lsp.servers) do
     if matches_any(filename, server.file_patterns) then
@@ -132,7 +157,7 @@ function lsp.start_server(filename, project_directory)
 
         lsp.servers_running[name] = client
 
-        -- we overwrite the default log function
+        -- We overwrite the default log function to log messages on lite
         function client:log(message, ...)
           core.log_quiet(
             "[LSP/%s]: " .. message .. "\n",
@@ -141,6 +166,46 @@ function lsp.start_server(filename, project_directory)
           )
         end
 
+        -- Respond to workspace/configuration request with:
+        -- 1. settings table if given to server,
+        -- 2. or content of settings.json if exits,
+        -- 3. or table returned on settings.lua if exists
+        -- 4. or finally respond with method not found
+        client:add_request_listener("workspace/configuration", function(server, request)
+          local settings = nil
+          local project_path = server.path .. PATHSEP
+          if type(server.settings) == "table" then
+            settings = server.settings
+          elseif Util.file_exists(project_path .. "settings.json") then
+            local file = io.open(project_path .. "settings.json", "r")
+            local settings_json = file:read("*a")
+            settings_json = Json.decode(settings_json)
+            if settings_json then
+              settings = settings_json
+            end
+          elseif Util.file_exists(project_path .. "settings.lua") then
+            local settings_lua = require(project_path .. "settings.lua")
+            if type(settings_lua) == "table" then
+              settings = settings_lua
+            end
+          end
+
+          if settings then
+            server:push_response(request.method, request.id, settings)
+          else
+            server:push_response(
+              request.method,
+              request.id,
+              nil,
+              {
+                code = server.error_code.MethodNotFound,
+                message = "Method not found"
+              }
+            )
+          end
+        end)
+
+        -- Display server messages on lite UI
         client:add_message_listener("window/logMessage", function(server, params)
           if core.log then
             core.log("["..server.name.."] " .. params.message)
@@ -148,6 +213,9 @@ function lsp.start_server(filename, project_directory)
           end
         end)
 
+        -- Send settings table after initialization if available.
+        -- TODO Apply same logic as on 'workspace/configuration' request
+        -- Setup some autocompletion triggers if possible
         client:add_event_listener("initialized", function(server, ...)
           core.log("["..server.name.."] " .. "Initialized")
           if server.settings then
@@ -225,12 +293,14 @@ function lsp.start_server(filename, project_directory)
           end
         end)
 
+        -- Start the server initialization process
         client:initialize(project_directory, "Lite XL", VERSION)
       end
     end
   end
 end
 
+--- Send notification to applicable LSP servers that a document was opened
 function lsp.open_document(doc)
   lsp.start_server(doc.filename, core.project_dir)
 
@@ -255,6 +325,7 @@ function lsp.open_document(doc)
   end
 end
 
+--- Send notification to applicable LSP servers that a document was saved
 function lsp.save_document(doc)
   local active_servers = lsp.get_active_servers(doc.filename)
   if #active_servers > 0 then
@@ -275,6 +346,7 @@ function lsp.save_document(doc)
   end
 end
 
+--- Send notification to applicable LSP servers that a document was closed
 function lsp.close_document(doc)
   local active_servers = lsp.get_active_servers(doc.filename)
   if #active_servers > 0 then
@@ -293,6 +365,10 @@ function lsp.close_document(doc)
   end
 end
 
+--- Callback given to autocomplete plugin which is executed once for each
+-- element of the autocomplete box which is selected with the idea of providing
+-- better description of the selected element by requesting an LSP server for
+-- detailed information.
 function lsp.request_item_resolve(index, item)
   local completion_item = item.data.completion_item
   item.data.server:push_request(
@@ -302,13 +378,14 @@ function lsp.request_item_resolve(index, item)
       if response.result then
         local symbol = response.result
         -- TODO overwrite the item.desc to show documentation of
-        -- symbol is available but nothing seems to be returned,
-        -- maybe some missing initialization option?
+        -- symbol if available, but nothing seems to be returned
+        -- by tested LSP's, maybe some missing initialization option?
       end
     end
   )
 end
 
+--- Send to applicable LSP servers a request for code completion
 function lsp.request_completion(doc, line, col)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     lsp.servers_running[name]:push_notification(
@@ -457,6 +534,8 @@ function lsp.request_completion(doc, line, col)
   end
 end
 
+--- Send to applicable LSP servers a request for info about a function
+-- signatures and display them on a tooltip.
 function lsp.request_signature(doc, line, col, forced)
   local char = doc:get_char(line, col-1)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
@@ -507,6 +586,8 @@ function lsp.request_signature(doc, line, col, forced)
   end
 end
 
+--- Sends a request to applicable LSP servers for information about the
+-- symbol where the cursor is placed and shows it on a tooltip.
 function lsp.request_hover(doc, line, col)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
@@ -544,6 +625,8 @@ function lsp.request_hover(doc, line, col)
   end
 end
 
+--- Request a list of symbols for the given document for easy document
+-- navigation and displays them using core.command_view:enter()
 function lsp.request_document_symbols(doc)
   local servers_found = false
   local symbols_retrieved = false
@@ -611,6 +694,8 @@ function lsp.request_document_symbols(doc)
   end
 end
 
+--- Jumps to the definition or implementation of the symbol where the cursor
+-- is placed if the LSP server supports it
 function lsp.goto_symbol(doc, line, col, implementation)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
@@ -699,13 +784,6 @@ core.add_thread(function()
   end
 end)
 
-local function get_active_view()
-  if getmetatable(core.active_view) == DocView then
-    return core.active_view
-  end
-  return nil
-end
-
 --
 -- Events patching
 --
@@ -744,6 +822,10 @@ RootView.on_text_input = function(...)
     local line1, col1, line2, col2 = av.doc:get_selection()
 
     if line1 == line2 and col1 == col2 then
+      -- TODO this should be moved to another function that checks
+      -- if current character should trigger a signature and if no signature
+      -- was returned then trigger regular code completion. This may fix
+      -- issues with some lsp servers and make the requests sequence better.
       lsp.request_completion(av.doc, line1, col1)
       lsp.request_signature(av.doc, line1, col1)
     end
