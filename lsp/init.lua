@@ -585,10 +585,14 @@ function lsp.goto_symbol(doc, line, col, implementation)
         -- Open first matching result and goto the line
         core.root_view:open_doc(
           core.open_doc(
-            common.home_expand(Util.tofilename(location.uri))
+            common.home_expand(
+              Util.tofilename(location.uri or location.targetUri)
+            )
           )
         )
-        local line1, col1 = Util.toselection(location.range)
+        local line1, col1 = Util.toselection(
+          location.range or location.targetRange
+        )
         core.active_view.doc:set_selection(line1, col1, line1, col1)
       end
     )
