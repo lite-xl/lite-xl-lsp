@@ -198,6 +198,16 @@ function listbox.add(elements)
   settings.items = items
 end
 
+function listbox.clear()
+  settings.items = {}
+  settings.selected_item_idx = 1
+  settings.shown_items = {}
+end
+
+function listbox.append(element)
+  table.insert(settings.items, setmetatable(element, mt))
+end
+
 function listbox.show_text(text)
   local active_view = get_active_view()
   settings.last_line, settings.last_col = active_view.doc:get_selection()
@@ -222,6 +232,10 @@ function listbox.show_list(items, callback)
 
   if items and #items > 0 then
     listbox.add(items)
+  end
+
+  if callback then
+    settings.callback = callback
   end
 
   if settings.items and #settings.items > 0 then
@@ -289,6 +303,8 @@ command.add(predicate, {
       if settings.callback then
         settings.callback(doc, item)
       end
+
+      listbox.hide()
     end
   end,
 
@@ -319,7 +335,7 @@ command.add(predicate, {
 -- Keymaps
 --
 keymap.add {
-  ["return"] = "listbox:select",
+  ["tab"]    = "listbox:select",
   ["up"]     = "listbox:previous",
   ["down"]   = "listbox:next",
   ["escape"] = "listbox:cancel",

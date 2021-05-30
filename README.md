@@ -60,10 +60,10 @@ lsp.add_server {
 * More improvements to autocomplete.lua plugin (Done?)
 * Add hover support for function arguments (partially)
   * Add custom tooltip that accents active parameter and signature
-* Add hover support for symbols (Done?)
+* Add hover support for symbols (Done)
 * Generate list of current document symbols for easy document navigation (Done?)
-* Goto definition (Partially)
-  * Display select box when more than one result
+* Goto definition (Done)
+  * Display select box when more than one result (Done)
 * Figure out how to get an autocompletion item full documentation with
 'completionItem/resolve' or any other in order to better populate
 the new autocomplete item description

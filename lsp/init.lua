@@ -122,13 +122,49 @@ local function get_active_view()
   return nil
 end
 
+--- Open a document location returned by LSP
+local function goto_location(location)
+  core.root_view:open_doc(
+    core.open_doc(
+      common.home_expand(
+        Util.tofilename(location.uri or location.targetUri)
+      )
+    )
+  )
+  local line1, col1 = Util.toselection(
+    location.range or location.targetRange
+  )
+  core.active_view.doc:set_selection(line1, col1, line1, col1)
+end
+
 --
 -- Public functions
 --
 
 --- Register an LSP server to be launched on demand
 function lsp.add_server(server)
+  local required_fields = {
+    "name", "language", "file_patterns", "command"
+  }
+
+  for _, field in pairs(required_fields) do
+    if not server[field] then
+      core.error(
+        "[LSP] You need to provide a '%s' field for the server.",
+        field
+      )
+      return false
+    end
+  end
+
+  if #server.command <= 0 then
+    core.error("[LSP] Provide a command table list with the lsp command.")
+    return false
+  end
+
   lsp.servers[server.name] = server
+
+  return true
 end
 
 --- Get valid running lsp servers for a given filename
@@ -144,14 +180,51 @@ function lsp.get_active_servers(filename)
   return servers
 end
 
+function lsp.get_workspace_settings(server)
+  if not server.path then
+    return nil
+  end
+  local settings = nil
+  local project_path = server.path .. PATHSEP
+  if type(server.settings) == "table" then
+    settings = server.settings
+  elseif Util.file_exists(project_path .. "settings.json") then
+    local file = io.open(project_path .. "settings.json", "r")
+    local settings_json = file:read("*a")
+    settings_json = Json.decode(settings_json)
+    if settings_json then
+      settings = settings_json
+    end
+  elseif Util.file_exists(project_path .. "settings.lua") then
+    local settings_lua = require(project_path .. "settings.lua")
+    if type(settings_lua) == "table" then
+      settings = settings_lua
+    end
+  end
+  return settings
+end
+
 --- Start all applicable lsp servers for a given file.
 -- TODO Update workspace folders of already running lsp servers if required
--- TODO figure a way to check if the server command exists before trying to
--- execute it and if not exists warn the user
 function lsp.start_server(filename, project_directory)
+  local server_started = false
+  local server_registered = false
+  local servers_not_found = {}
   for name, server in pairs(lsp.servers) do
     if matches_any(filename, server.file_patterns) then
-      if not lsp.servers_running[name] then
+      server_registered = true
+      if lsp.servers_running[name] then
+        server_started = true
+      end
+
+      local command_exists = false
+      if Util.command_exists(server.command[1]) then
+        command_exists = true
+      else
+        table.insert(servers_not_found, name)
+      end
+
+      if not lsp.servers_running[name] and command_exists then
         core.log("[LSP] starting " .. name)
         local client = Server.new(server)
 
@@ -172,23 +245,7 @@ function lsp.start_server(filename, project_directory)
         -- 3. or table returned on settings.lua if exists
         -- 4. or finally respond with method not found
         client:add_request_listener("workspace/configuration", function(server, request)
-          local settings = nil
-          local project_path = server.path .. PATHSEP
-          if type(server.settings) == "table" then
-            settings = server.settings
-          elseif Util.file_exists(project_path .. "settings.json") then
-            local file = io.open(project_path .. "settings.json", "r")
-            local settings_json = file:read("*a")
-            settings_json = Json.decode(settings_json)
-            if settings_json then
-              settings = settings_json
-            end
-          elseif Util.file_exists(project_path .. "settings.lua") then
-            local settings_lua = require(project_path .. "settings.lua")
-            if type(settings_lua) == "table" then
-              settings = settings_lua
-            end
-          end
+          local settings = lsp.get_workspace_settings(server)
 
           if settings then
             server:push_response(request.method, request.id, settings)
@@ -214,14 +271,14 @@ function lsp.start_server(filename, project_directory)
         end)
 
         -- Send settings table after initialization if available.
-        -- TODO Apply same logic as on 'workspace/configuration' request
         -- Setup some autocompletion triggers if possible
         client:add_event_listener("initialized", function(server, ...)
           core.log("["..server.name.."] " .. "Initialized")
-          if server.settings then
+          local settings = lsp.get_workspace_settings(server)
+          if settings then
             server:push_request(
               "workspace/didChangeConfiguration",
-              {settings = server.settings},
+              {settings = settings},
               function(server, response)
                 if server.verbose then
                   server:log(
@@ -298,6 +355,15 @@ function lsp.start_server(filename, project_directory)
       end
     end
   end
+
+  if server_registered and not server_started then
+    for _, server in pairs(servers_not_found) do
+      core.error(
+        "[LSP] servers registered but not installed: %s",
+        table.concat(servers_not_found, ", ")
+      )
+    end
+  end
 end
 
 --- Send notification to applicable LSP servers that a document was opened
@@ -365,6 +431,27 @@ function lsp.close_document(doc)
   end
 end
 
+--- Send document updates to applicable running LSP servers.
+function lsp.update_document(doc)
+  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+    lsp.servers_running[name]:push_notification(
+      'textDocument/didChange',
+      {
+        textDocument = {
+          uri = Util.touri(system.absolute_path(doc.filename)),
+          version = doc.clean_change_id,
+        },
+        contentChanges = {
+          {
+            text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+          }
+        },
+        syncKind = 1
+      }
+    )
+  end
+end
+
 --- Callback given to autocomplete plugin which is executed once for each
 -- element of the autocomplete box which is selected with the idea of providing
 -- better description of the selected element by requesting an LSP server for
@@ -388,22 +475,6 @@ end
 --- Send to applicable LSP servers a request for code completion
 function lsp.request_completion(doc, line, col)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
-    lsp.servers_running[name]:push_notification(
-      'textDocument/didChange',
-      {
-        textDocument = {
-          uri = Util.touri(system.absolute_path(doc.filename)),
-          version = doc.clean_change_id,
-        },
-        contentChanges = {
-          {
-            text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
-          }
-        },
-        syncKind = 1
-      }
-    )
-
     if
       lsp.servers_running[name].capabilities
       and
@@ -536,7 +607,7 @@ end
 
 --- Send to applicable LSP servers a request for info about a function
 -- signatures and display them on a tooltip.
-function lsp.request_signature(doc, line, col, forced)
+function lsp.request_signature(doc, line, col, forced, fallback)
   local char = doc:get_char(line, col-1)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
@@ -578,10 +649,14 @@ function lsp.request_signature(doc, line, col, forced)
               text = text .. signature.label .. "\n"
             end
             listbox.show_text(text:gsub("\n$", ""))
+          elseif fallback then
+            fallback(doc, line, col)
           end
         end
       )
       break
+    elseif fallback then
+      fallback(doc, line, col)
     end
   end
 end
@@ -657,13 +732,7 @@ function lsp.request_document_symbols(doc)
                     local line1, col1 = Util.toselection(symbol.range)
                     doc:set_selection(line1, col1, line1, col1)
                   else
-                    core.root_view:open_doc(
-                      core.open_doc(
-                        common.home_expand(Util.tofilename(symbol.uri))
-                      )
-                    )
-                    local line1, col1 = Util.toselection(symbol.range)
-                    core.active_view.doc:set_selection(line1, col1, line1, col1)
+                    goto_location(symbol)
                   end
                 end
               end,
@@ -725,6 +794,9 @@ function lsp.goto_symbol(doc, line, col, implementation)
       end
     end
 
+    -- Send document updates first
+    lsp.update_document(doc)
+
     server:push_request(
       "textDocument/" .. method,
       get_buffer_position_params(doc, line, col),
@@ -736,25 +808,29 @@ function lsp.goto_symbol(doc, line, col, implementation)
           return
         end
 
-        -- TODO display a box showing different definition points to go
-        if not location.uri then
-          if #location >= 1 then
+        if not location.uri and #location > 1 then
+          listbox.clear()
+          for _, loc in pairs(location) do
+            local line1, col1, line2, col2 = Util.toselection(loc.range)
+            local result = core.open_doc(Util.tofilename(loc.uri))
+            local filename = Util.tofilename(loc.uri):gsub(core.project_dir, "")
+            listbox.append {
+              text = result:get_text(line1, 1, line1, math.huge)
+                :gsub("^%s+", "")
+                :gsub("%s+$", ""),
+              info = filename .. ":" .. tostring(line1) .. ":" .. tostring(col1),
+              location = loc
+            }
+          end
+          listbox.show_list(nil, function(doc, item)
+            goto_location(item.location)
+          end)
+        else
+          if not location.uri then
             location = location[1]
           end
+          goto_location(location)
         end
-
-        -- Open first matching result and goto the line
-        core.root_view:open_doc(
-          core.open_doc(
-            common.home_expand(
-              Util.tofilename(location.uri or location.targetUri)
-            )
-          )
-        )
-        local line1, col1 = Util.toselection(
-          location.range or location.targetRange
-        )
-        core.active_view.doc:set_selection(line1, col1, line1, col1)
       end
     )
   end
@@ -821,13 +897,19 @@ RootView.on_text_input = function(...)
   if av then
     local line1, col1, line2, col2 = av.doc:get_selection()
 
+    -- Send update to lsp servers
+    lsp.update_document(av.doc)
+
     if line1 == line2 and col1 == col2 then
-      -- TODO this should be moved to another function that checks
-      -- if current character should trigger a signature and if no signature
-      -- was returned then trigger regular code completion. This may fix
-      -- issues with some lsp servers and make the requests sequence better.
-      lsp.request_completion(av.doc, line1, col1)
-      lsp.request_signature(av.doc, line1, col1)
+      -- First try to display a function signatures and if not possible
+      -- do normal code autocomplete
+      lsp.request_signature(
+        av.doc,
+        line1,
+        col1,
+        false,
+        lsp.request_completion
+      )
     end
   end
 end

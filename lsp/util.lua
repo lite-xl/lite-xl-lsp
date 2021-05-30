@@ -115,5 +115,27 @@ function util.intable(value, table_array)
   return false
 end
 
+function util.command_exists(command)
+  local path_list = {}
+
+  if PLATFORM ~= "Windows" then
+    path_list = util.split(os.getenv("PATH"), ":")
+  else
+    path_list = util.split(os.getenv("PATH"), ";")
+  end
+
+  for _, path in pairs(path_list) do
+    if util.file_exists(path .. PATHSEP .. command) then
+      return true
+    end
+  end
+
+  if util.file_exists(command) then
+    return true
+  end
+
+  return false
+end
+
 
 return util
