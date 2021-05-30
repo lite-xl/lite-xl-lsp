@@ -94,3 +94,6 @@ Some images to easily visualize the progress :)
 ### Document symbols
 ![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/docsym01.png)
 ![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/docsym02.png)
+
+### Goto definition
+![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/gotodef01.png)
