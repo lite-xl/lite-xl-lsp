@@ -8,20 +8,32 @@ local keymap = require "core.keymap"
 local translate = require "core.doc.translate"
 local RootView = require "core.rootview"
 local DocView = require "core.docview"
+local Doc = require "core.doc"
 
+-- Amount of characters that need to be written for autocomplete
 config.autocomplete_min_len = 1
+-- The max amount of visible items
 config.autocomplete_max_height = 6
+-- The max amount of scrollable items
 config.autocomplete_max_suggestions = 100
+-- Maximum amount of symbols to cache per document
+config.max_symbols = 2000
 
 local autocomplete = {}
 
 autocomplete.map = {}
-autocomplete.triggers = {}
+autocomplete.map_manually = {}
+autocomplete.on_close = nil
 
+-- Flag that indicates if the autocomplete box was manually triggered
+-- with the autocomplete.complete() function to prevent the suggestions
+-- from getting cluttered with arbitrary document symbols by using the
+-- autocomplete.map_manually table.
+local triggered_manually = false
 
 local mt = { __tostring = function(t) return t.text end }
 
-function autocomplete.add(t)
+function autocomplete.add(t, triggered_manually)
   local items = {}
   for text, info in pairs(t.items) do
     if type(info) == "table" then
@@ -43,30 +55,18 @@ function autocomplete.add(t)
       table.insert(items, setmetatable({ text = text, info = info }, mt))
     end
   end
-  autocomplete.map[t.name] =  { files = t.files or ".*", items = items }
-end
 
-function autocomplete.add_trigger(trigger)
-  if not autocomplete.triggers[trigger.name] then
-    autocomplete.triggers[trigger.name] = {
-      characters = trigger.characters,
-      file_patterns = trigger.file_patterns
-    }
+  if not triggered_manually then
+    autocomplete.map[t.name] =  { files = t.files or ".*", items = items }
   else
-    for _,value in trigger.characters do
-      if not in_table(value, autocomplete.triggers[trigger.name].characters) then
-        table.insert(autocomplete.triggers[trigger.name].characters, value)
-      end
-    end
-    for _,value in trigger.file_patterns do
-      if not in_table(value, autocomplete.triggers[trigger.name].file_patterns) then
-        table.insert(autocomplete.triggers[trigger.name].file_patterns, value)
-      end
-    end
+    autocomplete.map_manually[t.name] =  { files = t.files or ".*", items = items }
   end
 end
 
-local max_symbols = config.max_symbols or 2000
+--
+-- Thread that scans open document symbols and cache them
+--
+local max_symbols = config.max_symbols
 
 core.add_thread(function()
   local cache = setmetatable({}, { __mode = "k" })
@@ -149,6 +149,14 @@ local last_line, last_col
 local function reset_suggestions()
   suggestions_idx = 1
   suggestions = {}
+
+  triggered_manually = false
+
+  local doc = core.active_view.doc
+  if autocomplete.on_close then
+    autocomplete.on_close(doc, suggestions[suggestions_idx])
+    autocomplete.on_close = nil
+  end
 end
 
 local function in_table(value, table_array)
@@ -165,9 +173,15 @@ local function update_suggestions()
   local doc = core.active_view.doc
   local filename = doc and doc.filename or ""
 
+  local map = autocomplete.map
+
+  if triggered_manually then
+    map = autocomplete.map_manually
+  end
+
   -- get all relevant suggestions for given filename
   local items = {}
-  for _, v in pairs(autocomplete.map) do
+  for _, v in pairs(map) do
     if common.match_pattern(filename, v.files) then
       for _, item in pairs(v.items) do
         table.insert(items, item)
@@ -192,22 +206,6 @@ local function get_partial_symbol()
   local line2, col2 = doc:get_selection()
   local line1, col1 = doc:position_offset(line2, col2, translate.start_of_word)
   return doc:get_text(line1, col1, line2, col2)
-end
-
-local function get_trigger()
-  local doc = core.active_view.doc
-  local line, col = doc:get_selection()
-  local character = doc:get_char(line, col-1)
-
-  for name, data in pairs(autocomplete.triggers) do
-    if common.match_pattern(doc.filename, data.file_patterns) then
-      if in_table(character, data.characters) then
-        return character
-      end
-    end
-  end
-
-  return ""
 end
 
 local function get_active_view()
@@ -357,19 +355,19 @@ local function show_autocomplete()
     -- update partial symbol and suggestions
     partial = get_partial_symbol()
 
-    local is_trigger = false
-    if #partial <= 0 then
-      partial = get_trigger()
-      if #partial > 0 then
-        partial = ""
-        is_trigger = true
-        reset_suggestions()
-      end
-    end
-
-    if #partial >= config.autocomplete_min_len or is_trigger then
+    if #partial >= config.autocomplete_min_len or triggered_manually then
       update_suggestions()
-      last_line, last_col = av.doc:get_selection()
+
+      if not triggered_manually then
+        last_line, last_col = av.doc:get_selection()
+      else
+        local line, col = av.doc:get_selection()
+        local char = av.doc:get_char(line, col-1, line, col-1)
+
+        if char:match("%s") or (char:match("%p") and col ~= last_col) then
+          reset_suggestions()
+        end
+      end
     else
       reset_suggestions()
     end
@@ -383,15 +381,29 @@ local function show_autocomplete()
   end
 end
 
--- patch event logic into RootView
+--
+-- Patch event logic into RootView and Doc
+--
 local on_text_input = RootView.on_text_input
+local on_text_remove = Doc.remove
 local update = RootView.update
 local draw = RootView.draw
 
 RootView.on_text_input = function(...)
   on_text_input(...)
-
   show_autocomplete()
+end
+
+Doc.remove = function(self, line1, col1, line2, col2)
+  on_text_remove(self, line1, col1, line2, col2)
+
+  if triggered_manually and line1 == line2 then
+    if last_col >= col1 then
+      reset_suggestions()
+    else
+      show_autocomplete()
+    end
+  end
 end
 
 RootView.update = function(...)
@@ -401,8 +413,15 @@ RootView.update = function(...)
   if av then
     -- reset suggestions if caret was moved
     local line, col = av.doc:get_selection()
-    if line ~= last_line or col ~= last_col then
-      reset_suggestions()
+
+    if not triggered_manually then
+      if line ~= last_line or col ~= last_col then
+        reset_suggestions()
+      end
+    else
+      if line ~= last_line or col < last_col then
+        reset_suggestions()
+      end
     end
   end
 end
@@ -417,16 +436,36 @@ RootView.draw = function(...)
   end
 end
 
-function autocomplete.complete(completions)
-  reset_suggestions()
-  autocomplete.map = {}
-  autocomplete.add(completions)
+--
+-- Public functions
+--
+function autocomplete.open(on_close)
+  triggered_manually = true
+  
+  if on_close then
+    autocomplete.on_close = on_close
+  end
 
-  show_autocomplete()
+  local av = get_active_view()
+  last_line, last_col = av.doc:get_selection()
+  update_suggestions()
+end
+
+function autocomplete.close()
+  reset_suggestions()
 end
 
 function autocomplete.is_open()
   return #suggestions > 0
+end
+
+function autocomplete.complete(completions, on_close)
+  reset_suggestions()
+
+  autocomplete.map_manually = {}
+  autocomplete.add(completions, true)
+
+  autocomplete.open(on_close)
 end
 
 

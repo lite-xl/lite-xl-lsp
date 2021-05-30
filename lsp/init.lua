@@ -44,6 +44,12 @@ local lsp = {}
 lsp.servers = {}
 lsp.servers_running = {}
 
+-- Flag that indicates if last autocomplete request was a trigger
+-- to prevent requesting another autocompletion request until the
+-- autocomplete box is hidden since some lsp servers loose context
+-- and return wrong results (eg: lua-language-server)
+lsp.in_trigger = false
+
 --
 -- Private functions
 --
@@ -271,7 +277,6 @@ function lsp.start_server(filename, project_directory)
         end)
 
         -- Send settings table after initialization if available.
-        -- Setup some autocompletion triggers if possible
         client:add_event_listener("initialized", function(server, ...)
           core.log("["..server.name.."] " .. "Initialized")
           local settings = lsp.get_workspace_settings(server)
@@ -288,65 +293,6 @@ function lsp.start_server(filename, project_directory)
                 end
               end
             )
-          end
-          if server.capabilities then
-            if
-              server.capabilities.completionProvider
-              and
-              server.capabilities.completionProvider.triggerCharacters
-            then
-              if server.verbose then
-                server:log(
-                  "Adding triggers for '%s' - %s",
-                  server.language,
-                  table.concat(
-                    server.capabilities
-                      .completionProvider.triggerCharacters,
-                    ", "
-                  )
-                )
-              end
-
-              -- Don't include signature trigger characters as part of code
-              -- auto completion to prevent issues with some lsp servers
-              -- like lua-language-server
-              local signature_chars = {}
-              if
-                server.capabilities.signatureHelpProvider
-                and
-                server.capabilities.signatureHelpProvider.triggerCharacters
-                and
-                #server.capabilities.signatureHelpProvider.triggerCharacters > 0
-              then
-                signature_chars = server.capabilities
-                  .signatureHelpProvider.triggerCharacters
-              end
-
-              -- Filter autocomplete trigger characters as workaround
-              -- for lua-language-server
-              local chars = {}
-              for _, char in
-                pairs(server.capabilities.completionProvider.triggerCharacters)
-              do
-                if
-                  char == ":" -- workaround for intelephense adding this in signatures :S
-                  or
-                  (
-                    char:match("%p")
-                    and
-                    not Util.intable(char, signature_chars)
-                  )
-                then
-                  table.insert(chars, char)
-                end
-              end
-
-              autocomplete.add_trigger {
-                name = server.language,
-                file_patterns = server.file_patterns,
-                characters = chars
-              }
-            end
           end
         end)
 
@@ -474,6 +420,10 @@ end
 
 --- Send to applicable LSP servers a request for code completion
 function lsp.request_completion(doc, line, col)
+  if lsp.in_trigger then
+    return
+  end
+
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     if
       lsp.servers_running[name].capabilities
@@ -482,125 +432,120 @@ function lsp.request_completion(doc, line, col)
     then
       local capabilities = lsp.servers_running[name].capabilities
       local char = doc:get_char(line, col-1)
-      local signature_char = false
+      local trigger_char = false
 
+      local request = get_buffer_position_params(doc, line, col)
+
+      -- without providing context some language servers like the
+      -- lua-language-server behave poorly and return garbage.
       if
-        capabilities.signatureHelpProvider
+        capabilities.completionProvider.triggerCharacters
         and
-        capabilities.signatureHelpProvider.triggerCharacters
+        #capabilities.completionProvider.triggerCharacters > 0
         and
-        #capabilities.signatureHelpProvider.triggerCharacters > 0
+        char:match("%p")
         and
-        Util.intable(char, capabilities.signatureHelpProvider.triggerCharacters)
-        and
-        char ~= ":" -- work around for some lang servers (intelephense)
+        Util.intable(char, capabilities.completionProvider.triggerCharacters)
       then
-        signature_char = true
+        request.context = {
+          triggerKind = Server.completion_trigger_Kind.TriggerCharacter,
+          triggerCharacter = char
+        }
+
+        trigger_char = true;
       end
 
-      -- don't request code completion if input character was a signature
-      -- trigger character because some bad behaved language servers like
-      -- lua-language-server return a lot of garbage
-      if not signature_char and char ~= ")" then
-        local request = get_buffer_position_params(doc, line, col)
+      lsp.servers_running[name]:push_request(
+        'textDocument/completion',
+        request,
+        function(server, response)
+          if server.verbose then
+            server:log(
+              "Completion response: %s",
+              Util.jsonprettify(Json.encode(response))
+            )
+          end
 
-        -- without providing context some language servers like the
-        -- lua-language-server behave poorly and return garbage.
-        if
-          capabilities.completionProvider.triggerCharacters
-          and
-          #capabilities.completionProvider.triggerCharacters > 0
-          and
-          char:match("%p")
-          and
-          Util.intable(char, capabilities.completionProvider.triggerCharacters)
-        then
-          request.context = {
-            triggerKind = Server.completion_trigger_Kind.TriggerCharacter,
-            triggerCharacter = char
-          }
-        end
+          if not response.result then
+            return
+          end
 
-        lsp.servers_running[name]:push_request(
-          'textDocument/completion',
-          request,
-          function(server, response)
+          local result = response.result
+          local complete_result = true
+          if result.isIncomplete then
             if server.verbose then
-              server:log(
-                "Completion response: %s",
-                Util.jsonprettify(Json.encode(response))
+              core.log_quiet(
+                "["..server.name.."] " .. "Completion list incomplete"
               )
             end
+            complete_result = false
+          end
 
-            if not response.result then
-              return
+          if not result.items or #result.items <= 0 then
+            return
+          end
+
+          local symbols = {
+            name = lsp.servers_running[name].name,
+            files = lsp.servers_running[name].file_patterns,
+            items = {}
+          }
+
+          for _, symbol in ipairs(result.items) do
+            local label = symbol.label
+              or (
+                symbol.textEdit
+                and symbol.textEdit.newText
+                or symbol.insertText
+              )
+
+            local info = server.get_completion_items_kind(symbol.kind) or ""
+
+            local desc = symbol.detail or ""
+
+            -- Fix some issues as with clangd
+            if
+              symbol.label and
+              symbol.insertText and
+              #symbol.label > #symbol.insertText
+            then
+              label = symbol.insertText
+              if symbol.label ~= label then
+                desc = symbol.label
+              end
+              if symbol.detail then
+                desc = desc .. ": " .. symbol.detail
+              end
+              desc = desc .. "\n"
             end
 
-            local result = response.result
-            if result.isIncomplete then
-              if server.verbose then
-                core.log_quiet(
-                  "["..server.name.."] " .. "Completion list incomplete"
-                )
-              end
-              return
+            if symbol.documentation and symbol.documentation.value then
+              desc = desc .. "\n" .. symbol.documentation.value
             end
 
-            local symbols = {
-              name = lsp.servers_running[name].name,
-              files = lsp.servers_running[name].file_patterns,
-              items = {}
-            }
+            desc = desc:gsub("\n$", "")
 
-            for _, symbol in ipairs(result.items) do
-              local label = symbol.label
-                or (
-                  symbol.textEdit
-                  and symbol.textEdit.newText
-                  or symbol.insertText
-                )
-
-              local info = server.get_completion_items_kind(symbol.kind) or ""
-
-              local desc = symbol.detail or ""
-
-              -- Fix some issues as with clangd
-              if
-                symbol.label and
-                symbol.insertText and
-                #symbol.label > #symbol.insertText
-              then
-                label = symbol.insertText
-                if symbol.label ~= label then
-                  desc = symbol.label
-                end
-                if symbol.detail then
-                  desc = desc .. ": " .. symbol.detail
-                end
-                desc = desc .. "\n"
-              end
-
-              if symbol.documentation and symbol.documentation.value then
-                desc = desc .. "\n" .. symbol.documentation.value
-              end
-
-              desc = desc:gsub("\n$", "")
-
-              if server.capabilities.completionProvider.resolveProvider then
-                symbols.items[label] = {
-                  info = info, desc = desc,
-                  data = {server = server, completion_item = symbol},
-                  cb = lsp.request_item_resolve
-                }
-              else
-                symbols.items[label] = {info = info, desc = desc}
-              end
+            if server.capabilities.completionProvider.resolveProvider then
+              symbols.items[label] = {
+                info = info, desc = desc,
+                data = {server = server, completion_item = symbol},
+                cb = lsp.request_item_resolve
+              }
+            else
+              symbols.items[label] = {info = info, desc = desc}
             end
+          end
 
+          if trigger_char and complete_result then
+            lsp.in_trigger = true
+            autocomplete.complete(symbols, function()
+              lsp.in_trigger = false
+            end)
+          else
             autocomplete.complete(symbols)
           end
-        )
-      end
+        end
+      )
     end
   end
 end
@@ -648,6 +593,7 @@ function lsp.request_signature(doc, line, col, forced, fallback)
             for index, signature in pairs(signatures) do
               text = text .. signature.label .. "\n"
             end
+            autocomplete.close()
             listbox.show_text(text:gsub("\n$", ""))
           elseif fallback then
             fallback(doc, line, col)
