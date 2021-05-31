@@ -25,6 +25,12 @@ local Util = require "plugins.lsp.util"
 local autocomplete = require "plugins.autocomplete"
 local listbox = require "plugins.lsp.listbox"
 
+-- Try to load lintplus plugin if available for diagnostics rendering
+local lintplus = nil
+if pcall(require, "plugins.lintplus") then
+  lintplus = require "plugins.lintplus"
+end
+
 --
 -- Plugin settings
 --
@@ -273,6 +279,36 @@ function lsp.start_server(filename, project_directory)
           if core.log then
             core.log("["..server.name.."] " .. params.message)
             coroutine.yield(3)
+          end
+        end)
+
+        -- Display server messages on lite UI
+        local diagnostic_kinds = { "error", "warning", "info", "hint" }
+        client:add_message_listener("textDocument/publishDiagnostics", function(server, params)
+          if server.vebose then
+            core.log_quiet(
+              "["..server.name.."] diagnostic:  %s",
+              Util.jsonprettify(Json.encode(params.message))
+            )
+          end
+
+          if lintplus and lintplus.add_message then
+            local filename = Util.tofilename(params.uri)
+
+            if params.diagnostics and #params.diagnostics > 0 then
+              lintplus.clear_messages(filename)
+              for _, diagnostic in pairs(params.diagnostics) do
+                local line, col = Util.toselection(diagnostic.range)
+                local message = diagnostic.message
+                local kind = diagnostic_kinds[diagnostic.severity]
+                lintplus.add_message(filename, line, col, kind, message)
+              end
+            else
+              lintplus.clear_messages(filename)
+            end
+          elseif type(lintplus) == "nil" then
+            lintplus = false
+            core.error("[LSP] Please install lintplus for diagnostics.")
           end
         end)
 
@@ -646,6 +682,29 @@ function lsp.request_hover(doc, line, col)
   end
 end
 
+--- Sends a request to applicable LSP servers for information about the
+-- TODO Fully implement the symbol references request
+-- symbol where the cursor is placed and shows it on a tooltip.
+function lsp.request_references(doc, line, col)
+  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+    local server = lsp.servers_running[name]
+    if server.capabilities and server.capabilities.hoverProvider then
+      local request_params = get_buffer_position_params(doc, line, col)
+      request_params.context = {includeDeclaration = true}
+      server:push_request(
+        'textDocument/references',
+        request_params,
+        function(server, response)
+          if response.result and #response.result > 0 then
+            local locations = response.result
+          end
+        end
+      )
+      break
+    end
+  end
+end
+
 --- Request a list of symbols for the given document for easy document
 -- navigation and displays them using core.command_view:enter()
 function lsp.request_document_symbols(doc)
@@ -811,10 +870,16 @@ end)
 --
 local doc_load = Doc.load
 local doc_save = Doc.save
+local doc_undo = Doc.undo
+local doc_redo = Doc.redo
+local doc_remove = Doc.remove
 local root_view_on_text_input = RootView.on_text_input
 
 Doc.load = function(self, ...)
   local res = doc_load(self, ...)
+  if lintplus then
+    lintplus.init_doc(self.filename, self)
+  end
   core.add_thread(function()
     lsp.open_document(self)
   end)
@@ -827,6 +892,33 @@ Doc.save = function(self, ...)
     lsp.save_document(self)
   end)
   return res
+end
+
+Doc.undo = function(self, ...)
+  doc_undo(self, ...)
+  local av = get_active_view()
+  if av then
+    -- Send update to lsp servers
+    lsp.update_document(av.doc)
+  end
+end
+
+Doc.redo = function(self, ...)
+  doc_redo(self, ...)
+  local av = get_active_view()
+  if av then
+    -- Send update to lsp servers
+    lsp.update_document(av.doc)
+  end
+end
+
+Doc.remove = function(self, ...)
+  doc_remove(self, ...)
+  local av = get_active_view()
+  if av then
+    -- Send update to lsp servers
+    lsp.update_document(av.doc)
+  end
 end
 
 core.add_close_hook(function(doc)

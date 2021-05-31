@@ -33,6 +33,13 @@ server.completion_trigger_Kind = {
 	TriggerForIncompleteCompletions = 3
 }
 
+server.diagnostic_severity = {
+  Error = 1,
+  Warning = 2,
+  Information = 3,
+  Hint = 4
+}
+
 function server.new(options)
   local srv = setmetatable(
     {
@@ -143,7 +150,8 @@ function server:initialize(path, editor_name, editor_version)
           completion = {
             -- dynamicRegistration = false, -- not supported
             completionItem = {
-              -- snippetSupport = false, -- ${1:foo} format not supported
+              -- Snippets are required by css-languageserver
+              snippetSupport = true, -- ${1:foo} format not supported
               -- commitCharactersSupport = true,
               documentationFormat = {'plaintext'},
               -- deprecatedSupport = false, -- simple autocompletion list
