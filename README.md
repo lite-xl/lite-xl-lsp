@@ -65,6 +65,7 @@ lsp.add_server {
 'completionItem/resolve' or any other in order to better populate
 the new autocomplete item description
 * Show diagnostics on active document similar to the linter plugin (Done).
+* Add Snippets support.
 
 
 ## Screenshots
