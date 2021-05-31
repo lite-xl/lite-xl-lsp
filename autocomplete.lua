@@ -441,7 +441,7 @@ end
 --
 function autocomplete.open(on_close)
   triggered_manually = true
-  
+
   if on_close then
     autocomplete.on_close = on_close
   end
@@ -505,7 +505,6 @@ command.add(predicate, {
 --
 keymap.add {
   ["tab"]    = "autocomplete:complete",
-  ["return"] = "autocomplete:complete",
   ["up"]     = "autocomplete:previous",
   ["down"]   = "autocomplete:next",
   ["escape"] = "autocomplete:cancel",
