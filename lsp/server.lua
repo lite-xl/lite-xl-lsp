@@ -157,7 +157,7 @@ function server:initialize(path, editor_name, editor_version)
             -- dynamicRegistration = false, -- not supported
             completionItem = {
               -- Snippets are required by css-languageserver
-              snippetSupport = true, -- ${1:foo} format not supported
+              -- snippetSupport = true, -- ${1:foo} format not supported
               -- commitCharactersSupport = true,
               documentationFormat = {'plaintext'},
               -- deprecatedSupport = false, -- simple autocompletion list
