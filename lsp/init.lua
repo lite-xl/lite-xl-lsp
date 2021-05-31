@@ -816,9 +816,15 @@ function lsp.goto_symbol(doc, line, col, implementation)
         if not location.uri and #location > 1 then
           listbox.clear()
           for _, loc in pairs(location) do
-            local line1, col1, line2, col2 = Util.toselection(loc.range)
-            local result = core.open_doc(Util.tofilename(loc.uri))
-            local filename = Util.tofilename(loc.uri):gsub(core.project_dir, "")
+            local line1, col1, line2, col2 = Util.toselection(
+              loc.range or loc.targetRange
+            )
+            local result = core.open_doc(Util.tofilename(
+              loc.uri or loc.targetUri
+            ))
+            local filename = core.normalize_to_project_dir(
+              Util.tofilename(loc.uri or loc.targetUri)
+            )
             listbox.append {
               text = result:get_text(line1, 1, line1, math.huge)
                 :gsub("^%s+", "")
