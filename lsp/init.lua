@@ -990,10 +990,21 @@ function Doc:load(...)
 end
 
 function Doc:save(...)
+  local old_filename = self.filename
   local res = doc_save(self, ...)
-  core.add_thread(function()
-    lsp.save_document(self)
-  end)
+  if old_filename ~= self.filename then
+    -- seems to be a new document so we send open notification
+    if lintplus then
+      lintplus.init_doc(self.filename, self)
+    end
+    core.add_thread(function()
+      lsp.open_document(self)
+    end)
+  else
+    core.add_thread(function()
+      lsp.save_document(self)
+    end)
+  end
   return res
 end
 
