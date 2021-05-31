@@ -118,6 +118,10 @@ end
 function util.command_exists(command)
   local path_list = {}
 
+  if util.file_exists(command) then
+    return true
+  end
+
   if PLATFORM ~= "Windows" then
     path_list = util.split(os.getenv("PATH"), ":")
   else
@@ -128,10 +132,6 @@ function util.command_exists(command)
     if util.file_exists(path .. PATHSEP .. command) then
       return true
     end
-  end
-
-  if util.file_exists(command) then
-    return true
   end
 
   return false

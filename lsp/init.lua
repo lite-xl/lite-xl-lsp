@@ -15,13 +15,13 @@ local config = require "core.config"
 local command = require "core.command"
 local Doc = require "core.doc"
 local keymap = require "core.keymap"
-local translate = require "core.doc.translate"
 local RootView = require "core.rootview"
 local DocView = require "core.docview"
 
 local Json = require "plugins.lsp.json"
 local Server = require "plugins.lsp.server"
 local Util = require "plugins.lsp.util"
+local Diagnostics = require "plugins.lsp.diagnostics"
 local autocomplete = require "plugins.autocomplete"
 local listbox = require "plugins.lsp.listbox"
 
@@ -38,9 +38,10 @@ config.lsp = {}
 
 -- Set to a file to log all json
 config.lsp.log_file = ""
-
 -- Setting to true breaks json for more readability on the log
 config.lsp.prettify_json = false
+-- Show diagnostic messages
+config.lsp.show_diagnostics = true
 
 --
 -- Main plugin functionality
@@ -55,6 +56,9 @@ lsp.servers_running = {}
 -- autocomplete box is hidden since some lsp servers loose context
 -- and return wrong results (eg: lua-language-server)
 lsp.in_trigger = false
+
+-- Used to set proper diagnostic type on lintplus
+local diagnostic_kinds = { "error", "warning", "info", "hint" }
 
 --
 -- Private functions
@@ -147,6 +151,41 @@ local function goto_location(location)
     location.range or location.targetRange
   )
   core.active_view.doc:set_selection(line1, col1, line1, col1)
+end
+
+--- Generates a code preview of a location
+local function get_location_preview(location)
+  local line1, col1 = Util.toselection(
+    location.range or location.targetRange
+  )
+  local doc = core.open_doc(Util.tofilename(
+    location.uri or location.targetUri
+  ))
+  local filename = core.normalize_to_project_dir(
+    Util.tofilename(location.uri or location.targetUri)
+  )
+
+  local preview = doc:get_text(line1, 1, line1, math.huge)
+      :gsub("^%s+", "")
+      :gsub("%s+$", "")
+
+  local position = filename .. ":" .. tostring(line1) .. ":" .. tostring(col1)
+
+  return preview, position
+end
+
+--- Generate a list ready to use for the lsp.request_references() action.
+local function get_references_lists(locations)
+  local references, reference_names = {}, {}
+
+  for _, location in pairs(locations) do
+    local preview, position = get_location_preview(location)
+    local name = preview .. "||" .. position
+    table.insert(reference_names, name)
+    references[name] = location
+  end
+
+  return references, reference_names
 end
 
 --
@@ -283,7 +322,6 @@ function lsp.start_server(filename, project_directory)
         end)
 
         -- Display server messages on lite UI
-        local diagnostic_kinds = { "error", "warning", "info", "hint" }
         client:add_message_listener("textDocument/publishDiagnostics", function(server, params)
           if server.vebose then
             core.log_quiet(
@@ -292,21 +330,38 @@ function lsp.start_server(filename, project_directory)
             )
           end
 
-          if lintplus and lintplus.add_message then
-            local filename = Util.tofilename(params.uri)
+          local filename = Util.tofilename(params.uri)
 
-            if params.diagnostics and #params.diagnostics > 0 then
+          if params.diagnostics and #params.diagnostics > 0 then
+            Diagnostics.add(filename, params.diagnostics)
+
+            if
+              config.lsp.show_diagnostics
+              and
+              lintplus and lintplus.add_message
+            then
               lintplus.clear_messages(filename)
+
               for _, diagnostic in pairs(params.diagnostics) do
                 local line, col = Util.toselection(diagnostic.range)
                 local message = diagnostic.message
                 local kind = diagnostic_kinds[diagnostic.severity]
+
                 lintplus.add_message(filename, line, col, kind, message)
               end
-            else
+            end
+          else
+            Diagnostics.clear(filename)
+            if
+              config.lsp.show_diagnostics
+              and
+              lintplus and lintplus.add_message
+            then
               lintplus.clear_messages(filename)
             end
-          elseif type(lintplus) == "nil" then
+          end
+
+          if type(lintplus) == "nil" then
             lintplus = false
             core.error("[LSP] Please install lintplus for diagnostics.")
           end
@@ -357,7 +412,7 @@ function lsp.open_document(doc)
   if #active_servers > 0 then
     doc.disable_symbols = true
 
-    for index, name in pairs(active_servers) do
+    for _, name in pairs(active_servers) do
       lsp.servers_running[name]:push_notification(
         'textDocument/didOpen',
         {
@@ -415,7 +470,7 @@ end
 
 --- Send document updates to applicable running LSP servers.
 function lsp.update_document(doc)
-  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename)) do
     lsp.servers_running[name]:push_notification(
       'textDocument/didChange',
       {
@@ -428,9 +483,37 @@ function lsp.update_document(doc)
             text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
           }
         },
-        syncKind = 1
+        syncKind = Server.text_document_sync_kind.Full
       }
     )
+  end
+end
+
+--- Enable or disable diagnostic messages
+function lsp.toggle_diagnostics()
+  config.lsp.show_diagnostics = not config.lsp.show_diagnostics
+
+  if not config.lsp.show_diagnostics and lintplus then
+    for name, message in pairs(lintplus.messages) do
+      lintplus.clear_messages(name)
+    end
+    core.log("[LSP] Diagnostics disabled")
+  else
+    local av = get_active_view()
+    if av and av.doc and av.doc.filename then
+      local filename = system.absolute_path(av.doc.filename)
+      local diagnostics = Diagnostics.get(filename)
+      if diagnostics then
+        for _, diagnostic in pairs(diagnostics.messages) do
+          local line, col = Util.toselection(diagnostic.range)
+          local message = diagnostic.message
+          local kind = diagnostic_kinds[diagnostic.severity]
+
+          lintplus.add_message(filename, line, col, kind, message)
+        end
+      end
+    end
+    core.log("[LSP] Diagnostics enabled")
   end
 end
 
@@ -682,11 +765,9 @@ function lsp.request_hover(doc, line, col)
   end
 end
 
---- Sends a request to applicable LSP servers for information about the
--- TODO Fully implement the symbol references request
--- symbol where the cursor is placed and shows it on a tooltip.
+--- Sends a request to applicable LSP servers for a symbol references
 function lsp.request_references(doc, line, col)
-  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
     if server.capabilities and server.capabilities.hoverProvider then
       local request_params = get_buffer_position_params(doc, line, col)
@@ -696,12 +777,35 @@ function lsp.request_references(doc, line, col)
         request_params,
         function(server, response)
           if response.result and #response.result > 0 then
-            local locations = response.result
+            local references, reference_names = get_references_lists(response.result)
+            core.command_view:enter("Filter References",
+              function(text, item)
+                if item then
+                  local reference = references[item.name]
+                    goto_location(reference)
+                end
+              end,
+              function(text)
+                local res = common.fuzzy_match(reference_names, text)
+                for i, name in ipairs(res) do
+                  local reference_info = Util.split(name, "||")
+                  res[i] = {
+                    text = reference_info[1],
+                    info = reference_info[2],
+                    name = name
+                  }
+                end
+                return res
+              end
+            )
+          else
+            log(server, "No references found.")
           end
         end
       )
       break
     end
+    break
   end
 end
 
@@ -710,7 +814,7 @@ end
 function lsp.request_document_symbols(doc)
   local servers_found = false
   local symbols_retrieved = false
-  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename)) do
     servers_found = true
     local server = lsp.servers_running[name]
     if server.capabilities and server.capabilities.documentSymbolProvider then
@@ -816,20 +920,10 @@ function lsp.goto_symbol(doc, line, col, implementation)
         if not location.uri and #location > 1 then
           listbox.clear()
           for _, loc in pairs(location) do
-            local line1, col1, line2, col2 = Util.toselection(
-              loc.range or loc.targetRange
-            )
-            local result = core.open_doc(Util.tofilename(
-              loc.uri or loc.targetUri
-            ))
-            local filename = core.normalize_to_project_dir(
-              Util.tofilename(loc.uri or loc.targetUri)
-            )
+            local preview, position = get_location_preview(loc)
             listbox.append {
-              text = result:get_text(line1, 1, line1, math.huge)
-                :gsub("^%s+", "")
-                :gsub("%s+$", ""),
-              info = filename .. ":" .. tostring(line1) .. ":" .. tostring(col1),
+              text = preview,
+              info = position,
               location = loc
             }
           end
@@ -881,18 +975,21 @@ local doc_redo = Doc.redo
 local doc_remove = Doc.remove
 local root_view_on_text_input = RootView.on_text_input
 
-Doc.load = function(self, ...)
+function Doc:load(...)
   local res = doc_load(self, ...)
-  if lintplus then
-    lintplus.init_doc(self.filename, self)
+  -- skip new files
+  if self.filename then
+    if lintplus then
+      lintplus.init_doc(self.filename, self)
+    end
+    core.add_thread(function()
+      lsp.open_document(self)
+    end)
   end
-  core.add_thread(function()
-    lsp.open_document(self)
-  end)
   return res
 end
 
-Doc.save = function(self, ...)
+function Doc:save(...)
   local res = doc_save(self, ...)
   core.add_thread(function()
     lsp.save_document(self)
@@ -900,17 +997,25 @@ Doc.save = function(self, ...)
   return res
 end
 
-Doc.undo = function(self, ...)
+function Doc:undo(...)
   doc_undo(self, ...)
+
+  -- skip new files
+  if not self.filename then return end
+
   local av = get_active_view()
-  if av then
+  if av and av.doc then
     -- Send update to lsp servers
     lsp.update_document(av.doc)
   end
 end
 
-Doc.redo = function(self, ...)
+function Doc:redo(...)
   doc_redo(self, ...)
+
+  -- skip new files
+  if not self.filename then return end
+
   local av = get_active_view()
   if av then
     -- Send update to lsp servers
@@ -918,27 +1023,33 @@ Doc.redo = function(self, ...)
   end
 end
 
-Doc.remove = function(self, ...)
+function Doc:remove(...)
   doc_remove(self, ...)
+
+  -- skip new files
+  if not self.filename then return end
+
   local av = get_active_view()
-  if av then
+  if av and av.doc then
     -- Send update to lsp servers
     lsp.update_document(av.doc)
   end
 end
 
 core.add_close_hook(function(doc)
+  -- skip new files
+  if not doc.filename then return end
   core.add_thread(function()
     lsp.close_document(doc)
   end)
 end)
 
-RootView.on_text_input = function(...)
-  root_view_on_text_input(...)
+function RootView:on_text_input(...)
+  root_view_on_text_input(self, ...)
 
   local av = get_active_view()
 
-  if av then
+  if av and av.doc and av.doc.filename then
     local line1, col1, line2, col2 = av.doc:get_selection()
 
     -- Send update to lsp servers
@@ -1018,6 +1129,20 @@ command.add("core.docview", {
       lsp.request_document_symbols(doc)
     end
   end,
+
+  ["lsp:find-references"] = function()
+    local doc = core.active_view.doc
+    if doc then
+      local line1, col1, line2, col2 = doc:get_selection()
+      if line1 == line2 and col1 == col2 then
+        lsp.request_references(doc, line1, col1)
+      end
+    end
+  end,
+
+  ["lsp:toggle-diagnostics"] = function()
+    lsp.toggle_diagnostics()
+  end,
 })
 
 --
@@ -1029,7 +1154,9 @@ keymap.add {
   ["alt+a"]             = "lsp:show-symbol-info",
   ["alt+d"]             = "lsp:goto-definition",
   ["alt+shift+d"]       = "lsp:goto-implementation",
-  ["alt+f"]             = "lsp:view-document-symbols",
+  ["alt+s"]             = "lsp:view-document-symbols",
+  ["alt+f"]             = "lsp:find-references",
+  ["alt+e"]             = "lsp:toggle-diagnostics",
 }
 
 return lsp

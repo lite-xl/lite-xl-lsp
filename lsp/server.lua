@@ -40,6 +40,12 @@ server.diagnostic_severity = {
   Hint = 4
 }
 
+server.text_document_sync_kind = {
+  None = 0,
+  Full = 1,
+  Incremental = 2
+}
+
 function server.new(options)
   local srv = setmetatable(
     {

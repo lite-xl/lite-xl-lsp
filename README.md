@@ -22,8 +22,10 @@ Stuff that is currently implemented:
 * Current cursor symbol details tooltip (__alt+a__)
 * Goto definition (__alt+d__)
 * Goto implementation (__alt+shift+d__)
-* View current document symbols (__alt+f__)
-* Optional diagnostics rendering while typing [LintPlus](https://github.com/liquidev/lintplus)
+* View current document symbols (__alt+s__)
+* View symbol references (__alt+f__)
+* Optional diagnostics rendering while typing with
+  [LintPlus](https://github.com/liquidev/lintplus) (__alt+e__ to toggle)
 
 ## Setting a LSP Server
 
