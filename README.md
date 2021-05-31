@@ -1,54 +1,49 @@
-# (WIP) LSP Plugin for Lite XL editor
+# LSP Plugin for Lite XL editor
 
-This is a work in progress LSP plugin for the __Lite XL__ code editor.
-It requires the __dev__ branch of __Lite XL__ which includes the new lua
+Plugin that provides intellisense for Lite XL by leveraging the
+[LSP protocol](https://microsoft.github.io/language-server-protocol/specifications/specification-current/).
+While still a work in progress it already implements all the most important
+features to make your life easier while coding with Lite XL. Using it
+requires the __dev__ branch of __Lite XL__ which includes the new lua
 __process__ functionality in order to communicate with lsp servers.
+Also [lint+](https://github.com/liquidev/lintplus) is used for diagnostics
+so make sure to grab that too.
 
 To test, clone this project, place the __lsp__ directory in your plugins
 directory, then replace the __autocomplete.lua__ plugin with the version
 on this repository which should later be merged into upstream.
 
+## Features
+
+Stuff that is currently implemented:
+
+* Code auto completion (__ctrl+space__)
+* Function signatures tooltip (__ctrl+shift+space__)
+* Current cursor symbol details tooltip (__alt+a__)
+* Goto definition (__alt+d__)
+* Goto implementation (__alt+shift+d__)
+* View current document symbols (__alt+f__)
+* Optional diagnostics rendering while typing [LintPlus](https://github.com/liquidev/lintplus)
+
+## Setting a LSP Server
+
 To add an lsp server in your user init.lua file you can see the
-__serverlist.lua__ as an example or:
+__[serverlist.lua](https://github.com/jgmdev/lite-xl-lsp/blob/master/lsp/serverlist.lua)__
+as an example, the structure is as follows:
 
 ```lua
 local lsp = require "plugins.lsp"
 
 lsp.add_server {
-  name = "intelephense",
-  language = "php",
-  file_patterns = {"%.php$"},
-  command = {
-    "intelephense",
-    "--stdio"
-  },
-  verbose = true
-}
-
-lsp.add_server {
-  name = "css-languageserver",
-  language = "css",
-  file_patterns = {"%.css$"},
-  command = {
-    "css-languageserver",
-    "--stdio"
-  },
-  verbose = true
-}
-
-lsp.add_server {
-  name = "clangd",
-  language = "c/cpp",
-  file_patterns = {
-    "%.c$", "%.h$", "%.inl$", "%.cpp$", "%.hpp$",
-    "%.cc$", "%.C$", "%.cxx$", "%.c++$", "%.hh$",
-    "%.H$", "%.hxx$", "%.h++$", "%.objc$", "%.objcpp$"
-  },
-  command = {
-    "clangd",
-    "-background-index"
-  },
-  verbose = true
+  name = "name of server",
+  language = "main language",
+  file_patterns = {...},
+  command = { "lsp-command", "arguments" },
+  -- Note that also having a settings.json or settings.lua in
+  -- your workspace directory is supported
+  settings = {"Optional table of settings to pass into the lsp"},
+  init_options = {"Optional table of initializationOptions for the LSP"},
+  verbose = false -- True to debug the lsp client when developing it
 }
 ```
 
@@ -61,13 +56,13 @@ lsp.add_server {
 * Add hover support for function arguments (partially)
   * Add custom tooltip that accents active parameter and signature
 * Add hover support for symbols (Done)
-* Generate list of current document symbols for easy document navigation (Done?)
+* Generate list of current document symbols for easy document navigation (Done)
 * Goto definition (Done)
   * Display select box when more than one result (Done)
 * Figure out how to get an autocompletion item full documentation with
 'completionItem/resolve' or any other in order to better populate
 the new autocomplete item description
-* Show diagnostics on active document similar to the linter plugin.
+* Show diagnostics on active document similar to the linter plugin (Done).
 
 
 ## Screenshots
@@ -92,11 +87,11 @@ Some images to easily visualize the progress :)
 ![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/signatures01.png)
 
 ### Document symbols
-![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/docsym01.png)
-![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/docsym02.png)
+![Doc Symbols](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/docsym01.png)
+![Doc Symbols](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/docsym02.png)
 
 ### Goto definition
-![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/gotodef01.png)
+![Goto Definition](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/gotodef01.png)
 
 ### Diagnostics rendering using Lint+
-![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/diagnostics01.png)
+![Diagnostics](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/diagnostics01.png)
