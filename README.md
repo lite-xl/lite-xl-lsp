@@ -97,3 +97,6 @@ Some images to easily visualize the progress :)
 
 ### Goto definition
 ![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/gotodef01.png)
+
+### Diagnostics rendering using Lint+
+![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/diagnostics01.png)
