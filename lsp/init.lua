@@ -42,6 +42,8 @@ config.lsp.log_file = ""
 config.lsp.prettify_json = false
 -- Show diagnostic messages
 config.lsp.show_diagnostics = true
+-- Stop servers that aren't needed by any of the open files
+config.lsp.stop_unneeded_servers = true
 
 --
 -- Main plugin functionality
@@ -1065,6 +1067,10 @@ core.add_close_hook(function(doc)
   core.add_thread(function()
     lsp.close_document(doc)
   end)
+
+  if not config.lsp.stop_unneeded_servers then
+    return
+  end
 
   -- Check if any running lsp servers is not needed anymore and stop it
   for name, server in pairs(lsp.servers_running) do
