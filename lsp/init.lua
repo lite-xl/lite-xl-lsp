@@ -522,6 +522,11 @@ end
 -- better description of the selected element by requesting an LSP server for
 -- detailed information.
 function lsp.request_item_resolve(index, item)
+  -- return for now since this isn't implemented
+  if true then
+    return
+  end
+
   local completion_item = item.data.completion_item
   item.data.server:push_request(
     'completionItem/resolve',
@@ -601,7 +606,14 @@ function lsp.request_completion(doc, line, col)
           end
 
           if not result.items or #result.items <= 0 then
-            return
+            -- Workaround for some lsp servers that don't return results
+            -- in the items property but instead on the results it self
+            if #result > 0 then
+              local items = result
+              result = {items = items}
+            else
+              return
+            end
           end
 
           local symbols = {
