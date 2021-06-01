@@ -1053,6 +1053,25 @@ core.add_close_hook(function(doc)
   core.add_thread(function()
     lsp.close_document(doc)
   end)
+
+  -- Check if any running lsp servers is not needed anymore and stop it
+  for name, server in pairs(lsp.servers_running) do
+    local doc_found = false
+    for _, docu in ipairs(core.docs) do
+      if docu.filename then
+        if matches_any(docu.filename, server.file_patterns) then
+          doc_found = true
+          break
+        end
+      end
+    end
+
+    if not doc_found then
+      server:exit()
+      core.log("[LSP] stopped %s", name)
+      lsp.servers_running = Util.table_remove_key(lsp.servers_running, name)
+    end
+  end
 end)
 
 function RootView:on_text_input(...)

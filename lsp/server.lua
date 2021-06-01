@@ -127,7 +127,7 @@ function server:initialize(path, editor_name, editor_version)
   end
 
   self.path = path or ""
-  self.editor_name = editor_name or "unknwon"
+  self.editor_name = editor_name or "unknown"
   self.editor_version = editor_version or "0.1"
 
   self:push_request(
@@ -135,7 +135,7 @@ function server:initialize(path, editor_name, editor_version)
     {
       processId = nil,
       clientInfo = {
-        name = editor_name or "unknwon",
+        name = editor_name or "unknown",
         version = editor_version or "0.1"
       },
       -- TODO: locale
@@ -288,10 +288,10 @@ function server:initialize(path, editor_name, editor_version)
           )
         end
 
+        self.initialized = true;
+
         self:notify('initialized') -- required by protocol
         self:send_event_signal("initialized", self, result)
-
-        self.initialized = true;
       end
     end
   )
@@ -495,7 +495,7 @@ end
 
 --- Sends the pushed client responses to server.
 function server:process_client_responses()
-  -- only process when server initialized
+  -- only process when initialized
   if not self.initialized then
     return
   end
@@ -540,6 +540,11 @@ end
 -- be called to prevent the server from stalling because of not flushing
 -- the stderr.
 function server:process_errors()
+  -- only process when initialized
+  if not self.initialized then
+    return nil
+  end
+
   local errors = self:read_errors(0)
 
   if errors then
@@ -925,8 +930,26 @@ end
 
 --- Instructs the server to exit.
 function server:exit()
-  server:request('shutdown')
-  server:notify('exit')
+  self.initialized = false
+
+  -- Send shutdown request
+  local message = {
+    jsonrpc = '2.0',
+    id = self.current_request + 1,
+    method = "shutdown",
+    params = {}
+  }
+  self:write_request(json.encode(message))
+
+  -- send exit request
+  self:notify('exit')
+
+  -- wait 1 second until it exits
+  self.proc:wait(1000)
+
+  if self.proc:running() then
+    self.proc:kill()
+  end
 end
 
 return server

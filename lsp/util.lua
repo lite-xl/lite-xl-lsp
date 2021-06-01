@@ -137,5 +137,16 @@ function util.command_exists(command)
   return false
 end
 
+function util.table_remove_key(table_object, key_name)
+  local new_table = {}
+  for key, data in pairs(table_object) do
+    if key ~= key_name then
+      new_table[key] = data
+    end
+  end
+
+  return new_table
+end
+
 
 return util

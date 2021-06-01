@@ -51,20 +51,20 @@ lsp.add_server {
 
 ## TODO
 
-* Exit LSP server if no open document needs it.
+* Exit LSP server if no open document needs it. (__Done__)
 * Fix issues when parsing stdout from some lsp servers (eg: css-languageserver).
 * Detect if lsp server hangs and restart it (eg: clangd)
-* More improvements to autocomplete.lua plugin (Done?)
+* More improvements to autocomplete.lua plugin (__Done__?)
 * Add hover support for function arguments (partially)
   * Add custom tooltip that accents active parameter and signature
-* Add hover support for symbols (Done)
-* Generate list of current document symbols for easy document navigation (Done)
-* Goto definition (Done)
-  * Display select box when more than one result (Done)
+* Add hover support for symbols (__Done__)
+* Generate list of current document symbols for easy document navigation (__Done__)
+* Goto definition (__Done__)
+  * Display select box when more than one result (__Done__)
 * Figure out how to get an autocompletion item full documentation with
 'completionItem/resolve' or any other in order to better populate
 the new autocomplete item description
-* Show diagnostics on active document similar to the linter plugin (Done).
+* Show diagnostics on active document similar to the linter plugin (__Done__).
 * Add Snippets support.
 
 
