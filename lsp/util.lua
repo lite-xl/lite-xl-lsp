@@ -82,16 +82,107 @@ function util.toselection(range)
   return line1, col1, line2, col2
 end
 
+--- Implemented some json prettifier but not a parser so
+-- don't expect it to give you parsing errors :D
+-- @tparam string text the json string
+-- @tparam integer indent_width The amount of spaces per indentation
+local function prettify_json(text, indent_width)
+  local out = ""
+  indent_width = indent_width or 2
+
+  local indent_level = 0
+  local reading_literal = false
+  local previous_was_escape = false
+  local inside_string = false
+  local in_value = false
+  local last_was_bracket = false
+  local string_char = ""
+  local last_char = ""
+
+  local function indent(text, level)
+    return string.rep(" ", level * indent_width) .. text
+  end
+
+  for char in text:gmatch(".") do
+    if (char == "{" or char == "[") and not inside_string then
+      if not in_value or last_was_bracket then
+        out = out .. indent(char, indent_level) .. "\n"
+      else
+        out = out .. char .. "\n"
+      end
+      last_was_bracket = true
+      in_value = false
+      indent_level = indent_level + 1
+    elseif (char == '"' or char == "'") and not inside_string then
+      inside_string = true
+      string_char = char
+      if not in_value then
+        out = out .. indent(char, indent_level)
+      else
+        out = out .. char
+      end
+    elseif inside_string then
+      local pe_set = false
+      if char == "\\" and previous_was_escape then
+        previous_was_escape = false
+      elseif char == "\\" then
+        previous_was_escape = true
+        pe_set = true
+      end
+      out = out .. char
+      if char == string_char and not previous_was_escape then
+        inside_string = false
+      elseif previous_was_escape and not pe_set then
+        previous_was_escape = false
+      end
+    elseif char == ":" then
+      in_value = true
+      last_was_bracket = false
+      out = out .. char .. " "
+    elseif char == "," then
+      in_value = false
+      reading_literal = false
+      out = out .. char .. "\n"
+    elseif char == "}" or char == "]" then
+      indent_level = indent_level - 1
+      if
+        (char == "}" and last_char == "{")
+        or
+        (char == "]" and last_char == "[")
+      then
+        out = out:gsub("%s*\n$", "") .. char
+      else
+        out = out .. "\n" .. indent(char, indent_level)
+      end
+    elseif not char:match("%s") and not reading_literal then
+      reading_literal = true
+      if not in_value or last_was_bracket then
+        out = out .. indent(char, indent_level)
+        last_was_bracket = false
+      else
+        out = out .. char
+      end
+    elseif not char:match("%s") then
+      out = out .. char
+    end
+
+    if not char:match("%s") then
+      last_char = char
+    end
+  end
+
+  return out
+end
+
 function util.jsonprettify(json)
+  if config.lsp.prettify_json then
+    json = prettify_json(json)
+  end
+
   if config.lsp.log_file and #config.lsp.log_file > 0 then
     local log = io.open(config.lsp.log_file, "a+")
     log:write("Output: \n" .. tostring(json) .. "\n\n")
     log:close()
-  end
-
-  -- TODO implement/integrate something that really makes it prettier :)
-  if config.lsp.prettify_json then
-    return json:gsub("{", "{\n"):gsub("}", "\n}"):gsub(",", ",\n")
   end
 
   return json
