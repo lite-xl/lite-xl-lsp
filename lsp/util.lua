@@ -6,9 +6,18 @@ local config = require "core.config"
 
 local util = {}
 
-function util.split(s, delimiter)
+--- Split a string by the given delimeter
+-- @tparam string s The string to split
+-- @tparam string delimeter Delimeter without lua patterns
+-- @tparam string delimeter_pattern Optional delimeter with lua patterns
+-- @treturn table List of results
+function util.split(s, delimeter, delimeter_pattern)
+  if not delimeter_pattern then
+    delimeter_pattern = delimeter
+  end
+
   local result = {};
-  for match in (s..delimiter):gmatch("(.-)"..delimiter) do
+  for match in (s..delimeter):gmatch("(.-)"..delimeter_pattern) do
     table.insert(result, match);
   end
   return result;
@@ -146,6 +155,44 @@ function util.table_remove_key(table_object, key_name)
   end
 
   return new_table
+end
+
+--- Get a table specific field or nil if not found.
+-- @tparam table t The table we are going to search for the field.
+-- @tparam string fieldset A field spec in the format "parent[.child][.subchild]"
+--         eg: "myProp.subProp.subSubProp"
+-- @return The value of the given field or nil if not found.
+function util.table_get_field(t, fieldset)
+  local fields = util.split(fieldset, ".", "%.")
+  local field = fields[1]
+  local value = nil
+
+  if field and #fields > 1 and t[field] then
+    local sub_fields = table.concat(fields, ".", 2)
+    value = util.table_get_field(t[field], sub_fields)
+  elseif field and #fields > 0 and t[field] then
+    value = t[field]
+  end
+
+  return value
+end
+
+--- Merge the content of table2 into table1.
+-- Solution found here: https://stackoverflow.com/a/1283608
+-- @tparam table t1
+-- @tparam table t2
+function util.table_merge(t1, t2)
+  for k,v in pairs(t2) do
+    if type(v) == "table" then
+      if type(t1[k] or false) == "table" then
+        util.table_merge(t1[k] or {}, t2[k] or {})
+      else
+        t1[k] = v
+      end
+    else
+      t1[k] = v
+    end
+  end
 end
 
 
