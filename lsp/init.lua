@@ -233,27 +233,79 @@ function lsp.get_active_servers(filename)
   return servers
 end
 
-function lsp.get_workspace_settings(server)
-  if not server.path then
-    return nil
+--- Get table of configuration settings in the following way:
+-- 1. Scan the USERDIR for settings.lua or settings.json (in that order)
+-- 2. Merge server.settings
+-- 4. Scan workspace if set also for settings.lua/json and merge them or
+-- 3. Scan server.path also for settings.lua/json and merge them
+-- Note: settings are cached for 5 seconds for faster retrieval
+--       on repetitive calls to this function.
+-- @tparam Server server
+-- @tparam string workspace Optional workspace.
+-- @treturn table
+local cached_workspace_settings = {}
+local cached_workspace_settings_timestamp = 0
+function lsp.get_workspace_settings(server, workspace)
+  -- Search settings on the following directories, subsequent settings
+  -- overwrite the previous ones
+  local paths = { USERDIR }
+  local cached_index = USERDIR
+  local settings = {}
+
+  if not workspace and server.path then
+    table.insert(paths, server.path)
+    cached_index = cached_index .. tostring(server.path)
+  elseif workspace then
+    table.insert(paths, workspace)
+    cached_index = cached_index .. tostring(workspace)
   end
-  local settings = nil
-  local project_path = server.path .. PATHSEP
-  if type(server.settings) == "table" then
-    settings = server.settings
-  elseif Util.file_exists(project_path .. "settings.json") then
-    local file = io.open(project_path .. "settings.json", "r")
-    local settings_json = file:read("*a")
-    settings_json = Json.decode(settings_json)
-    if settings_json then
-      settings = settings_json
+
+  if
+    cached_workspace_settings_timestamp > os.time()
+    and
+    cached_workspace_settings[cached_index]
+  then
+    return cached_workspace_settings[cached_index]
+  else
+    local position = 1
+    for _, path in pairs(paths) do
+      if path then
+        local settings_new = nil
+        path = path:gsub("\\+$", ""):gsub("/+$", "")
+        if Util.file_exists(path .. "/settings.lua") then
+          local settings_lua = require(path .. "/settings.lua")
+          if type(settings_lua) == "table" then
+            settings_new = settings_lua
+          end
+        elseif Util.file_exists(path .. "/settings.json") then
+          local file = io.open(path .. "/settings.json", "r")
+          local settings_json = file:read("*a")
+          settings_new = Json.decode(settings_json)
+        end
+
+        -- overwrite global settings by those specified in the server if any
+        if position == 1 and server.settings then
+          if settings_new then
+            Util.table_merge(settings_new, server.settings)
+          else
+            settings_new = server.settings
+          end
+        end
+
+        -- overwrite previous settings with new ones
+        if settings_new then
+          Util.table_merge(settings, settings_new)
+        end
+      end
+
+      position = position + 1
     end
-  elseif Util.file_exists(project_path .. "settings.lua") then
-    local settings_lua = require(project_path .. "settings.lua")
-    if type(settings_lua) == "table" then
-      settings = settings_lua
-    end
+
+    -- store settings on cache for 5 seconds for fast repeated calls
+    cached_workspace_settings[cached_index] = settings
+    cached_workspace_settings_timestamp = os.time() + 5
   end
+
   return settings
 end
 
@@ -292,27 +344,33 @@ function lsp.start_server(filename, project_directory)
           )
         end
 
-        -- Respond to workspace/configuration request with:
-        -- 1. settings table if given to server,
-        -- 2. or content of settings.json if exits,
-        -- 3. or table returned on settings.lua if exists
-        -- 4. or finally respond with method not found
+        -- Respond to workspace/configuration request
         client:add_request_listener("workspace/configuration", function(server, request)
-          local settings = lsp.get_workspace_settings(server)
+          local settings_default = lsp.get_workspace_settings(server)
 
-          if settings then
-            server:push_response(request.method, request.id, settings)
-          else
-            server:push_response(
-              request.method,
-              request.id,
-              nil,
-              {
-                code = server.error_code.MethodNotFound,
-                message = "Method not found"
-              }
-            )
+          local settings_list = {}
+          for _, item in pairs(request.params.items) do
+            local value = nil
+            -- No workspace was specified so we return from default settings
+            if not item.scopeUri then
+              value = Util.table_get_field(settings_default, item.section)
+            -- A workspace was specified so we return from that workspace
+            else
+              local settings_workspace = lsp.get_workspace_settings(
+                server, Util.tofilename(item.scopeUri)
+              )
+              value = Util.table_get_field(settings_workspace, item.section)
+            end
+
+            if not value then
+              server:log("Asking for '%s' config but not set", item.section)
+            else
+              server:log("Asking for '%s' config", item.section)
+            end
+
+            table.insert(settings_list, value or Json.null)
           end
+          server:push_response(request.method, request.id, settings_list)
         end)
 
         -- Display server messages on lite UI
