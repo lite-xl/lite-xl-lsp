@@ -37,13 +37,13 @@ end
 config.lsp = {}
 
 -- Set to a file to log all json
-config.lsp.log_file = ""
+config.lsp.log_file = config.lsp.log_file or ""
 -- Setting to true breaks json for more readability on the log
-config.lsp.prettify_json = false
+config.lsp.prettify_json = config.lsp.prettify_json or false
 -- Show diagnostic messages
-config.lsp.show_diagnostics = true
+config.lsp.show_diagnostics = config.lsp.show_diagnostics or true
 -- Stop servers that aren't needed by any of the open files
-config.lsp.stop_unneeded_servers = true
+config.lsp.stop_unneeded_servers = config.lsp.stop_unneeded_servers or true
 
 --
 -- Main plugin functionality
@@ -603,7 +603,7 @@ function lsp.request_item_resolve(index, item)
 end
 
 --- Send to applicable LSP servers a request for code completion
-function lsp.request_completion(doc, line, col)
+function lsp.request_completion(doc, line, col, forced)
   if lsp.in_trigger then
     return
   end
@@ -635,8 +635,17 @@ function lsp.request_completion(doc, line, col)
           triggerKind = Server.completion_trigger_Kind.TriggerCharacter,
           triggerCharacter = char
         }
-
         trigger_char = true;
+      end
+
+      if
+        not trigger_char
+        and
+        not autocomplete.can_complete()
+        and
+        not forced
+      then
+        return false
       end
 
       lsp.servers_running[name]:push_request(
@@ -1184,7 +1193,7 @@ command.add("core.docview", {
     if doc then
       local line1, col1, line2, col2 = doc:get_selection()
       if line1 == line2 and col1 == col2 then
-        lsp.request_completion(doc, line1, col1)
+        lsp.request_completion(doc, line1, col1, true)
       end
     end
   end,
