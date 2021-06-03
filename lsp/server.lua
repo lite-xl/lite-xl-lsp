@@ -67,7 +67,9 @@ function server.new(options)
       write_fails = 0,
       write_fails_before_restart = 10,
       verbose = options.verbose or false,
-      initialized = false
+      initialized = false,
+      hitrate_list = {},
+      requests_per_second = options.requests_per_second or 16
     },
     {__index = server}
   )
@@ -561,7 +563,43 @@ function server:process_errors(log_errors)
   return errors
 end
 
+--- Help controls the amount of requests sent to the lsp server per second
+-- to prevent overloading it and causing a pipe hang.
+-- @tparam string type
+-- @treturn boolean true if max hitrate was reached
+function server:hitrate_reached(type)
+  if not self.hitrate_list[type] then
+    self.hitrate_list[type] = {
+      count = 1,
+      timestamp = os.time() + 1
+    }
+  elseif self.hitrate_list[type].timestamp > os.time() then
+    if self.hitrate_list[type].count >= self.requests_per_second then
+      return true
+    end
+    self.hitrate_list[type].count = self.hitrate_list[type].count + 1
+  else
+    self.hitrate_list[type].timestamp = os.time() + 1
+    self.hitrate_list[type].count = 1
+  end
+  return false
+end
+
+-- notifications that should bypass the hitrate limit
+local notifications_whitelist = {
+  "textDocument/didOpen",
+  "textDocument/didSave",
+  "textDocument/didClose"
+}
 function server:push_notification(method, params)
+  if
+    self:hitrate_reached("request")
+    and
+    not util.intable(method, notifications_whitelist)
+  then
+    return
+  end
+
   if self.verbose then
     self:log(
       "Pushing notification '%s':\n%s",
@@ -578,6 +616,10 @@ function server:push_notification(method, params)
 end
 
 function server:push_request(method, params, callback)
+  if self:hitrate_reached("request") then
+    return
+  end
+
   if self.verbose then
     self:log("Adding request %s", tostring(method))
   end
@@ -597,6 +639,10 @@ end
 
 --- Add a client response to a server request.
 function server:push_response(method, id, result, error)
+  if self:hitrate_reached("request") then
+    return
+  end
+
   if self.verbose then
     self:log("Adding response %s to %s", tostring(id), tostring(method))
   end
@@ -800,15 +846,41 @@ function server:write_request(data, timeout)
 
   if timeout == 0 then max_time = max_time + 1 end
 
+  -- first send the header
   local written = 0
   while max_time > os.time() and written <= 0 do
     written = self.proc:write(string.format(
-      'Content-Length: %d\r\n\r\n%s\r\n',
-      #data + 2,
-      data
+      'Content-Length: %d\r\n\r\n',
+      #data + 2 -- last \r\n
     ))
 
     if timeout == 0 then break end
+  end
+
+  if written and written <= 0 then
+    return false
+  end
+
+  -- send content in chunks
+  local chunks = 256
+  data = data .. "\r\n"
+
+  while #data > 0 do
+    local wrote = 0
+
+    if #data > chunks then
+      wrote = self.proc:write(data:sub(1, chunks))
+      data = data:sub(chunks+1)
+    else
+      wrote = self.proc:write(data)
+      data = ""
+    end
+
+    if wrote > 0 then
+      written = written + wrote
+    else
+      return false
+    end
   end
 
   if written and written <= 0 then
