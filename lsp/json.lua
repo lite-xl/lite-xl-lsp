@@ -27,6 +27,9 @@ local json = { _version = "0.1.2" }
 
 local error_message = ""
 
+-- Lets us explicitly add null values to table elements
+json.null = "{{json::null}}"
+
 -------------------------------------------------------------------------------
 -- Encode
 -------------------------------------------------------------------------------
@@ -106,6 +109,9 @@ end
 
 
 local function encode_string(val)
+  if val == json.null then
+    return "null"
+  end
   return '"' .. val:gsub('[%z\1-\31\\"]', escape_char) .. '"'
 end
 
