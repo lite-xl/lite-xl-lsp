@@ -273,7 +273,7 @@ function server:initialize(path, editor_name, editor_version)
     function(self, response)
       if self.verbose then
         self:log(
-          "Processing initialization response '%s'",
+          "Processing initialization response:\n%s",
           util.jsonprettify(json.encode(response))
         )
       end
@@ -335,13 +335,13 @@ function server:notify(method, params)
   local data = json.encode(message)
 
   if self.verbose then
-    self:log("Sending notification: %s", util.jsonprettify(data))
+    self:log("Sending notification:\n%s", util.jsonprettify(data))
   end
 
   local written = self:write_request(data)
 
   if not written and self.verbose then
-    self:log("Could not send notification: %s", util.jsonprettify(data))
+    self:log("Could not send notification.")
   end
 end
 
@@ -355,13 +355,13 @@ function server:respond(id, result)
   local data = json.encode(message)
 
   if self.verbose then
-    self:log("Responding: %s", util.jsonprettify(data))
+    self:log("Responding to '%d':\n%s", id, util.jsonprettify(data))
   end
 
   local written = self:write_request(data)
 
   if not written and self.verbose then
-    self:log("Could not send response: %s", util.jsonprettify(data))
+    self:log("Could not send response.")
   end
 end
 
@@ -378,13 +378,13 @@ function server:respond_error(id, error_message, error_code)
   local data = json.encode(message)
 
   if self.verbose then
-    self:log("Responding error: %s", util.jsonprettify(data))
+    self:log("Responding error to '%d':\n%s", id, util.jsonprettify(data))
   end
 
   local written = self:write_request(data)
 
   if not written and self.verbose then
-    self:log("Could not send response: %s", util.jsonprettify(data))
+    self:log("Could not send response.")
   end
 end
 
@@ -404,7 +404,11 @@ function server:process_notifications()
     local data = json.encode(message)
 
     if self.verbose then
-        self:log("Sending notification '%s'", util.jsonprettify(data))
+        self:log(
+          "Sending notification '%s':\n%s",
+          request.method,
+          util.jsonprettify(data)
+        )
     end
 
     local written = self:write_request(data, 0)
@@ -412,9 +416,8 @@ function server:process_notifications()
     if self.verbose then
       if not written or written < 0 then
         self:log(
-          "Failed sending notification '%s' - '%s'",
-          request.method,
-          util.jsonprettify(data)
+          "Failed sending notification '%s'",
+          request.method
         )
       end
     end
@@ -450,13 +453,13 @@ function server:process_requests()
       if self.verbose then
         if written and written > 0 then
           self:log(
-            "Sent request '%s' - '%s'",
+            "Sent request '%s':\n%s",
             request.method,
             util.jsonprettify(data)
           )
         else
           self:log(
-            "Failed sending request '%s' - '%s'",
+            "Failed sending request '%s':\n%s",
             request.method,
             util.jsonprettify(data)
           )
@@ -477,7 +480,10 @@ function server:process_responses()
   if type(responses) == "table" then
     for i, response in pairs(responses) do
       if self.verbose then
-        self:log("Response '%s'", util.jsonprettify(json.encode(response)))
+        self:log(
+          "Processing Response:\n%s",
+          util.jsonprettify(json.encode(response))
+        )
       end
       if not response.id then
         -- A notification, event or generic message was received
@@ -517,7 +523,7 @@ function server:process_client_responses()
     local data = json.encode(message)
 
     if self.verbose then
-        self:log("Sending client response '%s'", util.jsonprettify(data))
+        self:log("Sending client response:\n%s", util.jsonprettify(data))
     end
 
     local written = self:write_request(data, 0)
@@ -525,9 +531,8 @@ function server:process_client_responses()
     if self.verbose then
       if not written or written < 0 then
         self:log(
-          "Failed sending client response '%s' - '%s'",
-          response.id,
-          util.jsonprettify(data)
+          "Failed sending client response '%s'",
+          response.id
         )
       end
     end
@@ -541,7 +546,7 @@ end
 --- Along with process_requests() and process_responses() this one should
 -- be called to prevent the server from stalling because of not flushing
 -- the stderr.
-function server:process_errors()
+function server:process_errors(log_errors)
   -- only process when initialized
   if not self.initialized then
     return nil
@@ -549,7 +554,7 @@ function server:process_errors()
 
   local errors = self:read_errors(0)
 
-  if errors then
+  if errors and log_errors then
     self:log("Error: \n'%s'", errors)
   end
 
@@ -559,7 +564,7 @@ end
 function server:push_notification(method, params)
   if self.verbose then
     self:log(
-      "Adding request '%s' - '%s'",
+      "Pushing notification '%s':\n%s",
       method,
       util.jsonprettify(json.encode(params))
     )
@@ -687,8 +692,10 @@ function server:read_responses(timeout)
         end
 
         if self.verbose then
-          self:log("Response header and content received at once.")
-          self:log("Output %s", util.jsonprettify(output))
+          self:log(
+            "Response header and content received at once:\n%s",
+            output
+          )
         end
       else
         -- read again to retrieve actual response content
@@ -703,8 +710,10 @@ function server:read_responses(timeout)
         table.insert(responses, output)
 
         if self.verbose then
-          self:log("Response header and content received separately")
-          self:log("Output %s", util.jsonprettify(output) .. "\n")
+          self:log(
+            "Response header and content received separately:\n%s",
+            output
+          )
 
           -- TODO: Debug this having issues with some servers
           --local thefile = io.open("/home/user/.config/lite-xl/out.txt", "a+")
@@ -717,7 +726,7 @@ function server:read_responses(timeout)
       end
     elseif #output > 0 then
       if self.verbose then
-        self:log("Output withuot header: %s", util.jsonprettify(output))
+        self:log("Output withuot header:\n%s", output)
       end
     end
   end
@@ -731,8 +740,11 @@ function server:read_responses(timeout)
         responses[index] = data
       else
         table.remove(responses, index)
-        self:log("Response '%s'", util.jsonprettify(data))
-        self:log("JSON Parser Error: %s", json.last_error())
+        self:log(
+          "JSON Parser Error: %s\n%s",
+          json.last_error(),
+          util.jsonprettify(data)
+        )
       end
     end
 
@@ -826,7 +838,7 @@ end
 function server:on_response(response)
   if self.verbose then
     self:log(
-      "Recieved response '%s' with result '%s'",
+      "Recieved response '%s' with result:\n%s",
       response.id,
       util.jsonprettify(json.encode(response))
     )
@@ -873,7 +885,7 @@ end
 function server:on_request(request)
   if self.verbose then
     self:log(
-      "Recieved request '%s' with data '%s'",
+      "Recieved request '%s' with data:\n%s",
       request.method,
       util.jsonprettify(json.encode(request))
     )
@@ -923,7 +935,7 @@ end
 function server:on_message(method, params)
   if self.verbose then
     self:log(
-      "Recieved notification '%s' with params '%s'",
+      "Recieved notification '%s' with params:\n%s",
       method,
       util.jsonprettify(json.encode(params))
     )
