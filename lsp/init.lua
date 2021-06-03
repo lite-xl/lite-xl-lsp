@@ -46,6 +46,10 @@ config.lsp.prettify_json = config.lsp.prettify_json or false
 config.lsp.show_diagnostics = config.lsp.show_diagnostics or true
 -- Stop servers that aren't needed by any of the open files
 config.lsp.stop_unneeded_servers = config.lsp.stop_unneeded_servers or true
+-- Send a server stderr output to lite log
+config.lsp.log_server_stderr = config.lsp.log_server_stderr or false
+-- force verbosity off even if a server is configure with verbosity on
+config.lsp.force_verbosity_off = config.lsp.force_verbosity_off or false
 
 --
 -- Main plugin functionality
@@ -217,6 +221,10 @@ function lsp.add_server(server)
     return false
   end
 
+  if config.lsp.force_verbosity_off then
+    server.verbose = false
+  end
+
   lsp.servers[server.name] = server
 
   return true
@@ -385,14 +393,15 @@ function lsp.start_server(filename, project_directory)
 
         -- Display server messages on lite UI
         client:add_message_listener("textDocument/publishDiagnostics", function(server, params)
+          local filename = Util.tofilename(params.uri)
+
           if server.vebose then
             core.log_quiet(
-              "["..server.name.."] diagnostic:  %s",
-              Util.jsonprettify(Json.encode(params.message))
+              "["..server.name.."] %d diagnostics for:  %s",
+              filename,
+              params.diagnostics and #params.diagnostics or 0
             )
           end
-
-          local filename = Util.tofilename(params.uri)
 
           if params.diagnostics and #params.diagnostics > 0 then
             Diagnostics.add(filename, params.diagnostics)
@@ -431,7 +440,11 @@ function lsp.start_server(filename, project_directory)
 
         -- Send settings table after initialization if available.
         client:add_event_listener("initialized", function(server, ...)
-          core.log("["..server.name.."] " .. "Initialized")
+          if config.lsp.force_verbosity_off then
+            core.log_quiet("["..server.name.."] " .. "Initialized")
+          else
+            core.log("["..server.name.."] " .. "Initialized")
+          end
           local settings = lsp.get_workspace_settings(server)
           if settings then
             server:push_request(
@@ -440,7 +453,7 @@ function lsp.start_server(filename, project_directory)
               function(server, response)
                 if server.verbose then
                   server:log(
-                    "Completion response: %s",
+                    "'workspace/didChangeConfiguration' response:\n%s",
                     Util.jsonprettify(Json.encode(response))
                   )
                 end
@@ -656,8 +669,7 @@ function lsp.request_completion(doc, line, col, forced)
         function(server, response)
           if server.verbose then
             server:log(
-              "Completion response: %s",
-              Util.jsonprettify(Json.encode(response))
+              "Completion response received."
             )
           end
 
@@ -1035,7 +1047,7 @@ core.add_thread(function()
       server:process_requests()
       server:process_responses()
       server:process_client_responses()
-      server:process_errors()
+      server:process_errors(config.lsp.log_server_stderr)
     end
 
     if system.window_has_focus() then
