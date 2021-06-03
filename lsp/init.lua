@@ -597,7 +597,11 @@ end
 -- better description of the selected element by requesting an LSP server for
 -- detailed information.
 function lsp.request_item_resolve(index, item)
-  -- return for now since this isn't implemented
+  -- TODO investigate the issue that casues item resolve to not return
+  -- documentation, one posssible cause is the json and lua converting
+  -- the data field from integer to float so the lsp server doesn't
+  -- properly finds the given item.
+  -- For now return for now since this isn't implemented
   if true then
     return
   end
@@ -660,6 +664,7 @@ function lsp.request_completion(doc, line, col, forced)
         and
         not forced
       then
+        core.redraw = true
         return false
       end
 
