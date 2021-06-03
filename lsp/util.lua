@@ -286,5 +286,14 @@ function util.table_merge(t1, t2)
   end
 end
 
+function util.table_empty(t)
+  local found = false
+  for _, value in pairs(t) do
+    found = true
+    break
+  end
+  return not found
+end
+
 
 return util
