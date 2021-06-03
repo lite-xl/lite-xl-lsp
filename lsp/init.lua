@@ -579,7 +579,7 @@ function lsp.toggle_diagnostics()
       local filename = system.absolute_path(av.doc.filename)
       local diagnostics = Diagnostics.get(filename)
       if diagnostics then
-        for _, diagnostic in pairs(diagnostics.messages) do
+        for _, diagnostic in pairs(diagnostics) do
           local line, col = Util.toselection(diagnostic.range)
           local message = diagnostic.message
           local kind = diagnostic_kinds[diagnostic.severity]
