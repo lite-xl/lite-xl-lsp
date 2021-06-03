@@ -446,7 +446,7 @@ function lsp.start_server(filename, project_directory)
             core.log("["..server.name.."] " .. "Initialized")
           end
           local settings = lsp.get_workspace_settings(server)
-          if settings then
+          if not Util.table_empty(settings) then
             server:push_request(
               "workspace/didChangeConfiguration",
               {settings = settings},
@@ -810,12 +810,14 @@ function lsp.request_signature(doc, line, col, forced, fallback)
             autocomplete.close()
             listbox.show_text(text:gsub("\n$", ""))
           elseif fallback then
+            core.redraw = true
             fallback(doc, line, col)
           end
         end
       )
       break
     elseif fallback then
+      core.redraw = true
       fallback(doc, line, col)
     end
   end
