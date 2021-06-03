@@ -39,6 +39,8 @@ config.lsp = {}
 -- Set to a file to log all json
 config.lsp.log_file = config.lsp.log_file or ""
 -- Setting to true breaks json for more readability on the log
+-- this setting will impact performance so only enable it when
+-- developing the plugin.
 config.lsp.prettify_json = config.lsp.prettify_json or false
 -- Show diagnostic messages
 config.lsp.show_diagnostics = config.lsp.show_diagnostics or true
