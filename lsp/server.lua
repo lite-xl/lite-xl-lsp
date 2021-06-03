@@ -146,7 +146,9 @@ function server:initialize(path, editor_name, editor_version)
       },
       initializationOptions = self.init_options,
       capabilities = {
-        -- workspace = nil, -- workspaces are not supported at all
+        workspace = {
+          configuration = true -- 'workspace/configuration' requests
+        },
         textDocument = {
           synchronization = {
             -- willSave = true,
