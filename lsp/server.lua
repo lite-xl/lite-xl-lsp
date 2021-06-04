@@ -426,6 +426,7 @@ function server:process_notifications()
 
     if written and written > 0 then
       table.remove(self.notification_list, index)
+      return request
     end
   end
 end
