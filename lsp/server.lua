@@ -63,7 +63,8 @@ function server.new(options)
       notification_list = {},
       command = options.command,
       write_fails = 0,
-      write_fails_before_shutdown = 3,
+      -- TODO: lower this once we implement incremental content changes
+      write_fails_before_shutdown = 30,
       verbose = options.verbose or false,
       initialized = false,
       hitrate_list = {},
@@ -426,9 +427,11 @@ function server:process_notifications()
 
     if written and written > 0 then
       table.remove(self.notification_list, index)
+      self.write_fails = 0
       return request
     else
       self:shutdown_if_needed()
+      return
     end
   end
 end
@@ -475,6 +478,8 @@ function server:process_requests()
       self.request_list[id].timestamp = os.time() + 1
 
       if written and written > 0 then
+        self.write_fails = 0
+
         -- if request has been sent more than 3 times remove them
         self.request_list[id].times_sent = self.request_list[id].times_sent + 1
         if
@@ -489,6 +494,7 @@ function server:process_requests()
         end
       else
         self:shutdown_if_needed()
+        return
       end
     end
   end
@@ -565,9 +571,11 @@ function server:process_client_responses()
     end
 
     if written and written > 0 then
+      self.write_fails = 0
       table.remove(self.response_list, index)
     else
       self:shutdown_if_needed()
+      return
     end
   end
 end
@@ -1055,7 +1063,11 @@ function server:on_message(method, params)
 end
 
 function server:shutdown_if_needed()
-  if self.write_fails >=  self.write_fails_before_shutdown then
+  if
+    self.write_fails >=  self.write_fails_before_shutdown
+    or
+    not self.proc:running()
+  then
     self.initialized = false
     self.proc:kill()
 
