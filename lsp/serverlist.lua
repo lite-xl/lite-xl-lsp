@@ -298,6 +298,22 @@ lsp.add_server {
   }
 }
 
+-- vlang-vls
+-- Status: Initializes but doesn't responds to completion requests
+--         at least it helped improve lit-xl-lsp requests mechanism
+-- Site: https://github.com/vlang/vls
+-- Installation:
+--  git clone https://github.com/vlang/vls.git vls && cd vls/
+--  v -prod cmd/vls
+--  mv cmd/vls vlang-vls
+lsp.add_server {
+  name = "vlang-vls",
+  language = "v",
+  file_patterns = { "%.v$" },
+  command = { 'vlang-vls' },
+  verbose = true
+}
+
 -- vim-language-server
 -- Status: Untested
 -- Site: https://github.com/iamcco/vim-language-server
