@@ -478,7 +478,7 @@ function server:process_requests()
         -- if request has been sent more than 3 times remove them
         self.request_list[id].times_sent = self.request_list[id].times_sent + 1
         if
-          self.request_list[id].times_sent > 2
+          self.request_list[id].times_sent > 1
           and
           request.id ~= 1 -- Initialize request may take some time
         then
