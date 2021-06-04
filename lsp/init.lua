@@ -13,10 +13,12 @@ local core = require "core"
 local common = require "core.common"
 local config = require "core.config"
 local command = require "core.command"
+local style = require "core.style"
 local Doc = require "core.doc"
 local keymap = require "core.keymap"
 local RootView = require "core.rootview"
 local DocView = require "core.docview"
+local StatusView = require "core.statusview"
 
 local Json = require "plugins.lsp.json"
 local Server = require "plugins.lsp.server"
@@ -431,15 +433,10 @@ function lsp.start_server(filename, project_directory)
               lintplus.clear_messages(filename)
             end
           end
-
-          if type(lintplus) == "nil" then
-            lintplus = false
-            core.error("[LSP] Please install lintplus for diagnostics.")
-          end
         end)
 
         -- Send settings table after initialization if available.
-        client:add_event_listener("initialized", function(server, ...)
+        client:add_event_listener("initialized", function(server)
           if config.lsp.force_verbosity_off then
             core.log_quiet("["..server.name.."] " .. "Initialized")
           else
@@ -508,17 +505,32 @@ function lsp.save_document(doc)
   local active_servers = lsp.get_active_servers(doc.filename)
   if #active_servers > 0 then
     for index, name in pairs(active_servers) do
+      local server = lsp.servers_running[name]
+
+      local params = {
+        textDocument = {
+          uri = Util.touri(system.absolute_path(doc.filename)),
+          languageId = Util.file_extension(doc.filename),
+          version = doc.clean_change_id
+        }
+      }
+
+      -- Send document content only if required by lsp server
+      if
+        server.capabilities
+        and
+        server.capabilities.textDocumentSync
+        and
+        server.capabilities.textDocumentSync.save
+        and
+        server.capabilities.textDocumentSync.save.includeText
+      then
+        params.text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+      end
+
       lsp.servers_running[name]:push_notification(
         'textDocument/didSave',
-        {
-          textDocument = {
-            uri = Util.touri(system.absolute_path(doc.filename)),
-            languageId = Util.file_extension(doc.filename),
-            version = doc.clean_change_id
-          },
-          includeText = true,
-          text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
-        }
+        params
       )
     end
   end
@@ -553,6 +565,7 @@ function lsp.update_document(doc)
           uri = Util.touri(system.absolute_path(doc.filename)),
           version = doc.clean_change_id,
         },
+        -- TODO: send incremental changes instead of whole text
         contentChanges = {
           {
             text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
@@ -601,7 +614,7 @@ function lsp.request_item_resolve(index, item)
   -- documentation, one posssible cause is the json and lua converting
   -- the data field from integer to float so the lsp server doesn't
   -- properly finds the given item.
-  -- For now return for now since this isn't implemented
+  -- For now return since this isn't implemented
   if true then
     return
   end
@@ -974,6 +987,49 @@ function lsp.request_document_symbols(doc)
   end
 end
 
+function lsp.view_document_diagnostics(doc)
+  local diagnostics = Diagnostics.get(system.absolute_path(doc.filename))
+  if not diagnostics or #diagnostics <= 0 then
+    return
+  end
+
+  local diagnostic_kinds = { "Error", "Warning", "Info", "Hint" }
+
+  local indexes, captions = {}, {}
+  for index, diagnostic in pairs(diagnostics) do
+    local line1, col1 = Util.toselection(diagnostic.range)
+    local label = diagnostic_kinds[diagnostic.severity]
+      .. ": " .. diagnostic.message .. " "
+      .. tostring(line1) .. ":" .. tostring(col1)
+    captions[index] = label
+    indexes[label] = index
+  end
+
+  core.command_view:enter("Filter Dianostics",
+    function(text, item)
+      if item then
+        local diagnostic = diagnostics[item.index]
+        local line1, col1 = Util.toselection(diagnostic.range)
+        doc:set_selection(line1, col1, line1, col1)
+      end
+    end,
+    function(text)
+      local res = common.fuzzy_match(captions, text)
+      for i, name in ipairs(res) do
+        local diagnostic = diagnostics[indexes[name]]
+        local line1, col1 = Util.toselection(diagnostic.range)
+        res[i] = {
+          text = diagnostic_kinds[diagnostic.severity]
+            .. ": " .. diagnostic.message,
+          info = tostring(line1) .. ":" .. tostring(col1),
+          index = indexes[name]
+        }
+      end
+      return res
+    end
+  )
+end
+
 --- Jumps to the definition or implementation of the symbol where the cursor
 -- is placed if the LSP server supports it
 function lsp.goto_symbol(doc, line, col, implementation)
@@ -1076,6 +1132,7 @@ local doc_undo = Doc.undo
 local doc_redo = Doc.redo
 local doc_remove = Doc.remove
 local root_view_on_text_input = RootView.on_text_input
+local status_view_get_items = StatusView.get_items
 
 function Doc:load(...)
   local res = doc_load(self, ...)
@@ -1205,13 +1262,38 @@ function RootView:on_text_input(...)
   end
 end
 
+function StatusView:get_items()
+  local left, right = status_view_get_items(self)
+
+  local av = get_active_view()
+  if av and av.doc and av.doc.filename then
+    local filename = system.absolute_path(av.doc.filename)
+    local diagnostics = Diagnostics.get(filename)
+
+    if diagnostics and #diagnostics > 0 then
+      local t = {
+        style.syntax["string"],
+        style.icon_font, "!",
+        style.font, " " .. tostring(#diagnostics),
+        style.dim,
+        self.separator2,
+      }
+      for i, item in ipairs(t) do
+        table.insert(right, i, item)
+      end
+    end
+  end
+  return left, right
+end
+
 --
 -- Commands
 --
 command.add("core.docview", {
   ["lsp:complete"] = function()
-    local doc = core.active_view.doc
-    if doc then
+    local av = core.active_view
+    if av and av.doc and av.doc.filename then
+      local doc = core.active_view.doc
       local line1, col1, line2, col2 = doc:get_selection()
       if line1 == line2 and col1 == col2 then
         lsp.request_completion(doc, line1, col1, true)
@@ -1220,8 +1302,9 @@ command.add("core.docview", {
   end,
 
   ["lsp:goto-definition"] = function()
-    local doc = core.active_view.doc
-    if doc then
+    local av = core.active_view
+    if av and av.doc and av.doc.filename then
+      local doc = core.active_view.doc
       local line1, col1, line2, col2 = doc:get_selection()
       if line1 == line2 and col1 == col2 then
         lsp.goto_symbol(doc, line1, col1)
@@ -1230,8 +1313,9 @@ command.add("core.docview", {
   end,
 
   ["lsp:goto-implementation"] = function()
-    local doc = core.active_view.doc
-    if doc then
+    local av = core.active_view
+    if av and av.doc and av.doc.filename then
+      local doc = core.active_view.doc
       local line1, col1, line2, col2 = doc:get_selection()
       if line1 == line2 and col1 == col2 then
         lsp.goto_symbol(doc, line1, col1, true)
@@ -1240,8 +1324,9 @@ command.add("core.docview", {
   end,
 
   ["lsp:show-signature"] = function()
-    local doc = core.active_view.doc
-    if doc then
+    local av = core.active_view
+    if av and av.doc and av.doc.filename then
+      local doc = core.active_view.doc
       local line1, col1, line2, col2 = doc:get_selection()
       if line1 == line2 and col1 == col2 then
         lsp.request_signature(doc, line1, col1, true)
@@ -1250,8 +1335,9 @@ command.add("core.docview", {
   end,
 
   ["lsp:show-symbol-info"] = function()
-    local doc = core.active_view.doc
-    if doc then
+    local av = core.active_view
+    if av and av.doc and av.doc.filename then
+      local doc = core.active_view.doc
       local line1, col1, line2, col2 = doc:get_selection()
       if line1 == line2 and col1 == col2 then
         lsp.request_hover(doc, line1, col1)
@@ -1260,9 +1346,20 @@ command.add("core.docview", {
   end,
 
   ["lsp:view-document-symbols"] = function()
-    local doc = core.active_view.doc
-    if doc then
-      lsp.request_document_symbols(doc)
+    if core.active_view and core.active_view.doc then
+      local doc = core.active_view.doc
+      if doc and doc.filename then
+        lsp.request_document_symbols(doc)
+      end
+    end
+  end,
+
+  ["lsp:view-document-diagnostics"] = function()
+    if core.active_view and core.active_view.doc then
+      local doc = core.active_view.doc
+      if doc and doc.filename then
+        lsp.view_document_diagnostics(doc)
+      end
     end
   end,
 
@@ -1277,6 +1374,10 @@ command.add("core.docview", {
   end,
 
   ["lsp:toggle-diagnostics"] = function()
+    if type(lintplus) == "nil" then
+      core.error("[LSP] Please install lintplus for diagnostics rendering.")
+      return
+    end
     lsp.toggle_diagnostics()
   end,
 })
@@ -1292,7 +1393,8 @@ keymap.add {
   ["alt+shift+d"]       = "lsp:goto-implementation",
   ["alt+s"]             = "lsp:view-document-symbols",
   ["alt+f"]             = "lsp:find-references",
-  ["alt+e"]             = "lsp:toggle-diagnostics",
+  ["alt+e"]             = "lsp:view-document-diagnostics",
+  ["alt+shift+e"]       = "lsp:toggle-diagnostics",
 }
 
 return lsp

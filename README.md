@@ -22,10 +22,11 @@ Stuff that is currently implemented:
 * Current cursor symbol details tooltip (__alt+a__)
 * Goto definition (__alt+d__)
 * Goto implementation (__alt+shift+d__)
-* View current document symbols (__alt+s__)
-* View symbol references (__alt+f__)
+* View/jump to current document symbols (__alt+s__)
+* View/jump to symbol references (__alt+f__)
+* View/jump to document diagnostic messages (__alt+e__)
 * Optional diagnostics rendering while typing with
-  [LintPlus](https://github.com/liquidev/lintplus) (__alt+e__ to toggle)
+  [LintPlus](https://github.com/liquidev/lintplus) (__alt+shift+e__ to toggle)
 
 ## Setting a LSP Server
 
@@ -66,6 +67,8 @@ lsp.add_server {
 the new autocomplete item description
 * Show diagnostics on active document similar to the linter plugin (__Done__).
 * Add Snippets support.
+* Send incremental changes on textDocument/didChange notification since
+  sending the whole document content on big files is slow and bad.
 
 
 ## Screenshots
