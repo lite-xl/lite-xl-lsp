@@ -69,7 +69,9 @@ function server.new(options)
       verbose = options.verbose or false,
       initialized = false,
       hitrate_list = {},
-      requests_per_second = options.requests_per_second or 16
+      requests_per_second = options.requests_per_second or 16,
+      requests_in_chunks = type(options.requests_in_chunks) ~= "nil" and
+        options.requests_in_chunks or true
     },
     {__index = server}
   )
@@ -846,41 +848,53 @@ function server:write_request(data, timeout)
   local max_time = os.time() + timeout
 
   if timeout == 0 then max_time = max_time + 1 end
-
-  -- first send the header
   local written = 0
-  while max_time > os.time() and written <= 0 do
-    written = self.proc:write(string.format(
-      'Content-Length: %d\r\n\r\n',
-      #data + 2 -- last \r\n
-    ))
 
-    if timeout == 0 then break end
-  end
+  if not self.requests_in_chunks then
+    while max_time > os.time() and written <= 0 do
+      written = self.proc:write(string.format(
+        'Content-Length: %d\r\n\r\n%s\r\n',
+        #data + 2,
+        data
+      ))
 
-  if written and written <= 0 then
-    return false
-  end
+      if timeout == 0 then break end
+    end
+  else
+    -- first send the header
+    while max_time > os.time() and written <= 0 do
+      written = self.proc:write(string.format(
+        'Content-Length: %d\r\n\r\n',
+        #data + 2 -- last \r\n
+      ))
 
-  -- send content in chunks
-  local chunks = 256
-  data = data .. "\r\n"
-
-  while #data > 0 do
-    local wrote = 0
-
-    if #data > chunks then
-      wrote = self.proc:write(data:sub(1, chunks))
-      data = data:sub(chunks+1)
-    else
-      wrote = self.proc:write(data)
-      data = ""
+      if timeout == 0 then break end
     end
 
-    if wrote > 0 then
-      written = written + wrote
-    else
+    if written and written <= 0 then
       return false
+    end
+
+    -- send content in chunks
+    local chunks = 256
+    data = data .. "\r\n"
+
+    while #data > 0 do
+      local wrote = 0
+
+      if #data > chunks then
+        wrote = self.proc:write(data:sub(1, chunks))
+        data = data:sub(chunks+1)
+      else
+        wrote = self.proc:write(data)
+        data = ""
+      end
+
+      if wrote > 0 then
+        written = written + wrote
+      else
+        return false
+      end
     end
   end
 
