@@ -290,6 +290,9 @@ lsp.add_server {
       workspace = {
         maxPreload = 2000,
         preloadFileSize = 1000
+      },
+      telemetry = {
+        enable = true
       }
     }
   }
