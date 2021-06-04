@@ -507,6 +507,8 @@ function lsp.open_document(doc)
           Server.text_document_sync_kind.Incremental
           or
           (
+            type(server.capabilities.textDocumentSync) == "table"
+            and
             server.capabilities.textDocumentSync.openClose
           )
         )
