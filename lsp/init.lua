@@ -356,6 +356,17 @@ function lsp.start_server(filename, project_directory)
           )
         end
 
+        function client:on_shutdown()
+          core.log(
+            "[LSP]: %s was shutdown, revise your configuration",
+            self.name
+          )
+          lsp.servers_running = Util.table_remove_key(
+            lsp.servers_running,
+            self.name
+          )
+        end
+
         -- Respond to workspace/configuration request
         client:add_request_listener("workspace/configuration", function(server, request)
           local settings_default = lsp.get_workspace_settings(server)
