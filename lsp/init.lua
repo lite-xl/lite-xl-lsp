@@ -566,6 +566,8 @@ function lsp.save_document(doc)
         }
         -- Send document content only if required by lsp server
         if
+          type(server.capabilities.textDocumentSync.save) == "table"
+          and
           server.capabilities.textDocumentSync.save.includeText
         then
           params.text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
