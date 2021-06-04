@@ -62,10 +62,8 @@ function server.new(options)
       response_list = {},
       notification_list = {},
       command = options.command,
-      restarts = options.restarts or 3,
-      restart_retries = 0,
       write_fails = 0,
-      write_fails_before_restart = 10,
+      write_fails_before_shutdown = 3,
       verbose = options.verbose or false,
       initialized = false,
       hitrate_list = {},
@@ -429,6 +427,8 @@ function server:process_notifications()
     if written and written > 0 then
       table.remove(self.notification_list, index)
       return request
+    else
+      self:shutdown_if_needed()
     end
   end
 end
@@ -436,6 +436,7 @@ end
 --- Sends one of the pushed request, this function should be called on a
 -- loop for non blocking interaction.
 function server:process_requests()
+  local remove_request = nil
   for id, request in pairs(self.request_list) do
     if request.timestamp < os.time() then
       -- only process when initialized or the initialize request
@@ -474,8 +475,28 @@ function server:process_requests()
       self.request_list[id].timestamp = os.time() + 1
 
       if written and written > 0 then
-        return request
+        -- if request has been sent more than 3 times remove them
+        self.request_list[id].times_sent = self.request_list[id].times_sent + 1
+        if
+          self.request_list[id].times_sent > 2
+          and
+          request.id ~= 1 -- Initialize request may take some time
+        then
+          remove_request = id
+          break
+        else
+          return request
+        end
+      else
+        self:shutdown_if_needed()
       end
+    end
+  end
+
+  if remove_request then
+    self.request_list[remove_request] = nil
+    if self.verbose then
+      self:log("Request '%s' expired without response", remove_request)
     end
   end
 end
@@ -545,6 +566,8 @@ function server:process_client_responses()
 
     if written and written > 0 then
       table.remove(self.response_list, index)
+    else
+      self:shutdown_if_needed()
     end
   end
 end
@@ -637,7 +660,8 @@ function server:push_request(method, params, callback)
     method = method,
     params = params,
     callback = callback or nil,
-    timestamp = 0
+    timestamp = 0,
+    times_sent = 0
   }
 end
 
@@ -1028,6 +1052,26 @@ function server:on_message(method, params)
       util.jsonprettify(json.encode(params))
     )
   end
+end
+
+function server:shutdown_if_needed()
+  if self.write_fails >=  self.write_fails_before_shutdown then
+    self.initialized = false
+    self.proc:kill()
+
+    self.request_list = {}
+    self.response_list = {}
+    self.notification_list = {}
+
+    self:on_shutdown()
+
+    return
+  end
+  self.write_fails = self.write_fails + 1
+end
+
+function server:on_shutdown()
+  self:log("The server was shutdown.")
 end
 
 --- Instructs the server to exit.
