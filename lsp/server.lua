@@ -437,7 +437,7 @@ end
 -- loop for non blocking interaction.
 function server:process_requests()
   for id, request in pairs(self.request_list) do
-    if not request.sent then
+    if request.timestamp < os.time() then
       -- only process when initialized or the initialize request
       -- which should be the first one.
       if not self.initialized and id ~= 1 then
@@ -471,8 +471,9 @@ function server:process_requests()
         end
       end
 
+      self.request_list[id].timestamp = os.time() + 1
+
       if written and written > 0 then
-        self.request_list[id].sent = true
         return request
       end
     end
@@ -636,7 +637,7 @@ function server:push_request(method, params, callback)
     method = method,
     params = params,
     callback = callback or nil,
-    sent = false
+    timestamp = 0
   }
 end
 
