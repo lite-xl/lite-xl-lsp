@@ -457,6 +457,15 @@ function lsp.start_server(filename, project_directory)
               end
             )
           end
+
+          -- Send open document request if needed
+          for _, docu in ipairs(core.docs) do
+            if docu.filename then
+              if matches_any(docu.filename, server.file_patterns) then
+                lsp.open_document(docu)
+              end
+            end
+          end
         end)
 
         -- Start the server initialization process
@@ -482,20 +491,38 @@ function lsp.open_document(doc)
   local active_servers = lsp.get_active_servers(doc.filename)
 
   if #active_servers > 0 then
-    doc.disable_symbols = true
-
+    doc.disable_symbols = true -- disable symbol parsing on autocomplete plugin
     for _, name in pairs(active_servers) do
-      lsp.servers_running[name]:push_notification(
-        'textDocument/didOpen',
-        {
-          textDocument = {
-            uri = Util.touri(system.absolute_path(doc.filename)),
-            languageId = Util.file_extension(doc.filename),
-            version = doc.clean_change_id,
-            text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+      local server = lsp.servers_running[name]
+      if
+        server.initialized
+        and
+        server.capabilities
+        and
+        server.capabilities.textDocumentSync
+        and
+        (
+          server.capabilities.textDocumentSync
+          ==
+          Server.text_document_sync_kind.Incremental
+          or
+          (
+            server.capabilities.textDocumentSync.openClose
+          )
+        )
+      then
+        server:push_notification(
+          'textDocument/didOpen',
+          {
+            textDocument = {
+              uri = Util.touri(system.absolute_path(doc.filename)),
+              languageId = Util.file_extension(doc.filename),
+              version = doc.clean_change_id,
+              text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+            }
           }
-        }
-      )
+        )
+      end
     end
   end
 end
@@ -504,34 +531,38 @@ end
 function lsp.save_document(doc)
   local active_servers = lsp.get_active_servers(doc.filename)
   if #active_servers > 0 then
-    for index, name in pairs(active_servers) do
+    for _, name in pairs(active_servers) do
       local server = lsp.servers_running[name]
-
-      local params = {
-        textDocument = {
-          uri = Util.touri(system.absolute_path(doc.filename)),
-          languageId = Util.file_extension(doc.filename),
-          version = doc.clean_change_id
-        }
-      }
-
-      -- Send document content only if required by lsp server
       if
+        server.initialized
+        and
         server.capabilities
         and
         server.capabilities.textDocumentSync
         and
-        server.capabilities.textDocumentSync.save
+        type(server.capabilities.textDocumentSync) == "table"
         and
-        server.capabilities.textDocumentSync.save.includeText
+        server.capabilities.textDocumentSync.save
       then
-        params.text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
-      end
+        local params = {
+          textDocument = {
+            uri = Util.touri(system.absolute_path(doc.filename)),
+            languageId = Util.file_extension(doc.filename),
+            version = doc.clean_change_id
+          }
+        }
+        -- Send document content only if required by lsp server
+        if
+          server.capabilities.textDocumentSync.save.includeText
+        then
+          params.text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+        end
 
-      lsp.servers_running[name]:push_notification(
-        'textDocument/didSave',
-        params
-      )
+        server:push_notification(
+          'textDocument/didSave',
+          params
+        )
+      end
     end
   end
 end
@@ -540,17 +571,30 @@ end
 function lsp.close_document(doc)
   local active_servers = lsp.get_active_servers(doc.filename)
   if #active_servers > 0 then
-    for index, name in pairs(active_servers) do
-      lsp.servers_running[name]:push_notification(
-        'textDocument/didClose',
-        {
-          textDocument = {
-            uri = Util.touri(system.absolute_path(doc.filename)),
-            languageId = Util.file_extension(doc.filename),
-            version = doc.clean_change_id
+    for _, name in pairs(active_servers) do
+      local server = lsp.servers_running[name]
+      if
+        server.initialized
+        and
+        server.capabilities
+        and
+        server.capabilities.textDocumentSync
+        and
+        type(server.capabilities.textDocumentSync) == "table"
+        and
+        server.capabilities.textDocumentSync.openClose
+      then
+        server:push_notification(
+          'textDocument/didClose',
+          {
+            textDocument = {
+              uri = Util.touri(system.absolute_path(doc.filename)),
+              languageId = Util.file_extension(doc.filename),
+              version = doc.clean_change_id
+            }
           }
-        }
-      )
+        )
+      end
     end
   end
 end
@@ -558,22 +602,25 @@ end
 --- Send document updates to applicable running LSP servers.
 function lsp.update_document(doc)
   for _, name in pairs(lsp.get_active_servers(doc.filename)) do
-    lsp.servers_running[name]:push_notification(
-      'textDocument/didChange',
-      {
-        textDocument = {
-          uri = Util.touri(system.absolute_path(doc.filename)),
-          version = doc.clean_change_id,
-        },
-        -- TODO: send incremental changes instead of whole text
-        contentChanges = {
-          {
-            text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
-          }
-        },
-        syncKind = Server.text_document_sync_kind.Full
-      }
-    )
+    local server = lsp.servers_running[name]
+    if server.initialized then
+      lsp.servers_running[name]:push_notification(
+        'textDocument/didChange',
+        {
+          textDocument = {
+            uri = Util.touri(system.absolute_path(doc.filename)),
+            version = doc.clean_change_id,
+          },
+          -- TODO: send incremental changes instead of whole text
+          contentChanges = {
+            {
+              text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+            }
+          },
+          syncKind = Server.text_document_sync_kind.Full
+        }
+      )
+    end
   end
 end
 
@@ -642,6 +689,8 @@ function lsp.request_completion(doc, line, col, forced)
 
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     if
+      lsp.servers_running[name].initialized
+      and
       lsp.servers_running[name].capabilities
       and
       lsp.servers_running[name].capabilities.completionProvider
@@ -789,6 +838,8 @@ function lsp.request_signature(doc, line, col, forced, fallback)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
     if
+      server.initialized
+      and
       server.capabilities
       and
       server.capabilities.signatureHelpProvider
@@ -844,7 +895,13 @@ end
 function lsp.request_hover(doc, line, col)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
-    if server.capabilities and server.capabilities.hoverProvider then
+    if
+      server.initialized
+      and
+      server.capabilities
+      and
+      server.capabilities.hoverProvider
+    then
       server:push_request(
         'textDocument/hover',
         get_buffer_position_params(doc, line, col),
@@ -882,7 +939,13 @@ end
 function lsp.request_references(doc, line, col)
   for _, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
-    if server.capabilities and server.capabilities.hoverProvider then
+    if
+      server.initialized
+      and
+      server.capabilities
+      and
+      server.capabilities.hoverProvider
+    then
       local request_params = get_buffer_position_params(doc, line, col)
       request_params.context = {includeDeclaration = true}
       server:push_request(
@@ -930,7 +993,13 @@ function lsp.request_document_symbols(doc)
   for _, name in pairs(lsp.get_active_servers(doc.filename)) do
     servers_found = true
     local server = lsp.servers_running[name]
-    if server.capabilities and server.capabilities.documentSymbolProvider then
+    if
+      server.initialized
+      and
+      server.capabilities
+      and
+      server.capabilities.documentSymbolProvider
+    then
       log(server, "Retrieving document symbols...")
       server:push_request(
         'textDocument/documentSymbol',
@@ -988,6 +1057,7 @@ end
 function lsp.view_document_diagnostics(doc)
   local diagnostics = Diagnostics.get(system.absolute_path(doc.filename))
   if not diagnostics or #diagnostics <= 0 then
+    core.log("[LSP] %s", "No diagnostic messages found.")
     return
   end
 
@@ -1034,7 +1104,7 @@ function lsp.goto_symbol(doc, line, col, implementation)
   for index, name in pairs(lsp.get_active_servers(doc.filename)) do
     local server = lsp.servers_running[name]
 
-    if not server.capabilities then
+    if not server.initialized or not server.capabilities then
       return
     end
 
