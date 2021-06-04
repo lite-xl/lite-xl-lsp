@@ -828,14 +828,12 @@ function lsp.request_signature(doc, line, col, forced, fallback)
             autocomplete.close()
             listbox.show_text(text:gsub("\n$", ""))
           elseif fallback then
-            core.redraw = true
             fallback(doc, line, col)
           end
         end
       )
       break
     elseif fallback then
-      core.redraw = true
       fallback(doc, line, col)
     end
   end

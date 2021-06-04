@@ -316,11 +316,11 @@ function server:send_event_signal(event_name, ...)
   if self.event_listeners[event_name] then
     self.event_listeners[event_name](self, ...)
   else
-    self:on_event(event_name, ...)
+    self:on_event(event_name)
   end
 end
 
-function server:on_event(event_name, ...)
+function server:on_event(event_name)
   if self.verbose then
     self:log("Received event '%s'", event_name)
   end
@@ -481,7 +481,7 @@ function server:process_responses()
   local responses = self:read_responses(0)
 
   if type(responses) == "table" then
-    for i, response in pairs(responses) do
+    for _, response in pairs(responses) do
       if self.verbose then
         self:log(
           "Processing Response:\n%s",
@@ -724,7 +724,7 @@ function server:read_responses(timeout)
         -- iterate every output
         header_content = util.split(output, "\r\n\r\n")
         bytes = 0
-        for index, content in pairs(header_content) do
+        for _, content in pairs(header_content) do
           if bytes == 0 and content:find('Content%-Length: %d+') then
             bytes =  tonumber(content:match("Content%-Length: (%d+)"))
           elseif bytes and #content >= bytes then
