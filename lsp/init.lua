@@ -15,16 +15,17 @@ local config = require "core.config"
 local command = require "core.command"
 local style = require "core.style"
 local Doc = require "core.doc"
+local translate = require "core.doc.translate"
 local keymap = require "core.keymap"
 local RootView = require "core.rootview"
 local DocView = require "core.docview"
 local StatusView = require "core.statusview"
+local autocomplete = require "plugins.autocomplete"
 
 local Json = require "plugins.lsp.json"
 local Server = require "plugins.lsp.server"
 local Util = require "plugins.lsp.util"
 local Diagnostics = require "plugins.lsp.diagnostics"
-local autocomplete = require "plugins.autocomplete"
 local listbox = require "plugins.lsp.listbox"
 
 -- Try to load lintplus plugin if available for diagnostics rendering
@@ -233,12 +234,26 @@ function lsp.add_server(server)
 end
 
 --- Get valid running lsp servers for a given filename
-function lsp.get_active_servers(filename)
+function lsp.get_active_servers(filename, initialized)
   local servers = {}
   for name, server in pairs(lsp.servers) do
     if matches_any(filename, server.file_patterns) then
       if lsp.servers_running[name] then
-        table.insert(servers, name)
+        local add_server = true
+        if
+          initialized
+          and
+          (
+            not lsp.servers_running[name].initialized
+            or
+            not lsp.servers_running[name].capabilities
+          )
+        then
+          add_server = false
+        end
+        if add_server then
+          table.insert(servers, name)
+        end
       end
     end
   end
@@ -499,17 +514,13 @@ end
 function lsp.open_document(doc)
   lsp.start_server(doc.filename, core.project_dir)
 
-  local active_servers = lsp.get_active_servers(doc.filename)
+  local active_servers = lsp.get_active_servers(doc.filename, true)
 
   if #active_servers > 0 then
     doc.disable_symbols = true -- disable symbol parsing on autocomplete plugin
     for _, name in pairs(active_servers) do
       local server = lsp.servers_running[name]
       if
-        server.initialized
-        and
-        server.capabilities
-        and
         server.capabilities.textDocumentSync
         and
         (
@@ -542,15 +553,11 @@ end
 
 --- Send notification to applicable LSP servers that a document was saved
 function lsp.save_document(doc)
-  local active_servers = lsp.get_active_servers(doc.filename)
+  local active_servers = lsp.get_active_servers(doc.filename, true)
   if #active_servers > 0 then
     for _, name in pairs(active_servers) do
       local server = lsp.servers_running[name]
       if
-        server.initialized
-        and
-        server.capabilities
-        and
         server.capabilities.textDocumentSync
         and
         type(server.capabilities.textDocumentSync) == "table"
@@ -584,15 +591,11 @@ end
 
 --- Send notification to applicable LSP servers that a document was closed
 function lsp.close_document(doc)
-  local active_servers = lsp.get_active_servers(doc.filename)
+  local active_servers = lsp.get_active_servers(doc.filename, true)
   if #active_servers > 0 then
     for _, name in pairs(active_servers) do
       local server = lsp.servers_running[name]
       if
-        server.initialized
-        and
-        server.capabilities
-        and
         server.capabilities.textDocumentSync
         and
         type(server.capabilities.textDocumentSync) == "table"
@@ -616,9 +619,27 @@ end
 
 --- Send document updates to applicable running LSP servers.
 function lsp.update_document(doc)
-  for _, name in pairs(lsp.get_active_servers(doc.filename)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
-    if server.initialized then
+    if
+      server.capabilities.textDocumentSync
+      and
+      (
+        (
+          type(server.capabilities.textDocumentSync) == "table"
+          and
+          server.capabilities.textDocumentSync.change
+          and
+          server.capabilities.textDocumentSync.change
+          ~=
+          Server.text_document_sync_kind.None
+        )
+        or
+        server.capabilities.textDocumentSync
+        ~=
+        Server.text_document_sync_kind.None
+      )
+    then
       lsp.servers_running[name]:push_notification(
         'textDocument/didChange',
         {
@@ -702,14 +723,9 @@ function lsp.request_completion(doc, line, col, forced)
     return
   end
 
-  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
-    if
-      lsp.servers_running[name].initialized
-      and
-      lsp.servers_running[name].capabilities
-      and
-      lsp.servers_running[name].capabilities.completionProvider
-    then
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+    local server = lsp.servers_running[name]
+    if server.capabilities.completionProvider then
       local capabilities = lsp.servers_running[name].capabilities
       local char = doc:get_char(line, col-1)
       local trigger_char = false
@@ -745,7 +761,7 @@ function lsp.request_completion(doc, line, col, forced)
         return false
       end
 
-      lsp.servers_running[name]:push_request(
+      server:push_request(
         'textDocument/completion',
         request,
         function(server, response)
@@ -850,13 +866,9 @@ end
 -- signatures and display them on a tooltip.
 function lsp.request_signature(doc, line, col, forced, fallback)
   local char = doc:get_char(line, col-1)
-  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
     if
-      server.initialized
-      and
-      server.capabilities
-      and
       server.capabilities.signatureHelpProvider
       and
       (
@@ -908,15 +920,9 @@ end
 --- Sends a request to applicable LSP servers for information about the
 -- symbol where the cursor is placed and shows it on a tooltip.
 function lsp.request_hover(doc, line, col)
-  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
-    if
-      server.initialized
-      and
-      server.capabilities
-      and
-      server.capabilities.hoverProvider
-    then
+    if server.capabilities.hoverProvider then
       server:push_request(
         'textDocument/hover',
         get_buffer_position_params(doc, line, col),
@@ -952,15 +958,9 @@ end
 
 --- Sends a request to applicable LSP servers for a symbol references
 function lsp.request_references(doc, line, col)
-  for _, name in pairs(lsp.get_active_servers(doc.filename)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
-    if
-      server.initialized
-      and
-      server.capabilities
-      and
-      server.capabilities.hoverProvider
-    then
+    if server.capabilities.hoverProvider then
       local request_params = get_buffer_position_params(doc, line, col)
       request_params.context = {includeDeclaration = true}
       server:push_request(
@@ -1005,16 +1005,10 @@ end
 function lsp.request_document_symbols(doc)
   local servers_found = false
   local symbols_retrieved = false
-  for _, name in pairs(lsp.get_active_servers(doc.filename)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     servers_found = true
     local server = lsp.servers_running[name]
-    if
-      server.initialized
-      and
-      server.capabilities
-      and
-      server.capabilities.documentSymbolProvider
-    then
+    if server.capabilities.documentSymbolProvider then
       log(server, "Retrieving document symbols...")
       server:push_request(
         'textDocument/documentSymbol',
@@ -1116,12 +1110,8 @@ end
 --- Jumps to the definition or implementation of the symbol where the cursor
 -- is placed if the LSP server supports it
 function lsp.goto_symbol(doc, line, col, implementation)
-  for index, name in pairs(lsp.get_active_servers(doc.filename)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
-
-    if not server.initialized or not server.capabilities then
-      return
-    end
 
     local method = ""
     if not implementation then
@@ -1389,7 +1379,7 @@ command.add("core.docview", {
     if av and av.doc and av.doc.filename then
       local doc = core.active_view.doc
       local line1, col1, line2, col2 = doc:get_selection()
-      if line1 == line2 and col1 == col2 then
+      if line1 == line2 then
         lsp.goto_symbol(doc, line1, col1)
       end
     end
@@ -1400,7 +1390,7 @@ command.add("core.docview", {
     if av and av.doc and av.doc.filename then
       local doc = core.active_view.doc
       local line1, col1, line2, col2 = doc:get_selection()
-      if line1 == line2 and col1 == col2 then
+      if line1 == line2 then
         lsp.goto_symbol(doc, line1, col1, true)
       end
     end
@@ -1422,7 +1412,7 @@ command.add("core.docview", {
     if av and av.doc and av.doc.filename then
       local doc = core.active_view.doc
       local line1, col1, line2, col2 = doc:get_selection()
-      if line1 == line2 and col1 == col2 then
+      if line1 == line2 then
         lsp.request_hover(doc, line1, col1)
       end
     end
@@ -1450,7 +1440,7 @@ command.add("core.docview", {
     local doc = core.active_view.doc
     if doc then
       local line1, col1, line2, col2 = doc:get_selection()
-      if line1 == line2 and col1 == col2 then
+      if line1 == line2 then
         lsp.request_references(doc, line1, col1)
       end
     end
@@ -1479,5 +1469,61 @@ keymap.add {
   ["alt+e"]             = "lsp:view-document-diagnostics",
   ["alt+shift+e"]       = "lsp:toggle-diagnostics",
 }
+
+--
+-- Register context menu items
+--
+local function lsp_predicate(_, _, also_in_symbol)
+  if
+    get_active_view()
+    and
+    core.active_view.doc
+    and
+    core.active_view.doc.filename
+  then
+    local doc = core.active_view.doc
+
+    if #lsp.get_active_servers(doc.filename, true) < 1 then
+      return false
+    elseif not also_in_symbol then
+      return true
+    end
+
+    -- Make sure the cursor is place near a document symbol (word)
+    local linem, colm = doc:get_selection()
+    local linel, coll = doc:position_offset(linem, colm, translate.start_of_word)
+    local liner, colr = doc:position_offset(linem, colm, translate.end_of_word)
+
+    local word_left = doc:get_text(linel, coll, linem, colm)
+    local word_right = doc:get_text(linem, colm, liner, colr)
+
+    if #word_left > 0 or #word_right > 0 then
+      return true
+    end
+  end
+  return false
+end
+
+local function lsp_predicate_symbols()
+  return lsp_predicate(nil, nil, true)
+end
+
+local found, menu = pcall(require, "plugins.contextmenu")
+if found then
+  menu:register(lsp_predicate_symbols, {
+    menu.DIVIDER,
+    { text = "Show Symbol Info",       command = "lsp:show-symbol-info" },
+    { text = "Goto Definition",        command = "lsp:goto-definition" },
+    { text = "Goto Implementation",    command = "lsp:goto-implementation" },
+    { text = "Find References",        command = "lsp:find-references" }
+  })
+
+  menu:register(lsp_predicate, {
+    menu.DIVIDER,
+    { text = "Document Symbols",       command = "lsp:view-document-symbols" },
+    { text = "Document Dianostics",    command = "lsp:view-document-diagnostics" },
+    { text = "Toggle Diagnostics",     command = "lsp:toggle-diagnostics" }
+  })
+end
 
 return lsp
