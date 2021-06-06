@@ -27,6 +27,7 @@ Stuff that is currently implemented:
 * View/jump to document diagnostic messages (__alt+e__)
 * Optional diagnostics rendering while typing with
   [LintPlus](https://github.com/liquidev/lintplus) (__alt+shift+e__ to toggle)
+* List all documents with diagnostics (__ctrl+alt+e__)
 
 ## Setting a LSP Server
 

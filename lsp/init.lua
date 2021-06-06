@@ -74,14 +74,6 @@ local diagnostic_kinds = { "error", "warning", "info", "hint" }
 --
 -- Private functions
 --
-local function matches_any(filename, patterns)
-  for _, ptn in ipairs(patterns) do
-    if filename:find(ptn) then
-      return true
-    end
-  end
-end
-
 local function get_buffer_position_params(doc, line, col)
   return {
     textDocument = {
@@ -237,7 +229,7 @@ end
 function lsp.get_active_servers(filename, initialized)
   local servers = {}
   for name, server in pairs(lsp.servers) do
-    if matches_any(filename, server.file_patterns) then
+    if common.match_pattern(filename, server.file_patterns) then
       if lsp.servers_running[name] then
         local add_server = true
         if
@@ -343,7 +335,7 @@ function lsp.start_server(filename, project_directory)
   local server_registered = false
   local servers_not_found = {}
   for name, server in pairs(lsp.servers) do
-    if matches_any(filename, server.file_patterns) then
+    if common.match_pattern(filename, server.file_patterns) then
       server_registered = true
       if lsp.servers_running[name] then
         server_started = true
@@ -487,7 +479,7 @@ function lsp.start_server(filename, project_directory)
           -- Send open document request if needed
           for _, docu in ipairs(core.docs) do
             if docu.filename then
-              if matches_any(docu.filename, server.file_patterns) then
+              if common.match_pattern(docu.filename, server.file_patterns) then
                 lsp.open_document(docu)
               end
             end
@@ -1082,7 +1074,7 @@ function lsp.view_document_diagnostics(doc)
     indexes[label] = index
   end
 
-  core.command_view:enter("Filter Dianostics",
+  core.command_view:enter("Filter Diagnostics",
     function(text, item)
       if item then
         local diagnostic = diagnostics[item.index]
@@ -1100,6 +1092,45 @@ function lsp.view_document_diagnostics(doc)
             .. ": " .. diagnostic.message,
           info = tostring(line1) .. ":" .. tostring(col1),
           index = indexes[name]
+        }
+      end
+      return res
+    end
+  )
+end
+
+function lsp.view_all_diagnostics()
+  if Diagnostics.count <= 0 then
+    core.log("[LSP] %s", "No diagnostic messages found.")
+    return
+  end
+
+  local captions = {}
+  for name, _ in pairs(Diagnostics.list) do
+    table.insert(captions, core.normalize_to_project_dir(name))
+  end
+
+  core.command_view:enter("Filter Files",
+    function(text, item)
+      if item then
+        core.root_view:open_doc(
+          core.open_doc(
+            common.home_expand(
+              text
+            )
+          )
+        )
+      end
+    end,
+    function(text)
+      local res = common.fuzzy_match(captions, text, true)
+      for i, name in ipairs(res) do
+        local diagnostics = Diagnostics.get_messages_count(
+          system.absolute_path(name)
+        )
+        res[i] = {
+          text = name,
+          info = "Messages: " .. diagnostics
         }
       end
       return res
@@ -1295,7 +1326,7 @@ core.add_close_hook(function(doc)
     local doc_found = false
     for _, docu in ipairs(core.docs) do
       if docu.filename then
-        if matches_any(docu.filename, server.file_patterns) then
+        if common.match_pattern(docu.filename, server.file_patterns) then
           doc_found = true
           break
         end
@@ -1436,6 +1467,12 @@ command.add("core.docview", {
     end
   end,
 
+  ["lsp:view-all-diagnostics"] = function()
+    if core.active_view and core.active_view.doc then
+        lsp.view_all_diagnostics()
+    end
+  end,
+
   ["lsp:find-references"] = function()
     local doc = core.active_view.doc
     if doc then
@@ -1467,6 +1504,7 @@ keymap.add {
   ["alt+s"]             = "lsp:view-document-symbols",
   ["alt+f"]             = "lsp:find-references",
   ["alt+e"]             = "lsp:view-document-diagnostics",
+  ["ctrl+alt+e"]        = "lsp:view-all-diagnostics",
   ["alt+shift+e"]       = "lsp:toggle-diagnostics",
 }
 
@@ -1521,7 +1559,7 @@ if found then
   menu:register(lsp_predicate, {
     menu.DIVIDER,
     { text = "Document Symbols",       command = "lsp:view-document-symbols" },
-    { text = "Document Diagnostics",    command = "lsp:view-document-diagnostics" },
+    { text = "Document Diagnostics",   command = "lsp:view-document-diagnostics" },
     { text = "Toggle Diagnostics",     command = "lsp:toggle-diagnostics" }
   })
 end
