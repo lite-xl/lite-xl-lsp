@@ -1521,7 +1521,7 @@ if found then
   menu:register(lsp_predicate, {
     menu.DIVIDER,
     { text = "Document Symbols",       command = "lsp:view-document-symbols" },
-    { text = "Document Dianostics",    command = "lsp:view-document-diagnostics" },
+    { text = "Document Diagnostics",    command = "lsp:view-document-diagnostics" },
     { text = "Toggle Diagnostics",     command = "lsp:toggle-diagnostics" }
   })
 end
