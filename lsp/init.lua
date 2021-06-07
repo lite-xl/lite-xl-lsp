@@ -520,6 +520,10 @@ function lsp.open_document(doc)
           ==
           Server.text_document_sync_kind.Incremental
           or
+          server.capabilities.textDocumentSync
+          ==
+          Server.text_document_sync_kind.Full
+          or
           (
             type(server.capabilities.textDocumentSync) == "table"
             and
