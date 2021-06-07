@@ -656,7 +656,7 @@ function lsp.update_document(doc)
       end
       doc.lsp_changes = {}
 
-      if #changes > 0 then
+      if changes and #changes > 0 then
         lsp.servers_running[name]:push_notification(
           'textDocument/didChange',
           {
