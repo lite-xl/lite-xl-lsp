@@ -620,6 +620,18 @@ function server:hitrate_reached(type)
   return false
 end
 
+function server:can_push()
+  local type = "request"
+  if not self.hitrate_list[type] then
+    return true
+  elseif self.hitrate_list[type].timestamp > os.time() then
+    if self.hitrate_list[type].count >= self.requests_per_second then
+      return false
+    end
+  end
+  return true
+end
+
 -- notifications that should bypass the hitrate limit
 local notifications_whitelist = {
   "textDocument/didOpen",

@@ -631,23 +631,44 @@ function lsp.update_document(doc)
         ~=
         Server.text_document_sync_kind.None
       )
+      and
+      server:can_push() -- ensure we don't loose incremental changes
     then
-      lsp.servers_running[name]:push_notification(
-        'textDocument/didChange',
-        {
-          textDocument = {
-            uri = Util.touri(system.absolute_path(doc.filename)),
-            version = doc.clean_change_id,
-          },
-          -- TODO: send incremental changes instead of whole text
-          contentChanges = {
-            {
-              text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
-            }
-          },
-          syncKind = Server.text_document_sync_kind.Full
-        }
-      )
+      local sync_kind = Server.text_document_sync_kind.Incremental
+
+      if
+        type(server.capabilities.textDocumentSync) == "table"
+        and
+        server.capabilities.textDocumentSync.change
+      then
+        sync_kind = server.capabilities.textDocumentSync.change
+      elseif server.capabilities.textDocumentSync then
+        sync_kind = server.capabilities.textDocumentSync
+      end
+
+      local changes = {}
+      if sync_kind == Server.text_document_sync_kind.Full then
+        table.insert(changes, {
+          text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+        })
+      else
+        changes = doc.lsp_changes
+      end
+      doc.lsp_changes = {}
+
+      if #changes > 0 then
+        lsp.servers_running[name]:push_notification(
+          'textDocument/didChange',
+          {
+            textDocument = {
+              uri = Util.touri(system.absolute_path(doc.filename)),
+              version = doc.lsp_version,
+            },
+            contentChanges = changes,
+            syncKind = Server.text_document_sync_kind.Full
+          }
+        )
+      end
     end
   end
 end
@@ -1234,7 +1255,8 @@ local doc_load = Doc.load
 local doc_save = Doc.save
 local doc_undo = Doc.undo
 local doc_redo = Doc.redo
-local doc_remove = Doc.remove
+local doc_raw_insert = Doc.raw_insert
+local doc_raw_remove = Doc.raw_remove
 local root_view_on_text_input = RootView.on_text_input
 local status_view_get_items = StatusView.get_items
 
@@ -1265,6 +1287,7 @@ function Doc:save(...)
     end)
   else
     core.add_thread(function()
+      lsp.update_document(self)
       lsp.save_document(self)
     end)
   end
@@ -1297,17 +1320,37 @@ function Doc:redo(...)
   end
 end
 
-function Doc:remove(...)
-  doc_remove(self, ...)
+local function add_change(self, text, line1, col1, line2, col2)
+  if not self.lsp_changes then
+    self.lsp_changes = {}
+    self.lsp_version = 0
+  end
+
+  local change = { range = {}, text = text}
+  change.range["start"] = {line = line1-1, character = col1-1}
+  change.range["end"] = {line = line2-1, character = col2-1}
+
+  table.insert(self.lsp_changes, change)
+
+  self.lsp_version = self.lsp_version + 1
+end
+
+function Doc:raw_insert(line, col, text, undo_stack, time)
+  doc_raw_insert(self, line, col, text, undo_stack, time)
 
   -- skip new files
   if not self.filename then return end
 
-  local av = get_active_view()
-  if av and av.doc then
-    -- Send update to lsp servers
-    lsp.update_document(av.doc)
-  end
+  add_change(self, text, line, col, line, col)
+end
+
+function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
+  doc_raw_remove(self, line1, col1, line2, col2, undo_stack, time)
+
+  -- skip new files
+  if not self.filename then return end
+
+  add_change(self, "", line1, col1, line2, col2)
 end
 
 core.add_close_hook(function(doc)
