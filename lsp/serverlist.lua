@@ -21,7 +21,7 @@ lsp.add_server {
   language = "shell",
   file_patterns = { "%.sh$" },
   command = { "bash-language-server", "start" },
-  verbose = true
+  verbose = false
 }
 
 -- clangd
@@ -37,7 +37,7 @@ lsp.add_server {
     "%.H$", "%.hxx$", "%.h++$", "%.objc$", "%.objcpp$"
   },
   command = { "clangd", "-background-index" },
-  verbose = true
+  verbose = false
 }
 
 -- Clojure
@@ -49,7 +49,7 @@ lsp.add_server {
   language = "clojure",
   file_patterns = { "%.clj$", "%.cljs$", "%.clc$", "%.edn$" },
   command = { "clojure-lsp" },
-  verbose = true
+  verbose = false
 }
 
 -- css-languageserver
@@ -61,7 +61,7 @@ lsp.add_server {
   language = "css",
   file_patterns = {"%.css$", "%.less$", "%.sass$"},
   command = { "css-languageserver", "--stdio" },
-  verbose = true
+  verbose = false
 }
 
 -- Dockerfile
@@ -73,7 +73,7 @@ lsp.add_server {
   language = "dockerfile",
   file_patterns = { "Dockerfile$" },
   command = { "docker-langserver", "--stdio" },
-  verbose = true
+  verbose = false
 }
 
 -- Flow - JavaScript
@@ -85,7 +85,7 @@ lsp.add_server {
   language = "javascript",
   file_patterns = { "%.js$", "%.jsx$" },
   command = { "flow", "lsp" },
-  verbose = true
+  verbose = false
 }
 
 -- gopls
@@ -97,7 +97,7 @@ lsp.add_server {
   language = "go",
   file_patterns = { "%.go$" },
   command = { "gopls" },
-  verbose = true
+  verbose = false
 }
 
 -- groovy-language-server
@@ -115,7 +115,7 @@ lsp.add_server {
   file_patterns = { "%.groovy$", "%.gvy$", "%.gy$", "%.gsh$" },
   -- command = { "java", "-jar", "/path/to/groovy-language-server-all.jar" },
   command = { "groovy-language-server" },
-  verbose = true
+  verbose = false
 }
 
 -- haskell-language-server
@@ -128,7 +128,7 @@ lsp.add_server {
   language = "haskell",
   file_patterns = { "%.hs$", "%.lhs$" },
   command = { 'haskell-language-server-wrapper', '--lsp' },
-  verbose = true
+  verbose = false
 }
 
 -- vscode-html-languageserver
@@ -140,7 +140,7 @@ lsp.add_server {
   language = "html",
   file_patterns = { "%.html$" },
   command = { 'html-languageserver', '--stdio' },
-  verbose = true
+  verbose = false
 }
 
 -- vscode-json-languageserver
@@ -152,7 +152,7 @@ lsp.add_server {
   language = "json",
   file_patterns = { "%.json$", "%.jsonc$" },
   command = { 'vscode-json-languageserver', '--stdio' },
-  verbose = true
+  verbose = false
 }
 
 -- sql-language-server
@@ -164,7 +164,7 @@ lsp.add_server {
   language = "sql",
   file_patterns = { "%.sql$" },
   command = { 'sql-language-server', 'up', '--method', 'stdio' },
-  verbose = true
+  verbose = false
 }
 
 -- typescript-language-server
@@ -176,7 +176,7 @@ lsp.add_server {
   language = "javascript",
   file_patterns = { "%.js$", "%.cjs$", "%.mjs$" },
   command = { 'typescript-language-server', '--stdio' },
-  verbose = true
+  verbose = false
 }
 
 -- kotlin-language-server
@@ -188,7 +188,7 @@ lsp.add_server {
   language = "kotlin",
   file_patterns = { "%.kt$", "%.kts$", "%.ktm$" },
   command = { 'kotlin-language-server' },
-  verbose = true
+  verbose = false
 }
 
 -- intelephense
@@ -202,7 +202,7 @@ lsp.add_server {
   language = "php",
   file_patterns = {"%.php$"},
   command = { "intelephense", "--stdio" },
-  verbose = true
+  verbose = false
 }
 
 -- python-language-server
@@ -214,7 +214,7 @@ lsp.add_server {
   language = "python",
   file_patterns = { "%.py$" },
   command = { 'pyls' },
-  verbose = true
+  verbose = false
 }
 
 -- Solargraph
@@ -226,7 +226,7 @@ lsp.add_server {
   language = "ruby",
   file_patterns = { "%.rb$" },
   command = { 'solargraph', 'stdio' },
-  verbose = true
+  verbose = false
 }
 
 -- Rust Language Server
@@ -238,7 +238,7 @@ lsp.add_server {
   language = "rust",
   file_patterns = { "%.rs$" },
   command = { 'rls' },
-  verbose = true
+  verbose = false
 }
 
 -- lua-language-server
@@ -254,7 +254,7 @@ lsp.add_server {
     "-E",
     "/path/to/lua-language-server/main.lua"
   },
-  verbose = true,
+  verbose = false,
   settings = {
     Lua = {
       completion = {
@@ -312,7 +312,7 @@ lsp.add_server {
   language = "v",
   file_patterns = { "%.v$" },
   command = { 'vlang-vls' },
-  verbose = true
+  verbose = false
 }
 
 -- vim-language-server
@@ -324,7 +324,7 @@ lsp.add_server {
   language = "vim",
   file_patterns = { "%.vim$" },
   command = { 'vim-language-server', '--stdio' },
-  verbose = true
+  verbose = false
 }
 
 -- yaml-language-server
@@ -336,5 +336,5 @@ lsp.add_server {
   language = "yaml",
   file_patterns = { "%.yml$", "%.yaml$" },
   command = { 'yaml-language-server', '--stdio' },
-  verbose = true
+  verbose = false
 }
