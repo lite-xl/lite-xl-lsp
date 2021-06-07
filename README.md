@@ -59,6 +59,7 @@ lsp.add_server {
 
 ## TODO
 
+* Add Snippets support (this will need a whole standalone plugin).
 * Fix issues when parsing stdout from some lsp servers (eg: css-languageserver).
 * Figure out how to get an autocompletion item full documentation with
 'completionItem/resolve' or any other in order to better populate
@@ -73,7 +74,6 @@ the new autocomplete item description
 * (__Done__) Goto definition
   * (__Done__) Display select box when more than one result
 * (__Done__) Show diagnostics on active document similar to the linter plugin.
-* Add Snippets support.
 * (__Done__) Send incremental changes on textDocument/didChange notification
   since sending the whole document content on big files is slow and bad.
 
