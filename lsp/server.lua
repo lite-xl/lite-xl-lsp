@@ -64,7 +64,7 @@ function server.new(options)
       command = options.command,
       write_fails = 0,
       -- TODO: lower this once we implement incremental content changes
-      write_fails_before_shutdown = 30,
+      write_fails_before_shutdown = 60,
       verbose = options.verbose or false,
       initialized = false,
       hitrate_list = {},
