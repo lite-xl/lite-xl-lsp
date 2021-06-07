@@ -13,6 +13,7 @@ local lsp = require "plugins.lsp"
 
 -- bash-language-server
 -- Status: Works but performs really badly
+--         set 'requests_per_second' to 2-4 if too slow
 -- Site: https://github.com/bash-lsp/bash-language-server
 -- Installation: npm i -g bash-language-server
 lsp.add_server {
