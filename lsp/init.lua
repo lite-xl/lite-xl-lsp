@@ -1336,7 +1336,12 @@ local function add_change(self, text, line1, col1, line2, col2)
 
   table.insert(self.lsp_changes, change)
 
-  self.lsp_version = self.lsp_version + 1
+  -- TODO: this should not be needed changing documents rapidly causes this
+  if type(self.lsp_version) ~= 'nil' then
+    self.lsp_version = self.lsp_version + 1
+  else
+    self.lsp_version = 1
+  end
 end
 
 function Doc:raw_insert(line, col, text, undo_stack, time)
