@@ -65,9 +65,9 @@ lsp.add_server {
 the new autocomplete item description
 * (__Partially__) Add hover support for function arguments
   * Add custom tooltip that accents active parameter and signature
+* (__Done__?) More improvements to autocomplete.lua plugin
 * (__Done__) (we kill it) Detect if lsp server hangs and restart it (eg: clangd)
 * (__Done__) Exit LSP server if no open document needs it.
-* More improvements to autocomplete.lua plugin (__Done__?)
 * (__Done__) Add hover support for symbols
 * (__Done__) Generate list of current document symbols for easy document navigation
 * (__Done__) Goto definition
