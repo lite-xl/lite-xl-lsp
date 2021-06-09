@@ -61,6 +61,7 @@ function server.new(options)
       request_list = {},
       response_list = {},
       notification_list = {},
+      raw_list = {},
       command = options.command,
       write_fails = 0,
       -- TODO: lower this once we implement incremental content changes
@@ -426,6 +427,9 @@ function server:process_notifications()
     end
 
     if written and written > 0 then
+      if request.callback then
+        request.callback(self)
+      end
       table.remove(self.notification_list, index)
       self.write_fails = 0
       return request
@@ -598,6 +602,73 @@ function server:process_errors(log_errors)
   return errors
 end
 
+--- Send chunks of raw data to lsp server which are usually huge,
+-- like the textDocument/didOpen notification.
+function server:process_raw()
+  if not self.initialized then return end
+
+  if not self.proc:running() then
+    self.raw_list = {}
+    return
+  end
+
+  local position = 0
+  for index, raw in ipairs(self.raw_list) do
+    position = index
+    local written = 0
+    -- first send the header
+    while written <= 0 do
+      written = self.proc:write(string.format(
+        'Content-Length: %d\r\n\r\n',
+        #raw.data + 2 -- last \r\n
+      ))
+    end
+
+    if self.verbose then
+      self:log("Raw header written")
+    end
+
+    -- send content in chunks
+    local chunks = 10 * 1024
+    raw.data = raw.data .. "\r\n"
+
+    while #raw.data > 0 do
+      local wrote = 0
+
+      if #raw.data > chunks then
+        while wrote <= 0 do
+          wrote = self.proc:write(raw.data:sub(1, chunks))
+        end
+        raw.data = raw.data:sub(chunks+1)
+      else
+        while wrote <= 0 do
+          wrote = self.proc:write(raw.data)
+        end
+        raw.data = ""
+      end
+
+      server.write_fails = 0
+
+      coroutine.yield()
+    end
+
+    if self.verbose then
+      self:log("Raw content written")
+    end
+
+    if raw.callback then
+      raw.callback(self)
+    end
+
+    break
+  end
+
+  if position > 0 then
+    table.remove(self.raw_list, position)
+    collectgarbage("collect")
+  end
+end
+
 --- Help controls the amount of requests sent to the lsp server per second
 -- to prevent overloading it and causing a pipe hang.
 -- @tparam string type
@@ -638,7 +709,7 @@ local notifications_whitelist = {
   "textDocument/didSave",
   "textDocument/didClose"
 }
-function server:push_notification(method, params)
+function server:push_notification(method, params, callback)
   if
     self:hitrate_reached("request")
     and
@@ -658,7 +729,8 @@ function server:push_notification(method, params)
   -- Store the notification for later processing on responses_loop
   table.insert(self.notification_list, {
     method = method,
-    params = params
+    params = params,
+    callback = callback or nil
   })
 end
 
@@ -706,6 +778,20 @@ function server:push_response(method, id, result, error)
   end
 
   table.insert(self.response_list, response)
+end
+
+--- Used to send raw json strings to server in cases where the json encoder
+-- would be too slow to convert a lua table into a json representation.
+function server:push_raw(data, callback)
+  if self.verbose then
+    self:log("Adding raw request")
+  end
+
+  -- Store the request for later processing on responses_loop
+  table.insert(self.raw_list, {
+    data = data,
+    callback = callback or nil
+  })
 end
 
 --- Retrieve a request and removes it from the internal requests list
@@ -921,7 +1007,7 @@ function server:write_request(data, timeout)
     end
 
     -- send content in chunks
-    local chunks = 256
+    local chunks = 10 * 1024
     data = data .. "\r\n"
 
     while #data > 0 do
@@ -1086,6 +1172,7 @@ function server:shutdown_if_needed()
     self.request_list = {}
     self.response_list = {}
     self.notification_list = {}
+    self.raw_list = {}
 
     self:on_shutdown()
 

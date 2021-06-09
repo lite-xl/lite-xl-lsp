@@ -531,17 +531,55 @@ function lsp.open_document(doc)
           )
         )
       then
-        server:push_notification(
-          'textDocument/didOpen',
-          {
-            textDocument = {
-              uri = Util.touri(system.absolute_path(doc.filename)),
-              languageId = Util.file_extension(doc.filename),
-              version = doc.clean_change_id,
-              text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
-            }
-          }
+        local file_info = system.get_file_info(
+          system.absolute_path(doc.filename)
         )
+        if file_info.size / 1024 <= 100 then
+          -- file is in the range of 100kb so push the notification as usual.
+          server:push_notification(
+            'textDocument/didOpen',
+            {
+              textDocument = {
+                uri = Util.touri(system.absolute_path(doc.filename)),
+                languageId = Util.file_extension(doc.filename),
+                version = doc.clean_change_id,
+                text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+              }
+            },
+            function() doc.lsp_open = true end
+          )
+        else
+          -- file seems too big and json encoder is too slow, plus sending a
+          -- huge file without yielding would stall the ui
+          local text = doc
+            :get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+            :gsub('\\', '\\\\'):gsub("\n", "\\n"):gsub("\r", "\\r")
+            :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
+            :gsub('\f', '\\f')
+
+          server:push_raw(
+            '{'
+            .. '"jsonrpc": "2.0",'
+            .. '"method": "textDocument/didOpen",'
+            .. '"params": {'
+            .. '"textDocument": {'
+            .. '"uri": "'..Util.touri(system.absolute_path(doc.filename))..'",'
+            .. '"languageId": "'..Util.file_extension(doc.filename)..'",'
+            .. '"version": '..doc.clean_change_id..','
+            .. '"text": "'..text..'"'
+            .. '}'
+            .. '} '
+            .. '}',
+            function()
+              doc.lsp_open = true
+              core.log("[LSP] big file '%s' ready for completion!", doc.filename)
+            end
+          )
+
+          core.log("[LSP] processing big file '%s'...", doc.filename)
+        end
+      else
+        doc.lsp_open = true
       end
     end
   end
@@ -549,6 +587,8 @@ end
 
 --- Send notification to applicable LSP servers that a document was saved
 function lsp.save_document(doc)
+  if not doc.lsp_open then return end
+
   local active_servers = lsp.get_active_servers(doc.filename, true)
   if #active_servers > 0 then
     for _, name in pairs(active_servers) do
@@ -573,6 +613,7 @@ function lsp.save_document(doc)
           and
           server.capabilities.textDocumentSync.save.includeText
         then
+          -- TODO handle this as a raw request for huge files
           params.text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
         end
 
@@ -587,6 +628,8 @@ end
 
 --- Send notification to applicable LSP servers that a document was closed
 function lsp.close_document(doc)
+  if not doc.lsp_open then return end
+
   local active_servers = lsp.get_active_servers(doc.filename, true)
   if #active_servers > 0 then
     for _, name in pairs(active_servers) do
@@ -615,6 +658,8 @@ end
 
 --- Send document updates to applicable running LSP servers.
 function lsp.update_document(doc)
+  if not doc.lsp_open then return end
+
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
     if
@@ -652,6 +697,7 @@ function lsp.update_document(doc)
 
       local changes = {}
       if sync_kind == Server.text_document_sync_kind.Full then
+        -- TODO handle this as a raw request for huge files
         table.insert(changes, {
           text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
         })
@@ -736,7 +782,7 @@ end
 
 --- Send to applicable LSP servers a request for code completion
 function lsp.request_completion(doc, line, col, forced)
-  if lsp.in_trigger then
+  if lsp.in_trigger or not doc.lsp_open then
     return
   end
 
@@ -882,6 +928,8 @@ end
 --- Send to applicable LSP servers a request for info about a function
 -- signatures and display them on a tooltip.
 function lsp.request_signature(doc, line, col, forced, fallback)
+  if not doc.lsp_open then return end
+
   local char = doc:get_char(line, col-1)
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
@@ -937,6 +985,8 @@ end
 --- Sends a request to applicable LSP servers for information about the
 -- symbol where the cursor is placed and shows it on a tooltip.
 function lsp.request_hover(doc, line, col)
+  if not doc.lsp_open then return end
+
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
     if server.capabilities.hoverProvider then
@@ -975,6 +1025,8 @@ end
 
 --- Sends a request to applicable LSP servers for a symbol references
 function lsp.request_references(doc, line, col)
+  if not doc.lsp_open then return end
+
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
     if server.capabilities.hoverProvider then
@@ -1020,6 +1072,8 @@ end
 --- Request a list of symbols for the given document for easy document
 -- navigation and displays them using core.command_view:enter()
 function lsp.request_document_symbols(doc)
+  if not doc.lsp_open then return end
+
   local servers_found = false
   local symbols_retrieved = false
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
@@ -1166,6 +1220,8 @@ end
 --- Jumps to the definition or implementation of the symbol where the cursor
 -- is placed if the LSP server supports it
 function lsp.goto_symbol(doc, line, col, implementation)
+  if not doc.lsp_open then return end
+
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
 
@@ -1235,6 +1291,20 @@ end
 core.add_thread(function()
   while true do
     for name,server in pairs(lsp.servers_running) do
+      -- Send raw data to server which is usually big and slow
+      if #server.raw_list > 0 then
+        local raw_send = coroutine.create(function()
+          server:process_raw()
+        end)
+        coroutine.resume(raw_send)
+        while coroutine.status(raw_send) ~= "dead" do
+          server:process_errors(config.lsp.log_server_stderr)
+          server:process_responses()
+          coroutine.yield(0)
+          coroutine.resume(raw_send)
+        end
+      end
+
       server:process_notifications()
       server:process_requests()
       server:process_responses()
@@ -1242,13 +1312,7 @@ core.add_thread(function()
       server:process_errors(config.lsp.log_server_stderr)
     end
 
-    if system.window_has_focus() then
-      -- scan the fastest possible while not eating too much cpu
-      coroutine.yield(0.01)
-    else
-      -- if window is unfocused lower the thread rate to lower cpu usage
-      coroutine.yield(config.project_scan_rate)
-    end
+    coroutine.yield(0.01)
   end
 end)
 
