@@ -49,8 +49,8 @@ lsp.add_server {
   init_options = {"Optional table of initializationOptions for the LSP"},
   -- Set by default to 16 should only be modified if having issues with a server
   requests_per_second = 16
-  -- By default each request is written to the server stdin in chunks of 256
-  -- bytes, if this gives issues set to false to write everything at once.
+  -- By default each request is written to the server stdin in chunks of
+  -- 10KB, if this gives issues set to false to write everything at once.
   requests_in_chunks = true
   -- True to debug the lsp client when developing it
   verbose = false
