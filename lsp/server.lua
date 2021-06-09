@@ -11,26 +11,26 @@ local server = {
 
 server.error_code = {
   ParseError                      = -32700,
-	InvalidRequest                  = -32600,
-	MethodNotFound                  = -32601,
-	InvalidParams                   = -32602,
-	InternalError                   = -32603,
-	jsonrpcReservedErrorRangeStart  = -32099,
-	serverErrorStart                = -32099,
-	ServerNotInitialized            = -32002,
-	UnknownErrorCode                = -32001,
-	jsonrpcReservedErrorRangeEnd    = -32000,
-	serverErrorEnd                  = -32000,
-	lspReservedErrorRangeStart      = -32899,
-	ContentModified                 = -32801,
-	RequestCancelled                = -32800,
-	lspReservedErrorRangeEnd        = -32800,
+  InvalidRequest                  = -32600,
+  MethodNotFound                  = -32601,
+  InvalidParams                   = -32602,
+  InternalError                   = -32603,
+  jsonrpcReservedErrorRangeStart  = -32099,
+  serverErrorStart                = -32099,
+  ServerNotInitialized            = -32002,
+  UnknownErrorCode                = -32001,
+  jsonrpcReservedErrorRangeEnd    = -32000,
+  serverErrorEnd                  = -32000,
+  lspReservedErrorRangeStart      = -32899,
+  ContentModified                 = -32801,
+  RequestCancelled                = -32800,
+  lspReservedErrorRangeEnd        = -32800,
 }
 
 server.completion_trigger_Kind = {
-	Invoked = 1,
-	TriggerCharacter = 2,
-	TriggerForIncompleteCompletions = 3
+  Invoked = 1,
+  TriggerCharacter = 2,
+  TriggerForIncompleteCompletions = 3
 }
 
 server.diagnostic_severity = {
