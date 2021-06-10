@@ -216,10 +216,10 @@ function Server:initialize(workspace, editor_name, editor_version)
               -- commitCharactersSupport = true,
               documentationFormat = {'plaintext'},
               -- deprecatedSupport = false, -- simple autocompletion list
-              preselectSupport = true
+              -- preselectSupport = true
               -- tagSupport = {valueSet = {}},
-              -- insertReplaceSupport = true,
-              -- resolveSupport = {properties = {}},
+              insertReplaceSupport = true,
+              -- resolveSupport = {properties = {'documentation', 'detail'}},
               -- insertTextModeSupport = {valueSet = {}}
             },
             completionItemKind = {valueSet = Server.get_completion_items_kind()}
@@ -447,7 +447,7 @@ end
 --- Sends the pushed notifications.
 function Server:process_notifications()
   if not self.initialized then return end
-  
+
   for index, request in pairs(self.notification_list) do
     local message = {
       jsonrpc = '2.0',
