@@ -196,7 +196,7 @@ lsp.add_server {
 -- Site: https://github.com/bmewburn/intelephense-docs
 -- Installation: npm -g install intelephense
 -- Note: Set your license and storage by passing the init_options as follows:
---       init_options = { licenceKey = "...", storagePath = "/some/path"}
+-- init_options = { licenceKey = "...", storagePath = "/some/path"}
 lsp.add_server {
   name = "intelephense",
   language = "php",
@@ -206,9 +206,12 @@ lsp.add_server {
 }
 
 -- python-language-server
--- Status: Untested
+-- Status: Works
 -- Site: https://github.com/palantir/python-language-server
 -- Installation: pip install python-language-server
+-- Note: Also don't forget to install any additional optional dependencies
+-- for additional features like: rope, pyflakes, flake8, pycodestyle,
+-- pylint, autopep8, yapf, pydocstyle
 lsp.add_server {
   name = "pyls",
   language = "python",
