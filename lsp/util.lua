@@ -71,7 +71,7 @@ function util.touri(filename)
   return filename
 end
 
--- Converts a document range returned bu lsp to a valid document selection.
+-- Converts a document range returned by lsp to a valid document selection.
 -- @param range LSP Range.
 function util.toselection(range)
   local line1 = range.start.line + 1
