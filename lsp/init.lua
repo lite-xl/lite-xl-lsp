@@ -833,24 +833,90 @@ function lsp.request_item_resolve(index, item)
   -- documentation, one posssible cause is the json and lua converting
   -- the data field from integer to float so the lsp server doesn't
   -- properly finds the given item.
-  -- For now return since this isn't implemented
+  -- For now return since this isn't reliable
   if true then
     return
   end
 
+  -- Only send resolve request if data field (which should contain
+  -- the item id) is available.
   local completion_item = item.data.completion_item
-  item.data.server:push_request(
-    'completionItem/resolve',
-    completion_item,
-    function(server, response)
-      if response.result then
-        local symbol = response.result
-        -- TODO overwrite the item.desc to show documentation of
-        -- symbol if available, but nothing seems to be returned
-        -- by tested LSP's, maybe some missing initialization option?
+  if completion_item.data then
+    item.data.server:push_request(
+      'completionItem/resolve',
+      completion_item,
+      function(server, response)
+        if response.result then
+          local symbol = response.result
+          -- TODO overwrite the item.desc to show documentation of
+          -- symbol if available, but nothing seems to be returned
+          -- by tested LSP's, maybe some missing initialization option?
+          if symbol.documentation and symbol.documentation.value then
+            item.desc = symbol.documentation.value
+          end
+        end
       end
+    )
+  end
+end
+
+--- Apply an lsp textEdit to a document if possible.
+--- @return boolean True on success
+local function apply_edit(doc, text_edit)
+  local range = nil
+
+  if text_edit.range then
+    range = text_edit.range
+  elseif text_edit.insert then
+    range = text_edit.insert
+  elseif text_edit.replace then
+    range = text_edit.replace
+  end
+
+  if not range then return false end
+
+  local line1, col1, line2, col2 = Util.toselection(range)
+  local text = text_edit.newText
+  local current_text = ""
+
+  if lsp.in_trigger then
+    local cline2, ccol2 = doc:get_selection()
+    local cline1, ccol1 = doc:position_offset(line2, col2, translate.start_of_word)
+    current_text = doc:get_text(cline1, ccol1, cline2, ccol2)
+  end
+
+  doc:remove(line1, col1, line2, col2+#current_text)
+  doc:insert(line1, col1, text_edit.newText)
+  doc:set_selection(line2, col2+#text, line2, col2+#text)
+  lsp.update_document(doc)
+
+  return true
+end
+
+--- Callback that handles insertion of an autocompletion item that has
+--- the information of insertion
+function lsp.completion_item_selected(index, item)
+  local completion = item.data.completion_item
+  if completion.textEdit then
+    local av = get_active_view()
+    local edit_applied = apply_edit(av.doc, completion.textEdit)
+    if edit_applied then
+      lsp.update_document(av.doc)
+      -- TODO: Retrigger code completion if last char is a trigger
+      -- local char = av.doc:get_char(av.doc:get_selection())
+      -- if char:match("%p") then
+      --   local line, col = av.doc:get_selection()
+      --   lsp.request_completion(
+      --     av.doc,
+      --     line,
+      --     col,
+      --     true
+      --   )
+      -- end
     end
-  )
+    return edit_applied
+  end
+  return false
 end
 
 --- Send to applicable LSP servers a request for code completion
@@ -973,14 +1039,19 @@ function lsp.request_completion(doc, line, col, forced)
 
             desc = desc:gsub("\n$", "")
 
-            if server.capabilities.completionProvider.resolveProvider then
-              symbols.items[label] = {
-                info = info, desc = desc,
-                data = {server = server, completion_item = symbol},
-                cb = lsp.request_item_resolve
-              }
-            else
-              symbols.items[label] = {info = info, desc = desc}
+            symbols.items[label] = {
+              info = info,
+              desc = desc,
+              data = {
+                server = server, completion_item = symbol
+              },
+              onselect = lsp.completion_item_selected
+            }
+
+            if
+              server.capabilities.completionProvider.resolveProvider
+            then
+              symbols.items[label].onhover = lsp.request_item_resolve
             end
           end
 
