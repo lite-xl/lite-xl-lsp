@@ -446,6 +446,18 @@ function lsp.start_server(filename, project_directory)
         client:add_message_listener("textDocument/publishDiagnostics", function(server, params)
           local filename = Util.tofilename(params.uri)
 
+          local filename_rel = common.normalize_path(filename)
+          if not common.path_belongs_to(filename_rel, core.project_dir) then
+            if server.verbose then
+              log(
+                server,
+                "Diagnostics for non project file '%s' ignored",
+                filename
+              )
+            end
+            return
+          end
+
           if server.vebose then
             core.log_quiet(
               "["..server.name.."] %d diagnostics for:  %s",
