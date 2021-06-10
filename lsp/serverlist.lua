@@ -230,7 +230,7 @@ lsp.add_server {
 }
 
 -- Rust Language Server
--- Status: Untested
+-- Status: Works
 -- Site: https://github.com/rust-lang/rls
 -- Installation: Install rust on your system
 lsp.add_server {
