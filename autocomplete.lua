@@ -43,9 +43,10 @@ function autocomplete.add(t, triggered_manually)
           {
             text = text,
             info = info.info,
-            desc = info.desc,  -- Description shown on item selected
-            cb = info.cb,      -- A callback called once when item is selected
-            data = info.data   -- Optional data that can be used on cb
+            desc = info.desc,          -- Description shown on item selected
+            onhover = info.onhover,    -- A callback called once when item is hovered
+            onselect = info.onselect,  -- A callback called when item is selected
+            data = info.data           -- Optional data that can be used on cb
           },
           mt
         )
@@ -320,10 +321,9 @@ local function draw_suggestions_box(av)
     end
     y = y + lh
     if suggestions_idx == i then
-      if s.cb then
-        s.cb(suggestions_idx, s)
-        s.cb = nil
-        s.data = nil
+      if s.onhover then
+        s.onhover(suggestions_idx, s)
+        s.onhover = nil
       end
       if s.desc and #s.desc > 0 then
         draw_description_box(s.desc, av, rx, ry, rw, rh)
@@ -487,10 +487,17 @@ command.add(predicate, {
   ["autocomplete:complete"] = function()
     local doc = core.active_view.doc
     local line, col = doc:get_selection()
-    local text = suggestions[suggestions_idx].text
-    doc:insert(line, col, text)
-    doc:remove(line, col, line, col - #partial)
-    doc:set_selection(line, col + #text - #partial)
+    local item = suggestions[suggestions_idx]
+    local text = item.text
+    local inserted = false
+    if item.onselect then
+      inserted = item.onselect(suggestions_idx, item)
+    end
+    if not inserted then
+      doc:insert(line, col, text)
+      doc:remove(line, col, line, col - #partial)
+      doc:set_selection(line, col + #text - #partial)
+    end
     reset_suggestions()
   end,
 
