@@ -1,15 +1,50 @@
 -- @copyright Jefferson Gonzalez
 -- @license MIT
 -- Inspiration: https://github.com/orbitalquark/textadept-lsp
+--
+-- LSP Documentation:
+-- https://microsoft.github.io/language-server-protocol/specifications/specification-3-17
 
 local json = require "plugins.lsp.json"
 local util = require "plugins.lsp.util"
+local Object = require "core.object"
 
-local server = {
-  DEFAULT_TIMEOUT = 10
-}
+--- LSP Server communication library.
+--- @class Server
+--- @field public name string
+--- @field public language string
+--- @field public file_patterns table
+--- @field public current_request integer
+--- @field public init_options table
+--- @field public settings table
+--- @field public event_listeners table
+--- @field public message_listeners table
+--- @field public request_listeners table
+--- @field public request_list table
+--- @field public response_list table
+--- @field public notification_list table
+--- @field public raw_list table
+--- @field public command table
+--- @field public write_fails integer
+--- @field public write_fails_before_shutdown integer
+--- @field public verbose boolean
+--- @field public initialized boolean
+--- @field public hitrate_list table
+--- @field public requests_per_second integer
+--- @field public requests_in_chunks boolean
+--- @field public proc process
+--- @field public capabilites table
+local Server = Object:extend()
 
-server.error_code = {
+--- Default timeout when sending a request to lsp server.
+--- @type integer Time in seconds
+Server.DEFAULT_TIMEOUT = 10
+
+---@alias ServerCallBack function(server: Server):void
+---@alias ServerResponse function(server: Server, response: table):void
+
+--- LSP Docs: /#errorCodes
+Server.error_code = {
   ParseError                      = -32700,
   InvalidRequest                  = -32600,
   MethodNotFound                  = -32601,
@@ -27,110 +62,124 @@ server.error_code = {
   lspReservedErrorRangeEnd        = -32800,
 }
 
-server.completion_trigger_Kind = {
+--- LSP Docs: #completionTriggerKind
+Server.completion_trigger_Kind = {
   Invoked = 1,
   TriggerCharacter = 2,
   TriggerForIncompleteCompletions = 3
 }
 
-server.diagnostic_severity = {
+--- LSP Docs: /#diagnosticSeverity
+Server.diagnostic_severity = {
   Error = 1,
   Warning = 2,
   Information = 3,
   Hint = 4
 }
 
-server.text_document_sync_kind = {
+--- LSP Docs: /#textDocumentSyncKind
+Server.text_document_sync_kind = {
   None = 0,
   Full = 1,
   Incremental = 2
 }
 
-function server.new(options)
-  local srv = setmetatable(
-    {
-      name = options.name,
-      language = options.language,
-      file_patterns = options.file_patterns,
-      current_request = 0,
-      init_options = options.init_options or {},
-      settings = options.settings or nil,
-      event_listeners = {},
-      message_listeners = {},
-      request_listeners = {},
-      request_list = {},
-      response_list = {},
-      notification_list = {},
-      raw_list = {},
-      command = options.command,
-      write_fails = 0,
-      -- TODO: lower this once we implement incremental content changes
-      write_fails_before_shutdown = 60,
-      verbose = options.verbose or false,
-      initialized = false,
-      hitrate_list = {},
-      requests_per_second = options.requests_per_second or 16,
-      requests_in_chunks = type(options.requests_in_chunks) ~= "nil" and
-        options.requests_in_chunks or true
-    },
-    {__index = server}
-  )
+--- LSP Docs: /#completionItemKind
+Server.completion_item_kind = {
+  'Text', 'Method', 'Function', 'Constructor', 'Field', 'Variable', 'Class',
+  'Interface', 'Module', 'Property', 'Unit', 'Value', 'Enum', 'Keyword',
+  'Snippet', 'Color', 'File', 'Reference', 'Folder', 'EnumMember',
+  'Constant', 'Struct', 'Event', 'Operator', 'TypeParameter'
+}
 
-  srv.proc = process.new()
-  srv.proc:start(options.command)
+--- LSP Docs: /#symbolKind
+Server.symbol_kind = {
+  'File', 'Module', 'Namespace', 'Package', 'Class', 'Method', 'Property',
+  'Field', 'Constructor', 'Enum', 'Interface', 'Function', 'Variable',
+  'Constant', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Key',
+  'Null', 'EnumMember', 'Struct', 'Event', 'Operator', 'TypeParameter'
+}
 
-  return srv
-end
-
-function server.get_completion_items_kind(id)
-  local kinds = {
-    'Text', 'Method', 'Function', 'Constructor', 'Field', 'Variable', 'Class',
-    'Interface', 'Module', 'Property', 'Unit', 'Value', 'Enum', 'Keyword',
-    'Snippet', 'Color', 'File', 'Reference', 'Folder', 'EnumMember',
-    'Constant', 'Struct', 'Event', 'Operator', 'TypeParameter'
-  }
-
+--- Get list of completion kinds or label if id is given
+--- @param id? integer
+--- @return table|string
+function Server.get_completion_items_kind(id)
   if id then
-    return kinds[id]
+    return Server.completion_item_kind[id]
   end
 
   local list = {}
-  for i = 1, #kinds do
+  for i = 1, #Server.completion_item_kind do
     list[i] = i
   end
 
   return list
 end
 
-function server.get_symbols_kind(id)
-  local kinds = {
-    'File', 'Module', 'Namespace', 'Package', 'Class', 'Method', 'Property',
-    'Field', 'Constructor', 'Enum', 'Interface', 'Function', 'Variable',
-    'Constant', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Key',
-    'Null', 'EnumMember', 'Struct', 'Event', 'Operator', 'TypeParameter'
-  }
-
+--- Get list of symbol kinds or label if id is given
+--- @param id? integer
+--- @return table|string
+function Server.get_symbols_kind(id)
   if id then
-    return kinds[id]
+    return Server.symbol_kind[id]
   end
 
   local list = {}
-  for i = 1, #kinds do
+  for i = 1, #Server.symbol_kind do
     list[i] = i
   end
 
   return list
 end
 
-function server:initialize(path, editor_name, editor_version)
+--- Instantiates a new LSP server interface
+--- @param options table
+function Server:new(options)
+  Server.super.new(self)
+
+  self.name = options.name
+  self.language = options.language
+  self.file_patterns = options.file_patterns
+  self.current_request = 0
+  self.init_options = options.init_options or {}
+  self.settings = options.settings or nil
+  self.event_listeners = {}
+  self.message_listeners = {}
+  self.request_listeners = {}
+  self.request_list = {}
+  self.response_list = {}
+  self.notification_list = {}
+  self.raw_list = {}
+  self.command = options.command
+  self.write_fails = 0
+  -- TODO: lower this once we implement incremental content changes
+  self.write_fails_before_shutdown = 60
+  self.verbose = options.verbose or false
+  self.initialized = false
+  self.hitrate_list = {}
+  self.requests_per_second = options.requests_per_second or 16
+  self.requests_in_chunks = type(options.requests_in_chunks) ~= "nil" and
+    options.requests_in_chunks or true
+
+  self.proc = process.new()
+  self.proc:start(options.command)
+  self.capabilites = nil
+end
+
+--- Starts the LSP server process, any listeners should be registered before
+--- calling this method and this method should be called before any push.
+--- @param workspace string
+--- @param editor_name? string
+--- @param editor_version? string
+function Server:initialize(workspace, editor_name, editor_version)
   local root_uri = "";
   if PLATFORM ~= "Windows" then
-    root_uri = 'file://' .. path
+    root_uri = 'file://' .. workspace
   else
-    root_uri = 'file:///' .. path:gsub('\\', '/')
+    root_uri = 'file:///' .. workspace:gsub('\\', '/')
   end
 
-  self.path = path or ""
+  self.path = workspace or ""
   self.editor_name = editor_name or "unknown"
   self.editor_version = editor_version or "0.1"
 
@@ -143,10 +192,10 @@ function server:initialize(path, editor_name, editor_version)
         version = editor_version or "0.1"
       },
       -- TODO: locale
-      rootPath = path,
+      rootPath = workspace,
       rootUri = root_uri,
       workspaceFolders = {
-        {uri = root_uri, name = util.getpathname(path)}
+        {uri = root_uri, name = util.getpathname(workspace)}
       },
       initializationOptions = self.init_options,
       capabilities = {
@@ -173,7 +222,7 @@ function server:initialize(path, editor_name, editor_version)
               -- resolveSupport = {properties = {}},
               -- insertTextModeSupport = {valueSet = {}}
             },
-            completionItemKind = {valueSet = server.get_completion_items_kind()}
+            completionItemKind = {valueSet = Server.get_completion_items_kind()}
             -- contextSupport = true
           },
           hover = {
@@ -193,7 +242,7 @@ function server:initialize(path, editor_name, editor_version)
           -- documentHighlight = {dynamicRegistration = false}, -- not supported
           documentSymbol = {
             -- dynamicRegistration = false, -- not supported
-            symbolKind = {valueSet = server.get_symbols_kind()}
+            symbolKind = {valueSet = Server.get_symbols_kind()}
             -- hierarchicalDocumentSymbolSupport = true,
             -- tagSupport = {valueSet = {}},
             -- labelSupport = true
@@ -274,36 +323,39 @@ function server:initialize(path, editor_name, editor_version)
         -- experimental = nil
       }
     },
-    function(self, response)
-      if self.verbose then
-        self:log(
+    function(server, response)
+      if server.verbose then
+        server:log(
           "Processing initialization response:\n%s",
           util.jsonprettify(json.encode(response))
         )
       end
       local result = response.result
       if result then
-        self.capabilities = result.capabilities
-        self.info = result.serverInfo
+        server.capabilities = result.capabilities
+        server.info = result.serverInfo
 
-        if self.info then
-          self:log(
+        if server.info then
+          server:log(
             'Connected to %s %s',
-            self.info.name,
-            self.info.version or '(unknown version)'
+            server.info.name,
+            server.info.version or '(unknown version)'
           )
         end
 
-        self.initialized = true;
+        server.initialized = true;
 
-        self:notify('initialized') -- required by protocol
-        self:send_event_signal("initialized", self, result)
+        server:notify('initialized') -- required by protocol
+        server:send_event_signal("initialized", server, result)
       end
     end
   )
 end
 
-function server:add_event_listener(event_name, callback)
+--- Register an event listener.
+--- @param event_name string
+--- @param callback function
+function Server:add_event_listener(event_name, callback)
   if self.verbose then
     self:log(
       "Listening for event '%s'",
@@ -314,7 +366,7 @@ function server:add_event_listener(event_name, callback)
   self.event_listeners[event_name] = callback
 end
 
-function server:send_event_signal(event_name, ...)
+function Server:send_event_signal(event_name, ...)
   if self.event_listeners[event_name] then
     self.event_listeners[event_name](self, ...)
   else
@@ -322,14 +374,14 @@ function server:send_event_signal(event_name, ...)
   end
 end
 
-function server:on_event(event_name)
+function Server:on_event(event_name)
   if self.verbose then
     self:log("Received event '%s'", event_name)
   end
 end
 
 --- Send a message to the server that doesn't needs a response.
-function server:notify(method, params)
+function Server:notify(method, params)
   local message = {
     jsonrpc = '2.0',
     method = method,
@@ -349,7 +401,7 @@ function server:notify(method, params)
   end
 end
 
-function server:respond(id, result)
+function Server:respond(id, result)
   local message = {
     jsonrpc = '2.0',
     id = id,
@@ -369,12 +421,12 @@ function server:respond(id, result)
   end
 end
 
-function server:respond_error(id, error_message, error_code)
+function Server:respond_error(id, error_message, error_code)
   local message = {
     jsonrpc = '2.0',
     id = id,
     error = {
-      code = error_code or server.error_code.MethodNotFound,
+      code = error_code or Server.error_code.MethodNotFound,
       message = error_message
     }
   }
@@ -393,11 +445,9 @@ function server:respond_error(id, error_message, error_code)
 end
 
 --- Sends the pushed notifications.
-function server:process_notifications()
-  -- only process when initialized
-  if not self.initialized then
-    return
-  end
+function Server:process_notifications()
+  if not self.initialized then return end
+  
   for index, request in pairs(self.notification_list) do
     local message = {
       jsonrpc = '2.0',
@@ -442,7 +492,7 @@ end
 
 --- Sends one of the pushed request, this function should be called on a
 -- loop for non blocking interaction.
-function server:process_requests()
+function Server:process_requests()
   local remove_request = nil
   for id, request in pairs(self.request_list) do
     if request.timestamp < os.time() then
@@ -511,7 +561,7 @@ function server:process_requests()
   end
 end
 
-function server:process_responses()
+function Server:process_responses()
   local responses = self:read_responses(0)
 
   if type(responses) == "table" then
@@ -539,11 +589,8 @@ function server:process_responses()
 end
 
 --- Sends the pushed client responses to server.
-function server:process_client_responses()
-  -- only process when initialized
-  if not self.initialized then
-    return
-  end
+function Server:process_client_responses()
+  if not self.initialized then return end
 
   for index, response in ipairs(self.response_list) do
     local message = {
@@ -587,7 +634,7 @@ end
 --- Along with process_requests() and process_responses() this one should
 -- be called to prevent the server from stalling because of not flushing
 -- the stderr.
-function server:process_errors(log_errors)
+function Server:process_errors(log_errors)
   -- only process when initialized
   if not self.initialized then
     return nil
@@ -604,7 +651,7 @@ end
 
 --- Send chunks of raw data to lsp server which are usually huge,
 -- like the textDocument/didOpen notification.
-function server:process_raw()
+function Server:process_raw()
   if not self.initialized then return end
 
   if not self.proc:running() then
@@ -647,7 +694,7 @@ function server:process_raw()
         raw.data = ""
       end
 
-      server.write_fails = 0
+      self.write_fails = 0
 
       coroutine.yield()
     end
@@ -673,7 +720,7 @@ end
 -- to prevent overloading it and causing a pipe hang.
 -- @tparam string type
 -- @treturn boolean true if max hitrate was reached
-function server:hitrate_reached(type)
+function Server:hitrate_reached(type)
   if not self.hitrate_list[type] then
     self.hitrate_list[type] = {
       count = 1,
@@ -691,16 +738,16 @@ function server:hitrate_reached(type)
   return false
 end
 
-function server:can_push()
+function Server:can_push()
   local type = "request"
   if not self.hitrate_list[type] then
-    return true
+    return self.initialized
   elseif self.hitrate_list[type].timestamp > os.time() then
     if self.hitrate_list[type].count >= self.requests_per_second then
       return false
     end
   end
-  return true
+  return self.initialized
 end
 
 -- notifications that should bypass the hitrate limit
@@ -709,7 +756,9 @@ local notifications_whitelist = {
   "textDocument/didSave",
   "textDocument/didClose"
 }
-function server:push_notification(method, params, callback)
+function Server:push_notification(method, params, callback)
+  if not self.initialized then return end
+
   if
     self:hitrate_reached("request")
     and
@@ -734,7 +783,11 @@ function server:push_notification(method, params, callback)
   })
 end
 
-function server:push_request(method, params, callback)
+function Server:push_request(method, params, callback)
+  if not self.initialized and method ~= "initialize" then
+    return
+  end
+
   if self:hitrate_reached("request") then
     return
   end
@@ -758,7 +811,7 @@ function server:push_request(method, params, callback)
 end
 
 --- Add a client response to a server request.
-function server:push_response(method, id, result, error)
+function Server:push_response(method, id, result, error)
   if self:hitrate_reached("request") then
     return
   end
@@ -782,7 +835,9 @@ end
 
 --- Used to send raw json strings to server in cases where the json encoder
 -- would be too slow to convert a lua table into a json representation.
-function server:push_raw(data, callback)
+function Server:push_raw(data, callback)
+  if not self.initialized then return end
+
   if self.verbose then
     self:log("Adding raw request")
   end
@@ -797,7 +852,7 @@ end
 --- Retrieve a request and removes it from the internal requests list
 -- @param id id of the request
 -- @return The request table or nil of not found
-function server:pop_request(id)
+function Server:pop_request(id)
   local request = nil
   if self.request_list[id] then
     request = self.request_list[id]
@@ -813,8 +868,8 @@ end
 --- Try to fetch a server response in a specific amount of time.
 -- @param timeout Time in seconds, set to 0 to not wait for response
 -- @return Response Table or false if failed
-function server:read_responses(timeout)
-  timeout = timeout or server.DEFAULT_TIMEOUT
+function Server:read_responses(timeout)
+  timeout = timeout or Server.DEFAULT_TIMEOUT
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
@@ -941,8 +996,8 @@ end
 --- Get messages thrown by the stderr
 -- @param timeout Time in seconds, set to 0 to not wait for response
 -- @return Response Table or false if failed
-function server:read_errors(timeout)
-  timeout = timeout or server.DEFAULT_TIMEOUT
+function Server:read_errors(timeout)
+  timeout = timeout or Server.DEFAULT_TIMEOUT
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
@@ -969,8 +1024,8 @@ end
 -- @param data Table or string with the json request
 -- @param timeout Time in seconds, set to 0 to not wait for write
 -- @return Amount of characters written or false if failed
-function server:write_request(data, timeout)
-  timeout = timeout or server.DEFAULT_TIMEOUT
+function Server:write_request(data, timeout)
+  timeout = timeout or Server.DEFAULT_TIMEOUT
 
   if type(data) == "table" then
     data = json.encode(data)
@@ -1036,13 +1091,13 @@ function server:write_request(data, timeout)
   return written
 end
 
-function server:log(message, ...)
+function Server:log(message, ...)
   print (string.format("%s: " .. message .. "\n", self.name, ...))
 end
 
 --- Call an apropriate signal handler for a given response.
 -- @param response A response object as generated by request.
-function server:send_response_signal(response)
+function Server:send_response_signal(response)
   local request = self:pop_request(response.id)
   if request and request.callback then
     request.callback(self, response)
@@ -1053,7 +1108,7 @@ end
 
 --- Called for each response that doesn't has a signal handler.
 -- @param response Table with data as received from server
-function server:on_response(response)
+function Server:on_response(response)
   if self.verbose then
     self:log(
       "Recieved response '%s' with result:\n%s",
@@ -1066,7 +1121,7 @@ end
 --- Register a request handler
 -- @param method The name of method, eg: "workspace/configuration"
 -- @param callback A function with parameters (server, request)
-function server:add_request_listener(method, callback)
+function Server:add_request_listener(method, callback)
   if self.verbose then
     self:log(
       "Registering listener for '%s' requests",
@@ -1078,7 +1133,7 @@ end
 
 --- Call an apropriate signal handler for a given request.
 -- @param request A request object sent by server.
-function server:send_request_signal(request)
+function Server:send_request_signal(request)
   if not request.method then
     if self.verbose and request.id then
       self:log(
@@ -1100,7 +1155,7 @@ end
 
 --- Called for each request that doesn't has a signal handler.
 -- @param request Table with data as received from server
-function server:on_request(request)
+function Server:on_request(request)
   if self.verbose then
     self:log(
       "Recieved request '%s' with data:\n%s",
@@ -1114,7 +1169,7 @@ function server:on_request(request)
     request.id,
     nil,
     {
-      code = server.error_code.MethodNotFound,
+      code = Server.error_code.MethodNotFound,
       message = "Method not found"
     }
   )
@@ -1125,7 +1180,7 @@ end
 -- on_notification() method will be called instead.
 -- @param method The name of method, eg: "window/logMessage"
 -- @param callback A function with parameters (server, method, params)
-function server:add_message_listener(method, callback)
+function Server:add_message_listener(method, callback)
   if self.verbose then
     self:log(
       "Registering listener for '%s' messages",
@@ -1137,7 +1192,7 @@ end
 
 --- Call an apropriate signal handler for a given message or notification
 -- @param message A message object as generated by request.
-function server:send_message_signal(message)
+function Server:send_message_signal(message)
   if self.message_listeners[message.method] then
     self.message_listeners[message.method](
       self, message.params
@@ -1150,7 +1205,7 @@ end
 --- Called for every message or notification without a signal handler.
 -- @param method The name of method, eg: "window/logMessage"
 -- @Param params Paremeters table as sent by the server
-function server:on_message(method, params)
+function Server:on_message(method, params)
   if self.verbose then
     self:log(
       "Recieved notification '%s' with params:\n%s",
@@ -1160,7 +1215,7 @@ function server:on_message(method, params)
   end
 end
 
-function server:shutdown_if_needed()
+function Server:shutdown_if_needed()
   if
     self.write_fails >=  self.write_fails_before_shutdown
     or
@@ -1181,12 +1236,12 @@ function server:shutdown_if_needed()
   self.write_fails = self.write_fails + 1
 end
 
-function server:on_shutdown()
+function Server:on_shutdown()
   self:log("The server was shutdown.")
 end
 
 --- Instructs the server to exit.
-function server:exit()
+function Server:exit()
   self.initialized = false
 
   -- Send shutdown request
@@ -1209,4 +1264,4 @@ function server:exit()
   end
 end
 
-return server
+return Server

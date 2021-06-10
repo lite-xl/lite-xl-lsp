@@ -8,11 +8,9 @@
 
 local core = require "core"
 local common = require "core.common"
-local config = require "core.config"
 local command = require "core.command"
 local style = require "core.style"
 local keymap = require "core.keymap"
-local translate = require "core.doc.translate"
 local RootView = require "core.rootview"
 local DocView = require "core.docview"
 

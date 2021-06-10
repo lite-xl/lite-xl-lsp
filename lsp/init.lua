@@ -3,6 +3,10 @@
 -- LSP client for lite-xl
 -- @copyright Jefferson Gonzalez
 -- @license MIT
+--
+-- Note: Annotations syntax documentation which is supported by
+-- https://github.com/sumneko/lua-language-server can be read here:
+-- https://emmylua.github.io/annotation.html
 
 -- TODO Change the code to make it possible to use more than one LSP server
 -- for a single file if possible and needed, for eg:
@@ -37,21 +41,29 @@ end
 --
 -- Plugin settings
 --
+
+--- Configuration options for the LSP plugin.
 config.lsp = {}
 
--- Set to a file to log all json
+--- Set to a file path to log all json
+--- @type string
 config.lsp.log_file = config.lsp.log_file or ""
--- Setting to true breaks json for more readability on the log
--- this setting will impact performance so only enable it when
--- developing the plugin.
+--- Setting to true breaks json for more readability on the log
+--- this setting will impact performance so only enable it when
+--- developing the plugin.
+--- @type boolean
 config.lsp.prettify_json = config.lsp.prettify_json or false
--- Show diagnostic messages
+--- Show diagnostic messages
+--- @type boolean
 config.lsp.show_diagnostics = config.lsp.show_diagnostics or true
--- Stop servers that aren't needed by any of the open files
+--- Stop servers that aren't needed by any of the open files
+--- @type boolean
 config.lsp.stop_unneeded_servers = config.lsp.stop_unneeded_servers or true
--- Send a server stderr output to lite log
+--- Send a server stderr output to lite log
+--- @type boolean
 config.lsp.log_server_stderr = config.lsp.log_server_stderr or false
--- force verbosity off even if a server is configure with verbosity on
+--- force verbosity off even if a server is configure with verbosity on
+--- @type boolean
 config.lsp.force_verbosity_off = config.lsp.force_verbosity_off or false
 
 --
@@ -60,20 +72,29 @@ config.lsp.force_verbosity_off = config.lsp.force_verbosity_off or false
 local lsp = {}
 
 lsp.servers = {}
+
+--- List of running servers
 lsp.servers_running = {}
 
--- Flag that indicates if last autocomplete request was a trigger
--- to prevent requesting another autocompletion request until the
--- autocomplete box is hidden since some lsp servers loose context
--- and return wrong results (eg: lua-language-server)
+--- Flag that indicates if last autocomplete request was a trigger
+--- to prevent requesting another autocompletion request until the
+--- autocomplete box is hidden since some lsp servers loose context
+--- and return wrong results (eg: lua-language-server)
+--- @type boolean
 lsp.in_trigger = false
 
--- Used to set proper diagnostic type on lintplus
+--- Used to set proper diagnostic type on lintplus
+--- @type table<integer, string>
 local diagnostic_kinds = { "error", "warning", "info", "hint" }
 
 --
 -- Private functions
 --
+
+--- Generate an lsp location object
+--- @param doc Doc
+--- @param line integer
+--- @param col integer
 local function get_buffer_position_params(doc, line, col)
   return {
     textDocument = {
@@ -87,7 +108,7 @@ local function get_buffer_position_params(doc, line, col)
 end
 
 --- Recursive function to generate a list of symbols ready
--- to use for the lsp.request_document_symbols() action.
+--- to use for the lsp.request_document_symbols() action.
 local function get_symbol_lists(list, parent)
   local symbols = {}
   local symbol_names = {}
@@ -134,6 +155,8 @@ local function log(server, message, ...)
   core.log("["..server.name.."] " .. message, ...)
 end
 
+--- Check if active view is a DocView and return it
+--- @return DocView|nil
 local function get_active_view()
   if getmetatable(core.active_view) == DocView then
     return core.active_view
@@ -142,6 +165,7 @@ local function get_active_view()
 end
 
 --- Open a document location returned by LSP
+--- @param location table
 local function goto_location(location)
   core.root_view:open_doc(
     core.open_doc(
@@ -157,6 +181,7 @@ local function goto_location(location)
 end
 
 --- Generates a code preview of a location
+--- @param location table
 local function get_location_preview(location)
   local line1, col1 = Util.toselection(
     location.range or location.targetRange
@@ -178,6 +203,7 @@ local function get_location_preview(location)
 end
 
 --- Generate a list ready to use for the lsp.request_references() action.
+--- @param locations table
 local function get_references_lists(locations)
   local references, reference_names = {}, {}
 
@@ -196,13 +222,14 @@ end
 --
 
 --- Register an LSP server to be launched on demand
-function lsp.add_server(server)
+--- @param options table
+function lsp.add_server(options)
   local required_fields = {
     "name", "language", "file_patterns", "command"
   }
 
   for _, field in pairs(required_fields) do
-    if not server[field] then
+    if not options[field] then
       core.error(
         "[LSP] You need to provide a '%s' field for the server.",
         field
@@ -211,21 +238,23 @@ function lsp.add_server(server)
     end
   end
 
-  if #server.command <= 0 then
+  if #options.command <= 0 then
     core.error("[LSP] Provide a command table list with the lsp command.")
     return false
   end
 
   if config.lsp.force_verbosity_off then
-    server.verbose = false
+    options.verbose = false
   end
 
-  lsp.servers[server.name] = server
+  lsp.servers[options.name] = options
 
   return true
 end
 
 --- Get valid running lsp servers for a given filename
+--- @param filename string
+--- @param initialized boolean
 function lsp.get_active_servers(filename, initialized)
   local servers = {}
   for name, server in pairs(lsp.servers) do
@@ -252,18 +281,20 @@ function lsp.get_active_servers(filename, initialized)
   return servers
 end
 
---- Get table of configuration settings in the following way:
--- 1. Scan the USERDIR for settings.lua or settings.json (in that order)
--- 2. Merge server.settings
--- 4. Scan workspace if set also for settings.lua/json and merge them or
--- 3. Scan server.path also for settings.lua/json and merge them
--- Note: settings are cached for 5 seconds for faster retrieval
---       on repetitive calls to this function.
--- @tparam Server server
--- @tparam string workspace Optional workspace.
--- @treturn table
+-- Used on lsp.get_workspace_settings()
 local cached_workspace_settings = {}
 local cached_workspace_settings_timestamp = 0
+
+--- Get table of configuration settings in the following way:
+--- 1. Scan the USERDIR for settings.lua or settings.json (in that order)
+--- 2. Merge server.settings
+--- 4. Scan workspace if set also for settings.lua/json and merge them or
+--- 3. Scan server.path also for settings.lua/json and merge them
+--- Note: settings are cached for 5 seconds for faster retrieval
+---       on repetitive calls to this function.
+--- @param server Server
+--- @param workspace? string
+--- @return table
 function lsp.get_workspace_settings(server, workspace)
   -- Search settings on the following directories, subsequent settings
   -- overwrite the previous ones
@@ -350,7 +381,7 @@ function lsp.start_server(filename, project_directory)
 
       if not lsp.servers_running[name] and command_exists then
         core.log("[LSP] starting " .. name)
-        local client = Server.new(server)
+        local client = Server(server)
 
         lsp.servers_running[name] = client
 
@@ -406,7 +437,7 @@ function lsp.start_server(filename, project_directory)
         -- Display server messages on lite UI
         client:add_message_listener("window/logMessage", function(server, params)
           if core.log then
-            core.log("["..server.name.."] " .. params.message)
+            log(server, "%s", params.message)
             coroutine.yield(3)
           end
         end)
@@ -458,7 +489,7 @@ function lsp.start_server(filename, project_directory)
           if config.lsp.force_verbosity_off then
             core.log_quiet("["..server.name.."] " .. "Initialized")
           else
-            core.log("["..server.name.."] " .. "Initialized")
+            log(server, "Initialized")
           end
           local settings = lsp.get_workspace_settings(server)
           if not Util.table_empty(settings) then
@@ -570,13 +601,13 @@ function lsp.open_document(doc)
             .. '}'
             .. '} '
             .. '}',
-            function()
+            function(server)
               doc.lsp_open = true
-              core.log("[LSP] big file '%s' ready for completion!", doc.filename)
+              log(server, "Big file '%s' ready for completion!", doc.filename)
             end
           )
 
-          core.log("[LSP] processing big file '%s'...", doc.filename)
+          log(server, "Processing big file '%s'...", doc.filename)
         end
       else
         doc.lsp_open = true
@@ -600,27 +631,42 @@ function lsp.save_document(doc)
         and
         server.capabilities.textDocumentSync.save
       then
-        local params = {
-          textDocument = {
-            uri = Util.touri(system.absolute_path(doc.filename)),
-            languageId = Util.file_extension(doc.filename),
-            version = doc.clean_change_id
-          }
-        }
         -- Send document content only if required by lsp server
         if
           type(server.capabilities.textDocumentSync.save) == "table"
           and
           server.capabilities.textDocumentSync.save.includeText
         then
-          -- TODO handle this as a raw request for huge files
-          params.text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
-        end
+          -- If save should include file content then raw is faster for
+          -- huge files that would take too much to encode.
+          local text = doc
+            :get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+            :gsub('\\', '\\\\'):gsub("\n", "\\n"):gsub("\r", "\\r")
+            :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
+            :gsub('\f', '\\f')
 
-        server:push_notification(
-          'textDocument/didSave',
-          params
-        )
+          server:push_raw(
+            '{'
+            .. '"jsonrpc": "2.0",'
+            .. '"method": "textDocument/didSave",'
+            .. '"params": {'
+            .. '"textDocument": {'
+            .. '"uri": "'..Util.touri(system.absolute_path(doc.filename))..'"'
+            .. '},'
+            .. '"text": "'..text..'"'
+            .. '} '
+            .. '}'
+          )
+        else
+          server:push_notification(
+            'textDocument/didSave',
+            {
+              textDocument = {
+                uri = Util.touri(system.absolute_path(doc.filename))
+              }
+            }
+          )
+        end
       end
     end
   end
@@ -658,7 +704,9 @@ end
 
 --- Send document updates to applicable running LSP servers.
 function lsp.update_document(doc)
-  if not doc.lsp_open then return end
+  if not doc.lsp_open or not doc.lsp_changes or #doc.lsp_changes <= 0 then
+    return
+  end
 
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
@@ -695,18 +743,31 @@ function lsp.update_document(doc)
         sync_kind = server.capabilities.textDocumentSync
       end
 
-      local changes = {}
       if sync_kind == Server.text_document_sync_kind.Full then
-        -- TODO handle this as a raw request for huge files
-        table.insert(changes, {
-          text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
-        })
-      else
-        changes = doc.lsp_changes
-      end
-      doc.lsp_changes = {}
+        -- If sync should be done by sending full file content then lets do
+        -- it raw which is faster for big files.
+        local text = doc
+          :get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+          :gsub('\\', '\\\\'):gsub("\n", "\\n"):gsub("\r", "\\r")
+          :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
+          :gsub('\f', '\\f')
 
-      if changes and #changes > 0 then
+        server:push_raw(
+          '{'
+          .. '"jsonrpc": "2.0",'
+          .. '"method": "textDocument/didChange",'
+          .. '"params": {'
+          .. '"textDocument": {'
+          .. '"uri": "'..Util.touri(system.absolute_path(doc.filename))..'",'
+          .. '"version": '..doc.lsp_version
+          .. '},'
+          .. '"contentChanges": {'
+          .. '"text": "'..text..'"'
+          .. "}"
+          .. '} '
+          .. '}'
+        )
+      else
         lsp.servers_running[name]:push_notification(
           'textDocument/didChange',
           {
@@ -714,11 +775,11 @@ function lsp.update_document(doc)
               uri = Util.touri(system.absolute_path(doc.filename)),
               version = doc.lsp_version,
             },
-            contentChanges = changes,
-            syncKind = Server.text_document_sync_kind.Full
+            contentChanges = doc.lsp_changes
           }
         )
       end
+      doc.lsp_changes = {}
     end
   end
 end
@@ -1141,12 +1202,12 @@ function lsp.view_document_diagnostics(doc)
     return
   end
 
-  local diagnostic_kinds = { "Error", "Warning", "Info", "Hint" }
+  local diagnostic_labels = { "Error", "Warning", "Info", "Hint" }
 
   local indexes, captions = {}, {}
   for index, diagnostic in pairs(diagnostics) do
     local line1, col1 = Util.toselection(diagnostic.range)
-    local label = diagnostic_kinds[diagnostic.severity]
+    local label = diagnostic_labels[diagnostic.severity]
       .. ": " .. diagnostic.message .. " "
       .. tostring(line1) .. ":" .. tostring(col1)
     captions[index] = label
@@ -1290,7 +1351,7 @@ end
 --
 core.add_thread(function()
   while true do
-    for name,server in pairs(lsp.servers_running) do
+    for _,server in pairs(lsp.servers_running) do
       -- Send raw data to server which is usually big and slow
       if #server.raw_list > 0 then
         local raw_send = coroutine.create(function()
@@ -1525,7 +1586,7 @@ command.add("core.docview", {
     local av = core.active_view
     if av and av.doc and av.doc.filename then
       local doc = core.active_view.doc
-      local line1, col1, line2, col2 = doc:get_selection()
+      local line1, col1, line2 = doc:get_selection()
       if line1 == line2 then
         lsp.goto_symbol(doc, line1, col1)
       end
@@ -1536,7 +1597,7 @@ command.add("core.docview", {
     local av = core.active_view
     if av and av.doc and av.doc.filename then
       local doc = core.active_view.doc
-      local line1, col1, line2, col2 = doc:get_selection()
+      local line1, col1, line2 = doc:get_selection()
       if line1 == line2 then
         lsp.goto_symbol(doc, line1, col1, true)
       end
@@ -1558,7 +1619,7 @@ command.add("core.docview", {
     local av = core.active_view
     if av and av.doc and av.doc.filename then
       local doc = core.active_view.doc
-      local line1, col1, line2, col2 = doc:get_selection()
+      local line1, col1, line2 = doc:get_selection()
       if line1 == line2 then
         lsp.request_hover(doc, line1, col1)
       end
@@ -1592,7 +1653,7 @@ command.add("core.docview", {
   ["lsp:find-references"] = function()
     local doc = core.active_view.doc
     if doc then
-      local line1, col1, line2, col2 = doc:get_selection()
+      local line1, col1, line2 = doc:get_selection()
       if line1 == line2 then
         lsp.request_references(doc, line1, col1)
       end
