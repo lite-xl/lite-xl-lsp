@@ -110,7 +110,9 @@ function Server.get_completion_items_kind(id)
 
   local list = {}
   for i = 1, #Server.completion_item_kind do
-    list[i] = i
+    if i ~= 15 then --Disable snippets
+      table.insert(list, i)
+    end
   end
 
   return list
@@ -212,7 +214,7 @@ function Server:initialize(workspace, editor_name, editor_version)
             -- dynamicRegistration = false, -- not supported
             completionItem = {
               -- Snippets are required by css-languageserver
-              -- snippetSupport = true, -- ${1:foo} format not supported
+              snippetSupport = false, -- ${1:foo} format not supported
               -- commitCharactersSupport = true,
               documentationFormat = {'plaintext'},
               -- deprecatedSupport = false, -- simple autocompletion list
@@ -499,7 +501,7 @@ function Server:process_requests()
       -- only process when initialized or the initialize request
       -- which should be the first one.
       if not self.initialized and id ~= 1 then
-        return
+        return nil
       end
 
       local message = {
@@ -548,7 +550,7 @@ function Server:process_requests()
         end
       else
         self:shutdown_if_needed()
-        return
+        return nil
       end
     end
   end
@@ -559,6 +561,8 @@ function Server:process_requests()
       self:log("Request '%s' expired without response", remove_request)
     end
   end
+
+  return nil
 end
 
 function Server:process_responses()
@@ -575,7 +579,11 @@ function Server:process_responses()
       if not response.id then
         -- A notification, event or generic message was received
         self:send_message_signal(response)
-      elseif response.result then
+      elseif
+        response.result
+        or
+        (not response.params and not response.method)
+      then
         -- An actual request response was received
         self:send_response_signal(response)
       else
@@ -783,12 +791,20 @@ function Server:push_notification(method, params, callback)
   })
 end
 
+-- Requests that should bypass the hitrate limit
+local requests_whitelist = {
+  "completionItem/resolve"
+}
 function Server:push_request(method, params, callback)
   if not self.initialized and method ~= "initialize" then
     return
   end
 
-  if self:hitrate_reached("request") then
+  if
+    self:hitrate_reached("request")
+    and
+    not util.intable(method, requests_whitelist)
+  then
     return
   end
 
