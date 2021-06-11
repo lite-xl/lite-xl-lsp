@@ -217,6 +217,117 @@ local function get_references_lists(locations)
   return references, reference_names
 end
 
+--- Apply an lsp textEdit to a document if possible.
+--- @return boolean True on success
+local function apply_edit(doc, text_edit)
+  local range = nil
+
+  if text_edit.range then
+    range = text_edit.range
+  elseif text_edit.insert then
+    range = text_edit.insert
+  elseif text_edit.replace then
+    range = text_edit.replace
+  end
+
+  if not range then return false end
+
+  local line1, col1, line2, col2 = Util.toselection(range)
+  local text = text_edit.newText
+  local current_text = ""
+
+  if lsp.in_trigger then
+    local cline2, ccol2 = doc:get_selection()
+    local cline1, ccol1 = doc:position_offset(line2, col2, translate.start_of_word)
+    current_text = doc:get_text(cline1, ccol1, cline2, ccol2)
+  end
+
+  doc:remove(line1, col1, line2, col2+#current_text)
+  doc:insert(line1, col1, text_edit.newText)
+  doc:set_selection(line2, col2+#text, line2, col2+#text)
+  lsp.update_document(doc)
+
+  return true
+end
+
+--- Callback given to autocomplete plugin which is executed once for each
+--- element of the autocomplete box which is hovered with the idea of providing
+--- better description of the selected element by requesting the LSP server for
+--- detailed information/documentation.
+local function autocomplete_onhover(index, item)
+  local completion_item = item.data.completion_item
+
+  if item.data.server.verbose then
+    item.data.server:log(
+      "Resolve item: %s", Util.jsonprettify(Json.encode(completion_item))
+    )
+  end
+
+  -- Only send resolve request if data field (which should contain
+  -- the item id) is available.
+  if completion_item.data then
+    item.data.server:push_request(
+      'completionItem/resolve',
+      completion_item,
+      function(server, response)
+        if response.result then
+          local symbol = response.result
+          if symbol.detail and #item.desc <= 0 then
+            item.desc = symbol.detail
+          end
+          if symbol.documentation then
+            if #item.desc > 0 then
+              item.desc = item.desc .. "\n\n"
+            end
+            if
+              type(symbol.documentation) == "table"
+              and
+              symbol.documentation.value
+            then
+              item.desc = item.desc .. symbol.documentation.value
+            else
+              item.desc = item.desc .. symbol.documentation
+            end
+          end
+          if server.verbose then
+            server:log(
+              "Resolve response: %s", Util.jsonprettify(Json.encode(symbol))
+            )
+          end
+        elseif server.verbose then
+          server:log("Resolve returned empty response")
+        end
+      end
+    )
+  end
+end
+
+--- Callback that handles insertion of an autocompletion item that has
+--- the information of insertion
+local function autocomplete_onselect(index, item)
+  local completion = item.data.completion_item
+  if completion.textEdit then
+    local av = get_active_view()
+    local edit_applied = apply_edit(av.doc, completion.textEdit)
+    if edit_applied then
+      lsp.update_document(av.doc)
+      -- TODO: Retrigger code completion if last char is a trigger
+      -- local char = av.doc:get_char(av.doc:get_selection())
+      -- if char:match("%p") then
+      --   local line, col = av.doc:get_selection()
+      --   lsp.request_completion(
+      --     av.doc,
+      --     line,
+      --     col,
+      --     true
+      --   )
+      -- end
+    end
+    return edit_applied
+  end
+  return false
+end
+
 --
 -- Public functions
 --
@@ -824,117 +935,6 @@ function lsp.toggle_diagnostics()
   end
 end
 
---- Callback given to autocomplete plugin which is executed once for each
---- element of the autocomplete box which is hovered with the idea of providing
---- better description of the selected element by requesting the LSP server for
---- detailed information/documentation.
-function lsp.request_item_resolve(index, item)
-  local completion_item = item.data.completion_item
-
-  if item.data.server.verbose then
-    item.data.server:log(
-      "Resolve item: %s", Util.jsonprettify(Json.encode(completion_item))
-    )
-  end
-
-  -- Only send resolve request if data field (which should contain
-  -- the item id) is available.
-  if completion_item.data then
-    item.data.server:push_request(
-      'completionItem/resolve',
-      completion_item,
-      function(server, response)
-        if response.result then
-          local symbol = response.result
-          if symbol.detail and #item.desc <= 0 then
-            item.desc = symbol.detail
-          end
-          if symbol.documentation then
-            if #item.desc > 0 then
-              item.desc = item.desc .. "\n\n"
-            end
-            if
-              type(symbol.documentation) == "table"
-              and
-              symbol.documentation.value
-            then
-              item.desc = item.desc .. symbol.documentation.value
-            else
-              item.desc = item.desc .. symbol.documentation
-            end
-          end
-          if server.verbose then
-            server:log(
-              "Resolve response: %s", Util.jsonprettify(Json.encode(symbol))
-            )
-          end
-        elseif server.verbose then
-          server:log("Resolve returned empty response")
-        end
-      end
-    )
-  end
-end
-
---- Apply an lsp textEdit to a document if possible.
---- @return boolean True on success
-local function apply_edit(doc, text_edit)
-  local range = nil
-
-  if text_edit.range then
-    range = text_edit.range
-  elseif text_edit.insert then
-    range = text_edit.insert
-  elseif text_edit.replace then
-    range = text_edit.replace
-  end
-
-  if not range then return false end
-
-  local line1, col1, line2, col2 = Util.toselection(range)
-  local text = text_edit.newText
-  local current_text = ""
-
-  if lsp.in_trigger then
-    local cline2, ccol2 = doc:get_selection()
-    local cline1, ccol1 = doc:position_offset(line2, col2, translate.start_of_word)
-    current_text = doc:get_text(cline1, ccol1, cline2, ccol2)
-  end
-
-  doc:remove(line1, col1, line2, col2+#current_text)
-  doc:insert(line1, col1, text_edit.newText)
-  doc:set_selection(line2, col2+#text, line2, col2+#text)
-  lsp.update_document(doc)
-
-  return true
-end
-
---- Callback that handles insertion of an autocompletion item that has
---- the information of insertion
-function lsp.completion_item_selected(index, item)
-  local completion = item.data.completion_item
-  if completion.textEdit then
-    local av = get_active_view()
-    local edit_applied = apply_edit(av.doc, completion.textEdit)
-    if edit_applied then
-      lsp.update_document(av.doc)
-      -- TODO: Retrigger code completion if last char is a trigger
-      -- local char = av.doc:get_char(av.doc:get_selection())
-      -- if char:match("%p") then
-      --   local line, col = av.doc:get_selection()
-      --   lsp.request_completion(
-      --     av.doc,
-      --     line,
-      --     col,
-      --     true
-      --   )
-      -- end
-    end
-    return edit_applied
-  end
-  return false
-end
-
 --- Send to applicable LSP servers a request for code completion
 function lsp.request_completion(doc, line, col, forced)
   if lsp.in_trigger or not doc.lsp_open then
@@ -1067,7 +1067,7 @@ function lsp.request_completion(doc, line, col, forced)
               data = {
                 server = server, completion_item = symbol
               },
-              onselect = lsp.completion_item_selected
+              onselect = autocomplete_onselect
             }
 
             if
@@ -1075,7 +1075,7 @@ function lsp.request_completion(doc, line, col, forced)
               and
               not symbol.documentation
             then
-              symbols.items[label].onhover = lsp.request_item_resolve
+              symbols.items[label].onhover = autocomplete_onhover
             end
           end
 
