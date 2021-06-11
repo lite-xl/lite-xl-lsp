@@ -274,7 +274,13 @@ local function wrap_line(line, max_chars)
           table.insert(lines, new_line)
         end
       else
-        if not prev_char:match("%s") then
+        if
+          not prev_char:match("%s")
+          and
+          not string.sub(line, position+1, 1):match("%s")
+          and
+          position < line_len
+        then
           new_line = new_line .. "-"
         end
         table.insert(lines, new_line)
