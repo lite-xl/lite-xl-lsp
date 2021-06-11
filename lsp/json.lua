@@ -31,7 +31,7 @@ local error_message = ""
 json.null = "{{json::null}}"
 
 -- Treat numbers longer than 14 digits as a string by adding this to the
--- beginning of the string for encoder to recogniza. This prevents any data
+-- beginning of the string for encoder to recognize. This prevents any data
 -- loss due to lua 5.2 not supporting big integer numbers and converting big
 -- integers to floats. The drawback is that the user should manually convert
 -- these strings to a number. Numbers with less than 15 digits are not affected.
