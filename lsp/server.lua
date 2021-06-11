@@ -553,6 +553,7 @@ function Server:process_requests()
           return request
         end
       else
+        self.request_list[id].timestamp = os.time() + 1
         self:shutdown_if_needed()
         return nil
       end
