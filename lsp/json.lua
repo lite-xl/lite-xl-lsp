@@ -29,6 +29,12 @@ local error_message = ""
 
 -- Lets us explicitly add null values to table elements
 json.null = "{{json::null}}"
+
+-- Treat numbers longer than 14 digits as a string by adding this to the
+-- beginning of the string for encoder to recogniza. This prevents any data
+-- loss due to lua 5.2 not supporting big integer numbers and converting big
+-- integers to floats. The drawback is that the user should manually convert
+-- these strings to a number. Numbers with less than 15 digits are not affected.
 json.number_flag = "{{json::num}}"
 local number_flag_len = #json.number_flag
 
