@@ -257,13 +257,55 @@ local function get_suggestions_rect(av)
     max_items * (th + style.padding.y) + style.padding.y
 end
 
+local function wrap_line(line, max_chars)
+  if #line > max_chars then
+    local lines = {}
+    local line_len = #line
+    local new_line = ""
+    local prev_char = ""
+    local position = 0
+    local indent = line:match("^%s+")
+    for char in line:gmatch(".") do
+      position = position + 1
+      if #new_line < max_chars then
+        new_line = new_line .. char
+        prev_char = char
+        if position >= line_len then
+          table.insert(lines, new_line)
+        end
+      else
+        if not prev_char:match("%s") then
+          new_line = new_line .. "-"
+        end
+        table.insert(lines, new_line)
+        if indent then
+          new_line = indent .. char
+        else
+          new_line = char
+        end
+      end
+    end
+    return lines
+  end
+  return line
+end
+
 local function draw_description_box(text, av, sx, sy, sw, sh)
   local width = 0
 
   local lines = {}
   for line in string.gmatch(text.."\n", "(.-)\n") do
-    width = math.max(width, style.font:get_width(line))
-    table.insert(lines, line)
+    -- TODO: calculate amount of width available instead of always using 50
+    local wrapper_lines = wrap_line(line, 50)
+    if type(wrapper_lines) == "table" then
+      for _, wrapped_line in pairs(wrapper_lines) do
+        width = math.max(width, style.font:get_width(wrapped_line))
+        table.insert(lines, wrapped_line)
+      end
+    else
+      width = math.max(width, style.font:get_width(line))
+      table.insert(lines, line)
+    end
   end
 
   local height = #lines * style.font:get_height()
