@@ -29,6 +29,8 @@ local error_message = ""
 
 -- Lets us explicitly add null values to table elements
 json.null = "{{json::null}}"
+json.number_flag = "{{json::num}}"
+local number_flag_len = #json.number_flag
 
 -------------------------------------------------------------------------------
 -- Encode
@@ -111,6 +113,13 @@ end
 local function encode_string(val)
   if val == json.null then
     return "null"
+  elseif
+    #val > number_flag_len
+    and
+    string.sub(val, 1, number_flag_len) == json.number_flag
+  then
+    local num = string.gsub(val, json.number_flag, "")
+    return num
   end
   return '"' .. val:gsub('[%z\1-\31\\"]', escape_char) .. '"'
 end
@@ -272,7 +281,12 @@ end
 local function parse_number(str, i)
   local x = next_char(str, i, delim_chars)
   local s = str:sub(i, x - 1)
-  local n = tonumber(s)
+  local n = nil
+  if #s > 14 then
+    n = json.number_flag .. s
+  else
+    n = tonumber(s)
+  end
   if not n then
     decode_error(str, i, "invalid number '" .. s .. "'")
   end
