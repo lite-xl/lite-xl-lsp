@@ -1,6 +1,7 @@
 -- mod-version:1 -- lite-xl 1.16
 -- @copyright Jefferson Gonzalez
 -- @license MIT
+-- @note This code is a readaptation of autocomplete plugin from rxi :)
 -- A configurable listbox that can be used as tooltip, selection box and
 -- selection box with fuzzy search, this may change in the future.
 --
