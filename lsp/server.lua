@@ -531,9 +531,13 @@ function Server:process_requests()
         end
       end
 
-      self.request_list[id].timestamp = os.time() + 1
-
       if written and written > 0 then
+        local time = 1
+        if id == 1 then
+          time = 5 -- give initialize enough time to respond
+        end
+        self.request_list[id].timestamp = os.time() + time
+
         self.write_fails = 0
 
         -- if request has been sent more than 3 times remove them
