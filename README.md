@@ -59,22 +59,32 @@ lsp.add_server {
 
 ## TODO
 
-* Add Snippets support (this will need a whole standalone plugin).
-* Fix issues when parsing stdout from some lsp servers (eg: css-languageserver).
-* Figure out how to get an autocompletion item full documentation with
+- [ ] Implement rename symbol
+- [ ] Handle window/showMessage, window/showMessageRequest,
+  $/progress, telemetry/event
+- [ ] Be able to search workspace symbols 'workspace/symbol'
+- [ ] Completion preselectSupport (needs autocomplete plugin change)
+- [ ] Add symbol renaming support 'textDocument/rename'
+- [ ] Add Snippets support (this will need a whole standalone plugin).
+- [ ] Fix issues when parsing stdout from some lsp servers (eg: css-languageserver).
+- [ ] Figure out how to get an autocompletion item full documentation with
 'completionItem/resolve' or any other in order to better populate
 the new autocomplete item description
-* (__Partially__) Add hover support for function arguments
-  * Add custom tooltip that accents active parameter and signature
-* (__Done__?) More improvements to autocomplete.lua plugin
-* (__Done__) (we kill it) Detect if lsp server hangs and restart it (eg: clangd)
-* (__Done__) Exit LSP server if no open document needs it.
-* (__Done__) Add hover support for symbols
-* (__Done__) Generate list of current document symbols for easy document navigation
-* (__Done__) Goto definition
-  * (__Done__) Display select box when more than one result
-* (__Done__) Show diagnostics on active document similar to the linter plugin.
-* (__Done__) Send incremental changes on textDocument/didChange notification
+- [x] More improvements to autocomplete.lua plugin
+  - [ ] Detect view edges and render to the most visible side
+  - [ ] Description box, detect view width and expand accordingly
+  - [ ] Support for pre-selected item
+  - [ ] Be able to use a custom sorting field.
+- [x] Add hover support for function arguments
+  - [ ] Add custom tooltip that accents active parameter and signature
+- [x] (we kill it) Detect if lsp server hangs and restart it (eg: clangd)
+- [x] Exit LSP server if no open document needs it.
+- [x] Add hover support for symbols
+- [x] Generate list of current document symbols for easy document navigation
+- [x] Goto definition
+  - [x] Display select box when more than one result
+- [x] Show diagnostics on active document similar to the linter plugin.
+- [x] Send incremental changes on textDocument/didChange notification
   since sending the whole document content on big files is slow and bad.
 
 
