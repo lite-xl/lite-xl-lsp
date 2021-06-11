@@ -825,22 +825,25 @@ function lsp.toggle_diagnostics()
 end
 
 --- Callback given to autocomplete plugin which is executed once for each
--- element of the autocomplete box which is selected with the idea of providing
--- better description of the selected element by requesting an LSP server for
--- detailed information.
+--- element of the autocomplete box which is hovered with the idea of providing
+--- better description of the selected element by requesting the LSP server for
+--- detailed information/documentation.
+---
+-- TODO investigate the issue that casues item resolve to not return
+-- documentation, one posssible cause is the json and lua converting
+-- the data field long integers to float so the lsp server doesn't
+-- properly finds the given item so this isn't reliable.
 function lsp.request_item_resolve(index, item)
-  -- TODO investigate the issue that casues item resolve to not return
-  -- documentation, one posssible cause is the json and lua converting
-  -- the data field from integer to float so the lsp server doesn't
-  -- properly finds the given item.
-  -- For now return since this isn't reliable
-  if true then
-    return
+  local completion_item = item.data.completion_item
+
+  if item.data.server.verbose then
+    item.data.server:log(
+      "Resolve item: %s", Util.jsonprettify(Json.encode(completion_item))
+    )
   end
 
   -- Only send resolve request if data field (which should contain
   -- the item id) is available.
-  local completion_item = item.data.completion_item
   if completion_item.data then
     item.data.server:push_request(
       'completionItem/resolve',
@@ -848,12 +851,26 @@ function lsp.request_item_resolve(index, item)
       function(server, response)
         if response.result then
           local symbol = response.result
-          -- TODO overwrite the item.desc to show documentation of
-          -- symbol if available, but nothing seems to be returned
-          -- by tested LSP's, maybe some missing initialization option?
-          if symbol.documentation and symbol.documentation.value then
-            item.desc = symbol.documentation.value
+          if symbol.detail and #item.desc <= 0 then
+            item.desc = symbol.detail
           end
+          if
+            type(symbol.documentation) == "table"
+            and
+            symbol.documentation.value
+          then
+            item.desc = item.desc .. "\n" .. symbol.documentation.value
+          elseif symbol.documentation then
+            item.desc = item.desc .. "\n" .. symbol.documentation
+          end
+
+          if server.verbose then
+            server:log(
+              "Resolve response: %s", Util.jsonprettify(Json.encode(symbol))
+            )
+          end
+        elseif server.verbose then
+          server:log("Resolve returned empty response")
         end
       end
     )
@@ -1033,8 +1050,14 @@ function lsp.request_completion(doc, line, col, forced)
               desc = desc .. "\n"
             end
 
-            if symbol.documentation and symbol.documentation.value then
+            if
+              type(symbol.documentation) == "table"
+              and
+              symbol.documentation.value
+            then
               desc = desc .. "\n" .. symbol.documentation.value
+            elseif symbol.documentation then
+              desc = desc .. "\n" .. symbol.documentation
             end
 
             desc = desc:gsub("\n$", "")
