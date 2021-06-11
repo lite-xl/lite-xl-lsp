@@ -67,9 +67,6 @@ lsp.add_server {
 - [ ] Add symbol renaming support 'textDocument/rename'
 - [ ] Add Snippets support (this will need a whole standalone plugin).
 - [ ] Fix issues when parsing stdout from some lsp servers (eg: css-languageserver).
-- [ ] Figure out how to get an autocompletion item full documentation with
-'completionItem/resolve' or any other in order to better populate
-the new autocomplete item description
 - [x] More improvements to autocomplete.lua plugin
   - [ ] Detect view edges and render to the most visible side
   - [ ] Description box, detect view width and expand accordingly
@@ -77,6 +74,9 @@ the new autocomplete item description
   - [ ] Be able to use a custom sorting field.
 - [x] Add hover support for function arguments
   - [ ] Add custom tooltip that accents active parameter and signature
+- [x] Figure out how to get an autocompletion item full documentation with
+'completionItem/resolve' or any other in order to better populate
+the new autocomplete item description
 - [x] (we kill it) Detect if lsp server hangs and restart it (eg: clangd)
 - [x] Exit LSP server if no open document needs it.
 - [x] Add hover support for symbols
