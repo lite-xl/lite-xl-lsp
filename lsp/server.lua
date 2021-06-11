@@ -450,7 +450,7 @@ end
 function Server:process_notifications()
   if not self.initialized then return end
 
-  for index, request in pairs(self.notification_list) do
+  for index, request in ipairs(self.notification_list) do
     local message = {
       jsonrpc = '2.0',
       method = request.method,
@@ -869,15 +869,8 @@ end
 -- @param id id of the request
 -- @return The request table or nil of not found
 function Server:pop_request(id)
-  local request = nil
-  if self.request_list[id] then
-    request = self.request_list[id]
-    for i, element in ipairs(self.request_list) do
-      if element.id == request.id then
-        table.remove(self.request_list, i)
-      end
-    end
-  end
+  local request = self.request_list[id]
+  self.request_list[id] = nil
   return request
 end
 
@@ -983,14 +976,12 @@ function Server:read_responses(timeout)
   end
 
   if #responses > 0 then
-    local responses_copy = responses
-
-    for index,data in pairs(responses_copy) do
+    for index,data in pairs(responses) do
       data = json.decode(data)
       if data ~= false then
         responses[index] = data
       else
-        table.remove(responses, index)
+        responses[index] = nil
         self:log(
           "JSON Parser Error: %s\n%s",
           json.last_error(),
