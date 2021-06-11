@@ -200,6 +200,7 @@ local function update_suggestions()
       j = j + 1
     end
   end
+  suggestions_idx = 1
 end
 
 local function get_partial_symbol()
