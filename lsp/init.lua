@@ -50,7 +50,7 @@ config.lsp = {}
 config.lsp.log_file = config.lsp.log_file or ""
 --- Setting to true breaks json for more readability on the log
 --- this setting will impact performance so only enable it when
---- developing the plugin.
+--- in need of easy to read json output.
 --- @type boolean
 config.lsp.prettify_json = config.lsp.prettify_json or false
 --- Show diagnostic messages
