@@ -1034,7 +1034,7 @@ function lsp.request_completion(doc, line, col, forced)
 
             local desc = symbol.detail or ""
 
-            -- Fix some issues as with clangd
+            -- TODO: maybe we should give priority to insertText above
             if
               symbol.label and
               symbol.insertText and
@@ -1073,6 +1073,8 @@ function lsp.request_completion(doc, line, col, forced)
 
             if
               server.capabilities.completionProvider.resolveProvider
+              and
+              not symbol.documentation
             then
               symbols.items[label].onhover = lsp.request_item_resolve
             end
