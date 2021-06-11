@@ -828,11 +828,6 @@ end
 --- element of the autocomplete box which is hovered with the idea of providing
 --- better description of the selected element by requesting the LSP server for
 --- detailed information/documentation.
----
--- TODO investigate the issue that casues item resolve to not return
--- documentation, one posssible cause is the json and lua converting
--- the data field long integers to float so the lsp server doesn't
--- properly finds the given item so this isn't reliable.
 function lsp.request_item_resolve(index, item)
   local completion_item = item.data.completion_item
 
@@ -854,16 +849,20 @@ function lsp.request_item_resolve(index, item)
           if symbol.detail and #item.desc <= 0 then
             item.desc = symbol.detail
           end
-          if
-            type(symbol.documentation) == "table"
-            and
-            symbol.documentation.value
-          then
-            item.desc = item.desc .. "\n" .. symbol.documentation.value
-          elseif symbol.documentation then
-            item.desc = item.desc .. "\n" .. symbol.documentation
+          if symbol.documentation then
+            if #item.desc > 0 then
+              item.desc = item.desc .. "\n\n"
+            end
+            if
+              type(symbol.documentation) == "table"
+              and
+              symbol.documentation.value
+            then
+              item.desc = item.desc .. symbol.documentation.value
+            else
+              item.desc = item.desc .. symbol.documentation
+            end
           end
-
           if server.verbose then
             server:log(
               "Resolve response: %s", Util.jsonprettify(Json.encode(symbol))
