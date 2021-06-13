@@ -173,6 +173,7 @@ function Server:new(options)
   self.proc = process.new()
   self.proc:start(options.command)
   self.capabilites = nil
+  self.incremental_changes = options.incremental_changes or false
 end
 
 --- Starts the LSP server process, any listeners should be registered before
@@ -215,7 +216,8 @@ function Server:initialize(workspace, editor_name, editor_version)
           synchronization = {
             -- willSave = true,
             -- willSaveWaitUntil = true,
-            didSave = true
+            didSave = true,
+            dynamicRegistration = true
           },
           completion = {
             -- dynamicRegistration = false, -- not supported
@@ -549,7 +551,7 @@ function Server:process_requests()
       if written and written > 0 then
         local time = 1
         if id == 1 then
-          time = 5 -- give initialize enough time to respond
+          time = 10 -- give initialize enough time to respond
         end
         self.request_list[id].timestamp = os.time() + time
 
@@ -941,6 +943,7 @@ function Server:read_responses(timeout)
       more_output = self.proc:read()
       if more_output ~= nil then
         output = output .. more_output
+        coroutine.yield()
       end
     end
 
@@ -958,6 +961,7 @@ function Server:read_responses(timeout)
           new_output = self.proc:read()
           if new_output ~= nil then
             output = output .. new_output
+            coroutine.yield()
           end
         end
 
@@ -992,6 +996,7 @@ function Server:read_responses(timeout)
           if chars then
             output = output .. chars
           end
+          coroutine.yield()
         end
 
         table.insert(responses, output)
