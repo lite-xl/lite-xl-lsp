@@ -62,7 +62,6 @@ lsp.add_server {
 
 ## TODO
 
-- [ ] Implement rename symbol
 - [ ] Handle window/showMessage, window/showMessageRequest,
   $/progress, telemetry/event
 - [ ] Be able to search workspace symbols 'workspace/symbol'
