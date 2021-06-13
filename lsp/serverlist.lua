@@ -21,6 +21,7 @@ lsp.add_server {
   language = "shell",
   file_patterns = { "%.sh$" },
   command = { "bash-language-server", "start" },
+  incremental_changes = true,
   verbose = false
 }
 
