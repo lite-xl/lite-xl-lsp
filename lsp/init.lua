@@ -48,20 +48,25 @@ config.lsp = {}
 --- Set to a file path to log all json
 --- @type string
 config.lsp.log_file = config.lsp.log_file or ""
---- Setting to true breaks json for more readability on the log
---- this setting will impact performance so only enable it when
---- in need of easy to read json output.
+
+--- Setting to true prettyfies json for more readability on the log
+--- but this setting will impact performance so only enable it when
+--- in need of easy to read json output when developing the plugin.
 --- @type boolean
 config.lsp.prettify_json = config.lsp.prettify_json or false
+
 --- Show diagnostic messages
 --- @type boolean
 config.lsp.show_diagnostics = config.lsp.show_diagnostics or true
+
 --- Stop servers that aren't needed by any of the open files
 --- @type boolean
 config.lsp.stop_unneeded_servers = config.lsp.stop_unneeded_servers or true
+
 --- Send a server stderr output to lite log
 --- @type boolean
 config.lsp.log_server_stderr = config.lsp.log_server_stderr or false
+
 --- force verbosity off even if a server is configure with verbosity on
 --- @type boolean
 config.lsp.force_verbosity_off = config.lsp.force_verbosity_off or false
@@ -470,8 +475,10 @@ function lsp.get_workspace_settings(server, workspace)
   return settings
 end
 
---- Start all applicable lsp servers for a given file.
 -- TODO Update workspace folders of already running lsp servers if required
+--- Start all applicable lsp servers for a given file.
+--- @param filename string
+--- @param project_directory string
 function lsp.start_server(filename, project_directory)
   local server_started = false
   local server_registered = false
@@ -517,95 +524,104 @@ function lsp.start_server(filename, project_directory)
         end
 
         -- Respond to workspace/configuration request
-        client:add_request_listener("workspace/configuration", function(server, request)
-          local settings_default = lsp.get_workspace_settings(server)
+        client:add_request_listener(
+          "workspace/configuration",
+          function(server, request)
+            local settings_default = lsp.get_workspace_settings(server)
 
-          local settings_list = {}
-          for _, item in pairs(request.params.items) do
-            local value = nil
-            -- No workspace was specified so we return from default settings
-            if not item.scopeUri then
-              value = Util.table_get_field(settings_default, item.section)
-            -- A workspace was specified so we return from that workspace
-            else
-              local settings_workspace = lsp.get_workspace_settings(
-                server, Util.tofilename(item.scopeUri)
-              )
-              value = Util.table_get_field(settings_workspace, item.section)
+            local settings_list = {}
+            for _, item in pairs(request.params.items) do
+              local value = nil
+              -- No workspace was specified so we return from default settings
+              if not item.scopeUri then
+                value = Util.table_get_field(settings_default, item.section)
+              -- A workspace was specified so we return from that workspace
+              else
+                local settings_workspace = lsp.get_workspace_settings(
+                  server, Util.tofilename(item.scopeUri)
+                )
+                value = Util.table_get_field(settings_workspace, item.section)
+              end
+
+              if not value then
+                server:log("Asking for '%s' config but not set", item.section)
+              else
+                server:log("Asking for '%s' config", item.section)
+              end
+
+              table.insert(settings_list, value or Json.null)
             end
-
-            if not value then
-              server:log("Asking for '%s' config but not set", item.section)
-            else
-              server:log("Asking for '%s' config", item.section)
-            end
-
-            table.insert(settings_list, value or Json.null)
+            server:push_response(request.method, request.id, settings_list)
           end
-          server:push_response(request.method, request.id, settings_list)
-        end)
+        )
 
         -- Display server messages on lite UI
-        client:add_message_listener("window/logMessage", function(server, params)
-          if core.log then
-            log(server, "%s", params.message)
-            coroutine.yield(3)
+        client:add_message_listener(
+          "window/logMessage",
+          function(server, params)
+            if core.log then
+              log(server, "%s", params.message)
+              coroutine.yield(3)
+            end
           end
-        end)
+        )
 
         -- Display server messages on lite UI
-        client:add_message_listener("textDocument/publishDiagnostics", function(server, params)
-          local filename = Util.tofilename(params.uri)
+        client:add_message_listener(
+          "textDocument/publishDiagnostics",
+          function(server, params)
+            local filename = Util.tofilename(params.uri)
 
-          local filename_rel = common.normalize_path(filename)
-          if not common.path_belongs_to(filename_rel, core.project_dir) then
-            if server.verbose then
-              log(
-                server,
-                "Diagnostics for non project file '%s' ignored",
-                filename
+            local filename_rel = common.normalize_path(filename)
+            if not common.path_belongs_to(filename_rel, core.project_dir) then
+              if server.verbose then
+                log(
+                  server,
+                  "Diagnostics for non project file '%s' ignored",
+                  filename
+                )
+              end
+              return
+            end
+
+            if server.vebose then
+              core.log_quiet(
+                "["..server.name.."] %d diagnostics for:  %s",
+                filename,
+                params.diagnostics and #params.diagnostics or 0
               )
             end
-            return
-          end
 
-          if server.vebose then
-            core.log_quiet(
-              "["..server.name.."] %d diagnostics for:  %s",
-              filename,
-              params.diagnostics and #params.diagnostics or 0
-            )
-          end
+            if params.diagnostics and #params.diagnostics > 0 then
+              Diagnostics.add(filename, params.diagnostics)
 
-          if params.diagnostics and #params.diagnostics > 0 then
-            Diagnostics.add(filename, params.diagnostics)
+              if
+                config.lsp.show_diagnostics
+                and
+                lintplus and lintplus.add_message
+              then
+                lintplus.clear_messages(filename)
 
-            if
-              config.lsp.show_diagnostics
-              and
-              lintplus and lintplus.add_message
-            then
-              lintplus.clear_messages(filename)
+                for _, diagnostic in pairs(params.diagnostics) do
+                  local line, col = Util.toselection(diagnostic.range)
+                  local message = diagnostic.message
+                  local kind = diagnostic_kinds[diagnostic.severity]
 
-              for _, diagnostic in pairs(params.diagnostics) do
-                local line, col = Util.toselection(diagnostic.range)
-                local message = diagnostic.message
-                local kind = diagnostic_kinds[diagnostic.severity]
-
-                lintplus.add_message(filename, line, col, kind, message)
+                  lintplus.add_message(filename, line, col, kind, message)
+                end
+              end
+            else
+              Diagnostics.clear(filename)
+              if
+                config.lsp.show_diagnostics
+                and
+                lintplus and lintplus.add_message
+              then
+                lintplus.clear_messages(filename)
               end
             end
-          else
-            Diagnostics.clear(filename)
-            if
-              config.lsp.show_diagnostics
-              and
-              lintplus and lintplus.add_message
-            then
-              lintplus.clear_messages(filename)
-            end
           end
-        end)
+        )
 
         -- Send settings table after initialization if available.
         client:add_event_listener("initialized", function(server)
@@ -1459,7 +1475,8 @@ end
 core.add_thread(function()
   while true do
     for _,server in pairs(lsp.servers_running) do
-      -- Send raw data to server which is usually big and slow
+      -- Send raw data to server which is usually big and slow in a
+      -- non blocking way by creating a coroutine just for it.
       if #server.raw_list > 0 then
         local raw_send = coroutine.create(function()
           server:process_raw()
@@ -1468,6 +1485,7 @@ core.add_thread(function()
         while coroutine.status(raw_send) ~= "dead" do
           server:process_errors(config.lsp.log_server_stderr)
           server:process_responses()
+          server:process_client_responses()
           coroutine.yield(0)
           coroutine.resume(raw_send)
         end
