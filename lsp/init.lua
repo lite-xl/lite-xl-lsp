@@ -1492,6 +1492,7 @@ end
 --
 core.add_thread(function()
   while true do
+    local servers_running = false
     for _,server in pairs(lsp.servers_running) do
       -- Send raw data to server which is usually big and slow in a
       -- non blocking way by creating a coroutine just for it.
@@ -1521,9 +1522,15 @@ core.add_thread(function()
       coroutine.yield()
 
       server:process_errors(config.lsp.log_server_stderr)
+
+      servers_running = true
     end
 
-    coroutine.yield(0.01)
+    if servers_running then
+      coroutine.yield(0.01)
+    else
+      coroutine.yield(2)
+    end
   end
 end)
 
