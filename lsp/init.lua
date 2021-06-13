@@ -1510,16 +1510,21 @@ core.add_thread(function()
         end
       end
 
-      server:process_notifications()
-      coroutine.yield()
-
-      server:process_requests()
-      coroutine.yield()
-
-      server:process_responses()
-
-      server:process_client_responses()
-      coroutine.yield()
+      -- less yielding for lowerfps setups
+      if config.fps <= 30 then
+        server:process_notifications()
+        server:process_requests()
+        server:process_responses()
+        server:process_client_responses()
+      else
+        server:process_notifications()
+        coroutine.yield()
+        server:process_requests()
+        coroutine.yield()
+        server:process_responses()
+        server:process_client_responses()
+        coroutine.yield()
+      end
 
       server:process_errors(config.lsp.log_server_stderr)
 

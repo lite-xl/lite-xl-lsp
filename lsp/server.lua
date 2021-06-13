@@ -9,6 +9,7 @@
 -- LSP Documentation:
 -- https://microsoft.github.io/language-server-protocol/specifications/specification-3-17
 
+local config = require "core.config"
 local json = require "plugins.lsp.json"
 local util = require "plugins.lsp.util"
 local Object = require "core.object"
@@ -924,7 +925,7 @@ end
 --- @return table[]|boolean Responses list or false if failed
 function Server:read_responses(timeout)
   timeout = timeout or Server.DEFAULT_TIMEOUT
-  local inside_coroutine = coroutine.running()
+  local inside_coroutine = config.fps <= 30 and false or coroutine.running()
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
@@ -1066,7 +1067,7 @@ end
 --- @return string|nil
 function Server:read_errors(timeout)
   timeout = timeout or Server.DEFAULT_TIMEOUT
-  local inside_coroutine = coroutine.running()
+  local inside_coroutine = config.fps <= 30 and false or  coroutine.running()
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
