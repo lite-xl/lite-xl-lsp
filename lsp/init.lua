@@ -896,7 +896,11 @@ function lsp.update_document(doc)
         sync_kind = server.capabilities.textDocumentSync
       end
 
-      if sync_kind == Server.text_document_sync_kind.Full then
+      if
+        sync_kind == Server.text_document_sync_kind.Full
+        and
+        not server.incremental_changes
+      then
         -- If sync should be done by sending full file content then lets do
         -- it raw which is faster for big files.
         local text = doc
