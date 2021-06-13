@@ -202,6 +202,20 @@ local function get_location_preview(location)
       :gsub("^%s+", "")
       :gsub("%s+$", "")
 
+  -- sometimes the lsp can send the location of a definition where the
+  -- doc comments should be written but if no docs are written the line
+  -- is empty and subsequent line is the one we are interested in.
+  while preview == "" do
+    line1 = line1 + 1
+    preview = doc:get_text(line1, 1, line1, math.huge)
+      :gsub("^%s+", "")
+      :gsub("%s+$", "")
+
+    -- change also the location table
+    location.start.line = location.start.line + 1
+    location['end'].line = location['end'].line + 1
+  end
+
   local position = filename .. ":" .. tostring(line1) .. ":" .. tostring(col1)
 
   return preview, position
