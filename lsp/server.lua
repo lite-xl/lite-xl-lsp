@@ -1049,6 +1049,9 @@ function Server:read_responses(timeout)
     end
 
     if #responses > 0 then
+      -- Reset write fails since server is sending responses
+      self.write_fails = 0
+
       return responses
     end
   elseif self.verbose and timeout > 0 then
