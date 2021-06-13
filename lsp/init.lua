@@ -1510,9 +1510,16 @@ core.add_thread(function()
       end
 
       server:process_notifications()
+      coroutine.yield()
+
       server:process_requests()
+      coroutine.yield()
+
       server:process_responses()
+
       server:process_client_responses()
+      coroutine.yield()
+
       server:process_errors(config.lsp.log_server_stderr)
     end
 
