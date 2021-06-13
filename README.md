@@ -51,7 +51,10 @@ lsp.add_server {
   requests_per_second = 16
   -- By default each request is written to the server stdin in chunks of
   -- 10KB, if this gives issues set to false to write everything at once.
-  requests_in_chunks = true
+  requests_in_chunks = true,
+  -- Some servers like bash language server support incremental changes
+  -- which are more performant but don't advertise it
+  incremental_changes = false,
   -- True to debug the lsp client when developing it
   verbose = false
 }
