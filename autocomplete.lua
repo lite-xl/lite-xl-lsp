@@ -11,7 +11,7 @@ local DocView = require "core.docview"
 local Doc = require "core.doc"
 
 -- Amount of characters that need to be written for autocomplete
-config.autocomplete_min_len = config.autocomplete_min_len or 1
+config.autocomplete_min_len = config.autocomplete_min_len or 2
 -- The max amount of visible items
 config.autocomplete_max_height = config.autocomplete_max_height or 6
 -- The max amount of scrollable items
