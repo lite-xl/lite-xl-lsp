@@ -924,6 +924,7 @@ end
 --- @return table[]|boolean Responses list or false if failed
 function Server:read_responses(timeout)
   timeout = timeout or Server.DEFAULT_TIMEOUT
+  local inside_coroutine = coroutine.running()
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
@@ -931,6 +932,9 @@ function Server:read_responses(timeout)
   while max_time > os.time() and output == nil do
     output = self.proc:read()
     if timeout == 0 then break end
+    if output == nil and inside_coroutine then
+      coroutine.yield()
+    end
   end
 
   local responses = {}
@@ -943,7 +947,9 @@ function Server:read_responses(timeout)
       more_output = self.proc:read()
       if more_output ~= nil then
         output = output .. more_output
-        coroutine.yield()
+        if inside_coroutine then
+          coroutine.yield()
+        end
       end
     end
 
@@ -961,7 +967,9 @@ function Server:read_responses(timeout)
           new_output = self.proc:read()
           if new_output ~= nil then
             output = output .. new_output
-            coroutine.yield()
+            if inside_coroutine then
+              coroutine.yield()
+            end
           end
         end
 
@@ -996,7 +1004,9 @@ function Server:read_responses(timeout)
           if chars then
             output = output .. chars
           end
-          coroutine.yield()
+          if inside_coroutine then
+            coroutine.yield()
+          end
         end
 
         table.insert(responses, output)
@@ -1053,6 +1063,7 @@ end
 --- @return string|nil
 function Server:read_errors(timeout)
   timeout = timeout or Server.DEFAULT_TIMEOUT
+  local inside_coroutine = coroutine.running()
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
@@ -1060,6 +1071,9 @@ function Server:read_errors(timeout)
   while max_time > os.time() and output == nil do
     output = self.proc:read_errors()
     if timeout == 0 then break end
+    if output == nil and inside_coroutine then
+      coroutine.yield()
+    end
   end
 
   if timeout == 0 and output ~= nil then
@@ -1068,6 +1082,9 @@ function Server:read_errors(timeout)
       new_output = self.proc:read_errors()
       if new_output ~= nil then
         output = output .. new_output
+        if inside_coroutine then
+          coroutine.yield()
+        end
       end
     end
   end
