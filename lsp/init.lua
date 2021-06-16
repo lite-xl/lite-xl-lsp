@@ -212,8 +212,13 @@ local function get_location_preview(location)
       :gsub("%s+$", "")
 
     -- change also the location table
-    location.start.line = location.start.line + 1
-    location['end'].line = location['end'].line + 1
+    if location.range then
+      location.range.start.line = location.range.start.line + 1
+      location.range['end'].line = location.range['end'].line + 1
+    elseif location.targetRange then
+      location.targetRange.start.line = location.targetRange.start.line + 1
+      location.targetRange['end'].line = location.targetRange['end'].line + 1
+    end
   end
 
   local position = filename .. ":" .. tostring(line1) .. ":" .. tostring(col1)
