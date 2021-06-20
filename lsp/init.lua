@@ -335,17 +335,23 @@ local function autocomplete_onselect(index, item)
     local edit_applied = apply_edit(av.doc, completion.textEdit)
     if edit_applied then
       lsp.update_document(av.doc)
-      -- TODO: Retrigger code completion if last char is a trigger
-      -- local char = av.doc:get_char(av.doc:get_selection())
-      -- if char:match("%p") then
-      --   local line, col = av.doc:get_selection()
-      --   lsp.request_completion(
-      --     av.doc,
-      --     line,
-      --     col,
-      --     true
-      --   )
-      -- end
+      -- Retrigger code completion if last char is a trigger
+      -- this is useful for example with clangd when autocompleting
+      -- a #include, if user types < a list of paths will appear
+      -- when selecting a path that ends with / as <AL/ the
+      -- autocompletion will be retriggered to show a list of
+      -- header files that belong to that directory.
+      lsp.in_trigger = false
+      local line, col = av.doc:get_selection()
+      local char = av.doc:get_char(line, col-1)
+      if char:match("%p") then
+        lsp.request_completion(
+          av.doc,
+          line,
+          col,
+          true
+        )
+      end
     end
     return edit_applied
   end
@@ -1551,6 +1557,7 @@ local doc_load = Doc.load
 local doc_save = Doc.save
 local doc_undo = Doc.undo
 local doc_redo = Doc.redo
+local doc_on_close = Doc.on_close
 local doc_raw_insert = Doc.raw_insert
 local doc_raw_remove = Doc.raw_remove
 local root_view_on_text_input = RootView.on_text_input
@@ -1616,49 +1623,13 @@ function Doc:redo(...)
   end
 end
 
-local function add_change(self, text, line1, col1, line2, col2)
-  if not self.lsp_changes then
-    self.lsp_changes = {}
-    self.lsp_version = 0
-  end
-
-  local change = { range = {}, text = text}
-  change.range["start"] = {line = line1-1, character = col1-1}
-  change.range["end"] = {line = line2-1, character = col2-1}
-
-  table.insert(self.lsp_changes, change)
-
-  -- TODO: this should not be needed changing documents rapidly causes this
-  if type(self.lsp_version) ~= 'nil' then
-    self.lsp_version = self.lsp_version + 1
-  else
-    self.lsp_version = 1
-  end
-end
-
-function Doc:raw_insert(line, col, text, undo_stack, time)
-  doc_raw_insert(self, line, col, text, undo_stack, time)
+function Doc:on_close()
+  doc_on_close(self)
 
   -- skip new files
   if not self.filename then return end
-
-  add_change(self, text, line, col, line, col)
-end
-
-function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
-  doc_raw_remove(self, line1, col1, line2, col2, undo_stack, time)
-
-  -- skip new files
-  if not self.filename then return end
-
-  add_change(self, "", line1, col1, line2, col2)
-end
-
-core.add_close_hook(function(doc)
-  -- skip new files
-  if not doc.filename then return end
   core.add_thread(function()
-    lsp.close_document(doc)
+    lsp.close_document(self)
   end)
 
   if not config.lsp.stop_unneeded_servers then
@@ -1683,7 +1654,45 @@ core.add_close_hook(function(doc)
       lsp.servers_running = Util.table_remove_key(lsp.servers_running, name)
     end
   end
-end)
+end
+
+local function add_change(self, text, line1, col1, line2, col2)
+  if not self.lsp_changes then
+    self.lsp_changes = {}
+    self.lsp_version = 0
+  end
+
+  local change = { range = {}, text = text}
+  change.range["start"] = {line = line1-1, character = col1-1}
+  change.range["end"] = {line = line2-1, character = col2-1}
+
+  table.insert(self.lsp_changes, change)
+
+  -- TODO: this should not be needed but changing documents rapidly causes this
+  if type(self.lsp_version) ~= 'nil' then
+    self.lsp_version = self.lsp_version + 1
+  else
+    self.lsp_version = 1
+  end
+end
+
+function Doc:raw_insert(line, col, text, undo_stack, time)
+  doc_raw_insert(self, line, col, text, undo_stack, time)
+
+  -- skip new files
+  if not self.filename then return end
+
+  add_change(self, text, line, col, line, col)
+end
+
+function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
+  doc_raw_remove(self, line1, col1, line2, col2, undo_stack, time)
+
+  -- skip new files
+  if not self.filename then return end
+
+  add_change(self, "", line1, col1, line2, col2)
+end
 
 function RootView:on_text_input(...)
   root_view_on_text_input(self, ...)
