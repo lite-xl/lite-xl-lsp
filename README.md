@@ -4,14 +4,14 @@ Plugin that provides intellisense for Lite XL by leveraging the
 [LSP protocol](https://microsoft.github.io/language-server-protocol/specifications/specification-current/).
 While still a work in progress it already implements all the most important
 features to make your life easier while coding with Lite XL. Using it
-requires the __[dev](https://github.com/franko/lite-xl/tree/dev)__ branch of
-__Lite XL__ which includes the new lua __process__ functionality in order to
-communicate with lsp servers. Also [lint+](https://github.com/liquidev/lintplus)
+requires the latest changes on the master branch of __Lite XL__ which
+includes the new lua __process__ functionality in order to communicate
+with lsp servers. Also [lint+](https://github.com/liquidev/lintplus)
 is used for diagnostics so make sure to grab that too.
 
 To test, clone this project, place the __lsp__ directory in your plugins
-directory, then replace the __autocomplete.lua__ plugin with the version
-on this repository which should later be merged into upstream.
+directory, then replace or overwrite __autocomplete.lua__ plugin with the
+version on this repository which should later be merged into upstream.
 
 ## Features
 
