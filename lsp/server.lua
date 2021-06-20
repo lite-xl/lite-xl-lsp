@@ -1332,7 +1332,7 @@ function Server:exit()
   }
   self:write_request(json.encode(message))
 
-  -- send exit request
+  -- send exit notification
   self:notify('exit')
 
   -- wait 1 second until it exits
