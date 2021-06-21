@@ -251,6 +251,11 @@ local function get_suggestions_rect(av)
     max_width = 150
   end
 
+  -- if portion not visiable to right, reposition to DocView right margin
+  if (x - av.position.x) + max_width > av.size.x then
+    x = (av.size.x + av.position.x) - max_width - (style.padding.x * 2)
+  end
+
   return
     x - style.padding.x,
     y - style.padding.y,
@@ -297,29 +302,62 @@ local function wrap_line(line, max_chars)
   return line
 end
 
+local previous_scale = SCALE
+local desc_font = renderer.font.load(
+  DATADIR .. "/fonts/JetBrainsMono-Regular.ttf", 11 * SCALE
+)
 local function draw_description_box(text, av, sx, sy, sw, sh)
+  if previous_scale ~= SCALE then
+    renderer.font.set_size(
+      desc_font,
+      (SCALE / previous_scale) * desc_font:get_size()
+    )
+    previous_scale = SCALE
+  end
+
+  local font = desc_font
+  local lh = font:get_height()
+  local y = sy + style.padding.y
+  local x = sx + sw + style.padding.x / 4
   local width = 0
+  local char_width = font:get_width(" ")
+  local draw_left = false;
+
+  local max_chars = 0
+  if sx - av.position.x < av.size.x - (sx - av.position.x) - sw then
+    max_chars = (((av.size.x+av.position.x) - x) / char_width) - 5
+  else
+    draw_left = true;
+    max_chars = (
+      (sx - av.position.x - (style.padding.x / 4) - style.scrollbar_size)
+      / char_width
+    ) - 5
+  end
 
   local lines = {}
   for line in string.gmatch(text.."\n", "(.-)\n") do
     -- TODO: calculate amount of width available instead of always using 50
-    local wrapper_lines = wrap_line(line, 50)
+    local wrapper_lines = wrap_line(line, max_chars)
     if type(wrapper_lines) == "table" then
       for _, wrapped_line in pairs(wrapper_lines) do
-        width = math.max(width, style.font:get_width(wrapped_line))
+        width = math.max(width, font:get_width(wrapped_line))
         table.insert(lines, wrapped_line)
       end
     else
-      width = math.max(width, style.font:get_width(line))
+      width = math.max(width, font:get_width(line))
       table.insert(lines, line)
     end
   end
 
-  local height = #lines * style.font:get_height()
+  if draw_left then
+    x = sx - (style.padding.x / 4) - width - (style.padding.x * 2)
+  end
+
+  local height = #lines * font:get_height()
 
   -- draw background rect
   renderer.draw_rect(
-    sx + sw + style.padding.x / 4,
+    x,
     sy,
     width + style.padding.x * 2,
     height + style.padding.y * 2,
@@ -327,13 +365,10 @@ local function draw_description_box(text, av, sx, sy, sw, sh)
   )
 
   -- draw text
-  local lh = style.font:get_height()
-  local y = sy + style.padding.y
-  local x = sx + sw + style.padding.x / 4
-
   for _, line in pairs(lines) do
     common.draw_text(
-      style.font, style.text, line, "left", x + style.padding.x, y, width, lh
+      font, style.text, line, "left",
+      x + style.padding.x, y, width, lh
     )
     y = y + lh
   end
