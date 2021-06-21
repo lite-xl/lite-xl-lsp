@@ -70,8 +70,8 @@ lsp.add_server {
 - [ ] Add Snippets support (this will need a whole standalone plugin).
 - [ ] Fix issues when parsing stdout from some lsp servers (eg: css-languageserver).
 - [x] More improvements to autocomplete.lua plugin
-  - [ ] Detect view edges and render to the most visible side
-  - [ ] Description box, detect view width and expand accordingly
+  - [x] Detect view edges and render to the most visible side
+  - [x] Description box, detect view width and expand accordingly
   - [ ] Support for pre-selected item
   - [ ] Be able to use a custom sorting field.
 - [x] Add hover support for function arguments
