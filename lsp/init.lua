@@ -313,6 +313,7 @@ local function autocomplete_onhover(index, item)
               item.desc = item.desc .. symbol.documentation
             end
           end
+          item.desc = item.desc:gsub("\n+$", ""):gsub("^\n+", "")
           if server.verbose then
             server:log(
               "Resolve response: %s", Util.jsonprettify(Json.encode(symbol))
