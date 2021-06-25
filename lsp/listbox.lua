@@ -1,9 +1,7 @@
--- mod-version:1 -- lite-xl 1.16
--- @copyright Jefferson Gonzalez
--- @license MIT
--- @note This code is a readaptation of autocomplete plugin from rxi :)
 -- A configurable listbox that can be used as tooltip, selection box and
 -- selection box with fuzzy search, this may change in the future.
+--
+-- @note This code is a readaptation of autocomplete plugin from rxi :)
 --
 -- TODO implement select box with fuzzy search
 
@@ -52,6 +50,12 @@ local function get_suggestions_rect(active_view)
   local x, y = active_view:get_line_screen_position(line)
   x = x + active_view:get_col_x_offset(line, col)
 
+  local padding_x = not settings.is_list
+    and (style.padding.x / 2) or style.padding.x
+
+  local padding_y = not settings.is_list
+    and (style.padding.y / 2) or style.padding.y
+
   if settings.above_text and line > 1 then
     y = y - active_view:get_line_height() - style.padding.y
   else
@@ -63,8 +67,7 @@ local function get_suggestions_rect(active_view)
 
   local max_width = 0
   for _, item in ipairs(settings.shown_items) do
-    local w = settings.is_list and
-      font:get_width(item.text) or style.font:get_width(item.text)
+    local w = font:get_width(item.text)
     if item.info then
       w = w + style.font:get_width(item.info) + style.padding.x
     end
@@ -87,15 +90,15 @@ local function get_suggestions_rect(active_view)
 
   local height = 0
   if not settings.is_list then
-    height = max_items * (text_height) + style.padding.y
+    height = max_items * (text_height) + (padding_y * 2)
   else
-    height = max_items * (text_height + style.padding.y) + style.padding.y
+    height = max_items * (text_height + padding_y) + padding_y
   end
 
   return
-    x - style.padding.x,
-    y - style.padding.y,
-    max_width + style.padding.x * 2,
+    x - padding_x,
+    y - padding_y,
+    max_width + padding_x * 2,
     height
 end
 
@@ -121,13 +124,19 @@ local function draw_listbox(av)
 
   renderer.draw_rect(rx, ry, rw, rh, style.background3)
 
+  local padding_x = not settings.is_list
+    and (style.padding.x / 2) or style.padding.x
+
+  local padding_y = not settings.is_list
+    and (style.padding.y / 2) or style.padding.y
+
   -- draw text
   local font = settings.is_list and av:get_font() or style.font
   local line_height = font:get_height()
   if settings.is_list then
-    line_height = line_height + style.padding.y
+    line_height = line_height + padding_y
   end
-  local y = ry + style.padding.y / 2
+  local y = ry + padding_y / 2
 
   local max_height = settings.max_height
 
@@ -150,8 +159,8 @@ local function draw_listbox(av)
       style.accent or style.text
 
     common.draw_text(
-      settings.is_list and font or style.font,
-      color, item.text, "left", rx + style.padding.x, y, rw, line_height
+      font, color, item.text, "left",
+      rx + padding_x, y, rw, line_height
     )
 
     if item.info then
@@ -160,7 +169,7 @@ local function draw_listbox(av)
 
       common.draw_text(
         style.font, color, item.info, "right",
-        rx, y, rw - style.padding.x, line_height
+        rx, y, rw - padding_x, line_height
       )
     end
     y = y + line_height
@@ -174,14 +183,14 @@ local function draw_listbox(av)
       style.accent,
       "Items",
       "left",
-      rx + style.padding.x, y, rw, line_height
+      rx + padding_x, y, rw, line_height
     )
     common.draw_text(
       style.font,
       style.accent,
       tostring(settings.selected_item_idx) .. "/" .. tostring(#settings.shown_items),
       "right",
-      rx, y, rw - style.padding.x, line_height
+      rx, y, rw - padding_x, line_height
     )
   end
 end
@@ -211,7 +220,7 @@ function listbox.show_text(text)
   local active_view = get_active_view()
   settings.last_line, settings.last_col = active_view.doc:get_selection()
 
-  if text then
+  if text and type("text") == "string" then
     local items = {}
     for result in string.gmatch(text.."\n", "(.-)\n") do
       table.insert(items, {text = result})
