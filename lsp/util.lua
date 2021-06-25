@@ -212,9 +212,12 @@ end
 
 function util.strip_markdown(text)
   local clean_text = ""
+  local prev_line = ""
   for match in (text.."\n"):gmatch("(.-)".."\n") do
     match = match .. "\n"
-    clean_text = clean_text .. match
+
+    -- strip markdown
+    local new_line = match
       -- Block quotes
       :gsub("^>+(%s*)", "%1")
       -- headings
@@ -225,6 +228,10 @@ function util.strip_markdown(text)
       :gsub("^(%s*)###%s(.-)\n", "%1%2\n")
       :gsub("^(%s*)##%s(.-)\n", "%1%2\n")
       :gsub("^(%s*)#%s(.-)\n", "%1%2\n")
+      -- heading custom id
+      :gsub("{#.-}", "")
+      -- emoji
+      :gsub(":[%w%-_]+:", "")
       -- bold and italic
       :gsub("%*%*%*(.-)%*%*%*", "%1")
       :gsub("___(.-)___", "%1")
@@ -234,6 +241,8 @@ function util.strip_markdown(text)
       -- bold
       :gsub("%*%*(.-)%*%*", "%1")
       :gsub("__(.-)__", "%1")
+      -- strikethrough
+      :gsub("%-%-(.-)%-%-", "%1")
       -- italic
       :gsub("%*(.-)%*", "%1")
       :gsub("_(.-)_", "%1")
@@ -245,11 +254,39 @@ function util.strip_markdown(text)
       -- lines
       :gsub("^%-%-%-%-*%s*\n", "")
       :gsub("^%*%*%*%**%s*\n", "")
+      -- reference links
+      :gsub("^%[[^%^](.-)%]:.-\n", "")
+      -- footnotes
+      :gsub("^%[%^(.-)%]:%s+", "[%1]: ")
+      :gsub("%[%^(.-)%]", "[%1]")
       -- Images
       :gsub("!%[(.-)%]%((.-)%)", "")
       -- links
       :gsub("<(.-)>", "%1")
+      :gsub("%[(.-)%]%s*%[(.-)%]", "%1")
       :gsub("%[(.-)%]%((.-)%)", "%1: %2")
+
+    -- if paragraph put in same line
+    local is_paragraph = false
+
+    local prev_spaces = prev_line:match("^%g+")
+    local prev_endings = prev_line:match("[ \t\r\n]+$")
+    local new_spaces = new_line:match("^%g+")
+
+    if prev_spaces and new_spaces then
+      local new_lines = prev_endings:gsub("[ \t\r]+", "")
+      if #new_lines == 1 then
+        is_paragraph = true
+        clean_text = clean_text:gsub("[%s\n]+$", "")
+          .. " " .. new_line:gsub("^%s+", "")
+      end
+    end
+
+    if not is_paragraph then
+      clean_text = clean_text .. new_line
+    end
+
+    prev_line = new_line
   end
   return clean_text
 end
