@@ -303,9 +303,7 @@ local function wrap_line(line, max_chars)
 end
 
 local previous_scale = SCALE
-local desc_font = renderer.font.load(
-  DATADIR .. "/fonts/JetBrainsMono-Regular.ttf", 11 * SCALE
-)
+local desc_font = style.code_font:copy(11 * SCALE)
 local function draw_description_box(text, av, sx, sy, sw, sh)
   if previous_scale ~= SCALE then
     renderer.font.set_size(
