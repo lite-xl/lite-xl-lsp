@@ -309,11 +309,20 @@ local function autocomplete_onhover(index, item)
               symbol.documentation.value
             then
               item.desc = item.desc .. symbol.documentation.value
+              if
+                symbol.documentation.kind
+                and
+                symbol.documentation.kind == "markdown"
+              then
+                item.desc = Util.strip_markdown(item.desc)
+              end
             else
               item.desc = item.desc .. symbol.documentation
             end
           end
-          item.desc = item.desc:gsub("\n+$", ""):gsub("^\n+", "")
+          item.desc = item.desc:gsub("[%s\n]+$", "")
+            :gsub("^[%s\n]+", "")
+            :gsub("\n\n\n+", "\n\n")
           if server.verbose then
             server:log(
               "Resolve response: %s", Util.jsonprettify(Json.encode(symbol))
@@ -1092,6 +1101,9 @@ function lsp.request_completion(doc, line, col, forced)
               if symbol.detail then
                 desc = desc .. ": " .. symbol.detail
               end
+            end
+
+            if desc ~= "" then
               desc = desc .. "\n"
             end
 
@@ -1101,11 +1113,19 @@ function lsp.request_completion(doc, line, col, forced)
               symbol.documentation.value
             then
               desc = desc .. "\n" .. symbol.documentation.value
+              if
+                symbol.documentation.kind
+                and
+                symbol.documentation.kind == "markdown"
+              then
+                desc = Util.strip_markdown(desc)
+              end
             elseif symbol.documentation then
               desc = desc .. "\n" .. symbol.documentation
             end
 
-            desc = desc:gsub("\n$", "")
+            desc = desc:gsub("[%s\n]+$", "")
+              :gsub("\n\n\n+", "\n\n")
 
             symbols.items[label] = {
               info = info,
@@ -1183,7 +1203,7 @@ function lsp.request_signature(doc, line, col, forced, fallback)
               text = text .. signature.label .. "\n"
             end
             autocomplete.close()
-            listbox.show_text(text:gsub("\n$", ""))
+            listbox.show_text(text:gsub("[%s\n]+$", ""))
           elseif fallback then
             fallback(doc, line, col)
           end
@@ -1227,7 +1247,7 @@ function lsp.request_hover(doc, line, col)
               text = content
             end
             if text and #text > 0 then
-              listbox.show_text(text:gsub("\n+$", ""))
+              listbox.show_text(text:gsub("^[\n%s]+", ""):gsub("[\n%s]+$", ""))
             end
           end
         end

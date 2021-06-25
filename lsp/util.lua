@@ -210,5 +210,49 @@ function util.table_empty(t)
   return not found
 end
 
+function util.strip_markdown(text)
+  local clean_text = ""
+  for match in (text.."\n"):gmatch("(.-)".."\n") do
+    match = match .. "\n"
+    clean_text = clean_text .. match
+      -- Block quotes
+      :gsub("^>+(%s*)", "%1")
+      -- headings
+      :gsub("^(%s*)######%s(.-)\n", "%1%2\n")
+      :gsub("^(%s*)#####%s(.-)\n", "%1%2\n")
+      :gsub("^(%s*)####%s(.-)\n", "%1%2\n")
+      :gsub("^(%s*)####%s(.-)\n", "%1%2\n")
+      :gsub("^(%s*)###%s(.-)\n", "%1%2\n")
+      :gsub("^(%s*)##%s(.-)\n", "%1%2\n")
+      :gsub("^(%s*)#%s(.-)\n", "%1%2\n")
+      -- bold and italic
+      :gsub("%*%*%*(.-)%*%*%*", "%1")
+      :gsub("___(.-)___", "%1")
+      :gsub("%*%*_(.-)_%*%*", "%1")
+      :gsub("__%*(.-)%*__", "%1")
+      :gsub("___(.-)___", "%1")
+      -- bold
+      :gsub("%*%*(.-)%*%*", "%1")
+      :gsub("__(.-)__", "%1")
+      -- italic
+      :gsub("%*(.-)%*", "%1")
+      :gsub("_(.-)_", "%1")
+      -- code
+      :gsub("^%s*```(%w+)%s*\n", "")
+      :gsub("^%s*```%s*\n", "")
+      :gsub("``(.-)``", "%1")
+      :gsub("`(.-)`", "%1")
+      -- lines
+      :gsub("^%-%-%-%-*%s*\n", "")
+      :gsub("^%*%*%*%**%s*\n", "")
+      -- Images
+      :gsub("!%[(.-)%]%((.-)%)", "")
+      -- links
+      :gsub("<(.-)>", "%1")
+      :gsub("%[(.-)%]%((.-)%)", "%1: %2")
+  end
+  return clean_text
+end
+
 
 return util
