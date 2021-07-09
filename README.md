@@ -12,6 +12,13 @@ is used for diagnostics so make sure to grab that too.
 To test, clone this project, place the __lsp__ directory in your plugins
 directory, then replace or overwrite __autocomplete.lua__ plugin with the
 version on this repository which should later be merged into upstream.
+Finally you will need the [Widgets](https://github.com/jgmdev/lite-xl-widgets)
+small lib so make sure to also drop it into your plugins directory. So your
+plugins directory should have:
+
+* plugins/lsp/
+* plugins/widget/
+* plugins/autocomplete.lua
 
 ## Features
 
