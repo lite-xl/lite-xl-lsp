@@ -30,6 +30,7 @@ local Json = require "plugins.lsp.json"
 local Server = require "plugins.lsp.server"
 local Util = require "plugins.lsp.util"
 local Diagnostics = require "plugins.lsp.diagnostics"
+local SymbolResults = require "plugins.lsp.symbolresults"
 local listbox = require "plugins.lsp.listbox"
 
 -- Try to load lintplus plugin if available for diagnostics rendering
@@ -169,56 +170,45 @@ local function get_active_view()
   return nil
 end
 
---- Open a document location returned by LSP
---- @param location table
-local function goto_location(location)
-  core.root_view:open_doc(
-    core.open_doc(
-      common.home_expand(
-        Util.tofilename(location.uri or location.targetUri)
-      )
-    )
-  )
-  local line1, col1 = Util.toselection(
-    location.range or location.targetRange
-  )
-  core.active_view.doc:set_selection(line1, col1, line1, col1)
-end
-
 --- Generates a code preview of a location
 --- @param location table
 local function get_location_preview(location)
   local line1, col1 = Util.toselection(
     location.range or location.targetRange
   )
-  local doc = core.open_doc(Util.tofilename(
-    location.uri or location.targetUri
-  ))
   local filename = core.normalize_to_project_dir(
     Util.tofilename(location.uri or location.targetUri)
   )
 
-  local preview = doc:get_text(line1, 1, line1, math.huge)
-      :gsub("^%s+", "")
-      :gsub("%s+$", "")
+  local file = io.open(Util.tofilename(
+    location.uri or location.targetUri
+  ))
+
+  local preview = ""
 
   -- sometimes the lsp can send the location of a definition where the
   -- doc comments should be written but if no docs are written the line
   -- is empty and subsequent line is the one we are interested in.
-  while preview == "" do
-    line1 = line1 + 1
-    preview = doc:get_text(line1, 1, line1, math.huge)
-      :gsub("^%s+", "")
-      :gsub("%s+$", "")
+  local line_count = 1
+  for line in file:lines() do
+    if line_count >= line1 then
+      preview = line:gsub("^%s+", "")
+        :gsub("%s+$", "")
 
-    -- change also the location table
-    if location.range then
-      location.range.start.line = location.range.start.line + 1
-      location.range['end'].line = location.range['end'].line + 1
-    elseif location.targetRange then
-      location.targetRange.start.line = location.targetRange.start.line + 1
-      location.targetRange['end'].line = location.targetRange['end'].line + 1
+      if preview ~= "" then
+        break
+      else
+        -- change also the location table
+        if location.range then
+          location.range.start.line = location.range.start.line + 1
+          location.range['end'].line = location.range['end'].line + 1
+        elseif location.targetRange then
+          location.targetRange.start.line = location.targetRange.start.line + 1
+          location.targetRange['end'].line = location.targetRange['end'].line + 1
+        end
+      end
     end
+    line_count = line_count + 1
   end
 
   local position = filename .. ":" .. tostring(line1) .. ":" .. tostring(col1)
@@ -371,6 +361,24 @@ end
 --
 -- Public functions
 --
+
+--- Open a document location returned by LSP
+--- @param location table
+function lsp.goto_location(location)
+  core.root_view:open_doc(
+    core.open_doc(
+      common.home_expand(
+        Util.tofilename(location.uri or location.targetUri)
+      )
+    )
+  )
+  local line1, col1 = Util.toselection(
+    location.range or location.targetRange
+  )
+  core.active_view.doc:set_selection(line1, col1, line1, col1)
+end
+
+lsp.get_location_preview = get_location_preview
 
 --- Register an LSP server to be launched on demand
 --- @param options table
@@ -1276,7 +1284,7 @@ function lsp.request_references(doc, line, col)
               function(text, item)
                 if item then
                   local reference = references[item.name]
-                    goto_location(reference)
+                    lsp.goto_location(reference)
                 end
               end,
               function(text)
@@ -1295,6 +1303,45 @@ function lsp.request_references(doc, line, col)
           else
             log(server, "No references found.")
           end
+        end
+      )
+      break
+    end
+    break
+  end
+end
+
+--- Sends a request to applicable LSP servers to search for symbol on workspace
+--- @param symbol string
+function lsp.request_workspace_symbol(doc, symbol)
+  if not doc.lsp_open then return end
+
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+    local server = lsp.servers_running[name]
+    if server.capabilities.workspaceSymbolProvider then
+      local rs = SymbolResults(symbol)
+      core.root_view:get_active_node_default():add_view(rs)
+      server:push_request(
+        'workspace/symbol',
+        {
+          query = symbol,
+          -- TODO: implement status notifications but seems not supported
+          -- by tested lsp servers so far.
+          -- workDoneToken = "some-identifier",
+          -- partialResultToken = "some-other-identifier"
+        },
+        function(server, response)
+          if response.result and #response.result > 0 then
+            for index, result in ipairs(response.result) do
+              rs:add_result(result)
+              if index % 20 == 0 then
+                coroutine.yield()
+                rs.list:resize_to_parent()
+              end
+            end
+            rs.list:resize_to_parent()
+          end
+          rs:stop_searching()
         end
       )
       break
@@ -1337,7 +1384,7 @@ function lsp.request_document_symbols(doc)
                     local line1, col1 = Util.toselection(symbol.range)
                     doc:set_selection(line1, col1, line1, col1)
                   else
-                    goto_location(symbol)
+                    lsp.goto_location(symbol)
                   end
                 end
               end,
@@ -1505,13 +1552,13 @@ function lsp.goto_symbol(doc, line, col, implementation)
             }
           end
           listbox.show_list(nil, function(doc, item)
-            goto_location(item.location)
+            lsp.goto_location(item.location)
           end)
         else
           if not location.uri then
             location = location[1]
           end
-          goto_location(location)
+          lsp.goto_location(location)
         end
       end
     )
@@ -1832,11 +1879,11 @@ command.add("core.docview", {
     end
   end,
 
-  ["lsp:view-document-diagnostics"] = function()
+  ["lsp:view-document-symbols"] = function()
     if core.active_view and core.active_view.doc then
       local doc = core.active_view.doc
       if doc and doc.filename then
-        lsp.view_document_diagnostics(doc)
+        lsp.request_document_symbols(doc)
       end
     end
   end,
@@ -1845,6 +1892,21 @@ command.add("core.docview", {
     if core.active_view and core.active_view.doc then
         lsp.view_all_diagnostics()
     end
+  end,
+
+  ["lsp:find-workspace-symbol"] = function()
+    local doc = nil
+    local symbol = ""
+    if core.active_view and core.active_view.doc then
+      doc = core.active_view.doc
+      symbol = core.active_view.doc:get_text(core.active_view.doc:get_selection())
+    else
+      return
+    end
+    core.command_view:set_text(symbol)
+    core.command_view:enter("Find Workspace Symbol", function(query)
+      lsp.request_workspace_symbol(doc, query)
+    end, nil)
   end,
 
   ["lsp:find-references"] = function()
@@ -1876,6 +1938,7 @@ keymap.add {
   ["alt+d"]             = "lsp:goto-definition",
   ["alt+shift+d"]       = "lsp:goto-implementation",
   ["alt+s"]             = "lsp:view-document-symbols",
+  ["alt+shift+s"]       = "lsp:find-workspace-symbol",
   ["alt+f"]             = "lsp:find-references",
   ["alt+e"]             = "lsp:view-document-diagnostics",
   ["ctrl+alt+e"]        = "lsp:view-all-diagnostics",
