@@ -71,7 +71,7 @@ lsp.add_server {
 
 - [ ] Handle window/showMessage, window/showMessageRequest,
   $/progress, telemetry/event
-- [ ] Be able to search workspace symbols 'workspace/symbol'
+- [x] Be able to search workspace symbols 'workspace/symbol'
 - [ ] Completion preselectSupport (needs autocomplete plugin change)
 - [ ] Add symbol renaming support 'textDocument/rename'
 - [ ] Add Snippets support (this will need a whole standalone plugin).
