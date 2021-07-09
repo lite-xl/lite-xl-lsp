@@ -171,8 +171,11 @@ function Server:new(options)
   self.requests_in_chunks = type(options.requests_in_chunks) ~= "nil" and
     options.requests_in_chunks or true
 
-  self.proc = process.new()
-  self.proc:start(options.command)
+  self.proc = process.start(
+    options.command, {
+      stderr = process.REDIRECT_PIPE
+    }
+  )
   self.capabilites = nil
   self.incremental_changes = options.incremental_changes or false
 end
@@ -674,7 +677,7 @@ function Server:process_errors(log_errors)
 
   local errors = self:read_errors(0)
 
-  if errors and log_errors then
+  if #errors > 0 and log_errors then
     self:log("Error: \n'%s'", errors)
   end
 
@@ -915,7 +918,9 @@ end
 --- @return table
 function Server:pop_request(id)
   local request = self.request_list[id]
-  self.request_list[id] = nil
+  if request then
+    self.request_list[id] = nil
+  end
   return request
 end
 
@@ -924,16 +929,20 @@ end
 --- @param timeout integer Time in seconds, set to 0 to not wait
 --- @return table[]|boolean Responses list or false if failed
 function Server:read_responses(timeout)
+  if not self.proc:running() then
+    return false
+  end
+
   timeout = timeout or Server.DEFAULT_TIMEOUT
   local inside_coroutine = config.fps <= 30 and false or coroutine.running()
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
-  local output = nil
-  while max_time > os.time() and output == nil do
-    output = self.proc:read()
+  local output = ""
+  while max_time > os.time() and output == "" do
+    output = self.proc:read_stdout(1024)
     if timeout == 0 then break end
-    if output == nil and inside_coroutine then
+    if output == "" and inside_coroutine then
       coroutine.yield()
     end
   end
@@ -941,12 +950,12 @@ function Server:read_responses(timeout)
   local responses = {}
 
   local bytes = 0;
-  if output ~= nil then
+  if output ~= "" then
     -- Make sure we retrieve everything
-    local more_output = ""
-    while more_output ~= nil do
-      more_output = self.proc:read()
-      if more_output ~= nil then
+    local more_output = nil
+    while more_output ~= "" do
+      more_output = self.proc:read_stdout(1024)
+      if more_output ~= "" then
         output = output .. more_output
         if inside_coroutine then
           coroutine.yield()
@@ -963,10 +972,10 @@ function Server:read_responses(timeout)
       -- more than one response at the same time
       if #header_content > 1 and #header_content[2] >= bytes then
         -- retrieve rest of output
-        local new_output = ""
-        while new_output ~= nil do
-          new_output = self.proc:read()
-          if new_output ~= nil then
+        local new_output = nil
+        while new_output ~= "" do
+          new_output = self.proc:read_stdout(1024)
+          if new_output ~= "" then
             output = output .. new_output
             if inside_coroutine then
               coroutine.yield()
@@ -1001,8 +1010,8 @@ function Server:read_responses(timeout)
         -- read again to retrieve actual response content
         output = ""
         while #output < bytes do
-          local chars = self.proc:read(bytes - #output)
-          if chars then
+          local chars = self.proc:read_stdout(bytes - #output)
+          if #chars > 0 then
             output = output .. chars
           end
           if inside_coroutine then
@@ -1071,20 +1080,20 @@ function Server:read_errors(timeout)
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
-  local output = nil
-  while max_time > os.time() and output == nil do
-    output = self.proc:read_errors()
+  local output = ""
+  while max_time > os.time() and output == "" do
+    output = self.proc:read_stderr(1024)
     if timeout == 0 then break end
-    if output == nil and inside_coroutine then
+    if output == "" and inside_coroutine then
       coroutine.yield()
     end
   end
 
-  if timeout == 0 and output ~= nil then
-    local new_output = ""
-    while new_output ~= nil do
-      new_output = self.proc:read_errors()
-      if new_output ~= nil then
+  if timeout == 0 and output ~= "" then
+    local new_output = nil
+    while new_output ~= "" do
+      new_output = self.proc:read_stderr(1024)
+      if new_output ~= "" then
         output = output .. new_output
         if inside_coroutine then
           coroutine.yield()
@@ -1101,6 +1110,10 @@ end
 --- @param timeout integer Time in seconds, set to 0 to not wait for write
 --- @return integer|boolean Amount of characters written or false if failed
 function Server:write_request(data, timeout)
+  if not self.proc:running() then
+    return false
+  end
+
   timeout = timeout or Server.DEFAULT_TIMEOUT
 
   if type(data) == "table" then
