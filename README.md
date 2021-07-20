@@ -13,12 +13,12 @@ To test, clone this project, place the __lsp__ directory in your plugins
 directory, then replace or overwrite __autocomplete.lua__ plugin with the
 version on this repository which should later be merged into upstream.
 Finally you will need the [Widgets](https://github.com/jgmdev/lite-xl-widgets)
-small lib so make sure to also drop it into your plugins directory. So your
-plugins directory should have:
+small lib so make sure to also drop it into your lite-xl configs directory.
+The lite-xl configs directory should have:
 
-* plugins/lsp/
-* plugins/widget/
-* plugins/autocomplete.lua
+* lite-xl/widget/
+* lite-xl/plugins/lsp/
+* lite-xl/plugins/autocomplete.lua
 
 ## Features
 
@@ -30,6 +30,7 @@ Stuff that is currently implemented:
 * Goto definition (__alt+d__)
 * Goto implementation (__alt+shift+d__)
 * View/jump to current document symbols (__alt+s__)
+* Find workspace symbols (__alt+shift+s__)
 * View/jump to symbol references (__alt+f__)
 * View/jump to document diagnostic messages (__alt+e__)
 * Optional diagnostics rendering while typing with
