@@ -43,33 +43,33 @@ end
 -- Plugin settings
 --
 
---- Configuration options for the LSP plugin.
+---Configuration options for the LSP plugin.
 config.lsp = {}
 
---- Set to a file path to log all json
---- @type string
+---Set to a file path to log all json
+---@type string
 config.lsp.log_file = config.lsp.log_file or ""
 
---- Setting to true prettyfies json for more readability on the log
---- but this setting will impact performance so only enable it when
---- in need of easy to read json output when developing the plugin.
---- @type boolean
+---Setting to true prettyfies json for more readability on the log
+---but this setting will impact performance so only enable it when
+---in need of easy to read json output when developing the plugin.
+---@type boolean
 config.lsp.prettify_json = config.lsp.prettify_json or false
 
---- Show diagnostic messages
---- @type boolean
+---Show diagnostic messages
+---@type boolean
 config.lsp.show_diagnostics = config.lsp.show_diagnostics or true
 
---- Stop servers that aren't needed by any of the open files
---- @type boolean
+---Stop servers that aren't needed by any of the open files
+---@type boolean
 config.lsp.stop_unneeded_servers = config.lsp.stop_unneeded_servers or true
 
---- Send a server stderr output to lite log
---- @type boolean
+---Send a server stderr output to lite log
+---@type boolean
 config.lsp.log_server_stderr = config.lsp.log_server_stderr or false
 
---- force verbosity off even if a server is configure with verbosity on
---- @type boolean
+---Force verbosity off even if a server is configured with verbosity on
+---@type boolean
 config.lsp.force_verbosity_off = config.lsp.force_verbosity_off or false
 
 --
@@ -77,30 +77,31 @@ config.lsp.force_verbosity_off = config.lsp.force_verbosity_off or false
 --
 local lsp = {}
 
+---List of registered servers
 lsp.servers = {}
 
---- List of running servers
+---List of running servers
 lsp.servers_running = {}
 
---- Flag that indicates if last autocomplete request was a trigger
---- to prevent requesting another autocompletion request until the
---- autocomplete box is hidden since some lsp servers loose context
---- and return wrong results (eg: lua-language-server)
---- @type boolean
+---Flag that indicates if last autocomplete request was a trigger
+---to prevent requesting another autocompletion request until the
+---autocomplete box is hidden since some lsp servers loose context
+---and return wrong results (eg: lua-language-server)
+---@type boolean
 lsp.in_trigger = false
 
---- Used to set proper diagnostic type on lintplus
---- @type table<integer, string>
+---Used to set proper diagnostic type on lintplus
+---@type table<integer, string>
 local diagnostic_kinds = { "error", "warning", "info", "hint" }
 
 --
 -- Private functions
 --
 
---- Generate an lsp location object
---- @param doc Doc
---- @param line integer
---- @param col integer
+---Generate an lsp location object
+---@param doc Doc
+---@param line integer
+---@param col integer
 local function get_buffer_position_params(doc, line, col)
   return {
     textDocument = {
@@ -113,8 +114,10 @@ local function get_buffer_position_params(doc, line, col)
   }
 end
 
---- Recursive function to generate a list of symbols ready
---- to use for the lsp.request_document_symbols() action.
+---Recursive function to generate a list of symbols ready
+---to use for the lsp.request_document_symbols() action.
+---@param list table<integer, table>
+---@param parent string
 local function get_symbol_lists(list, parent)
   local symbols = {}
   local symbol_names = {}
@@ -161,8 +164,8 @@ local function log(server, message, ...)
   core.log("["..server.name.."] " .. message, ...)
 end
 
---- Check if active view is a DocView and return it
---- @return DocView|nil
+---Check if active view is a DocView and return it
+---@return DocView|nil
 local function get_active_view()
   if getmetatable(core.active_view) == DocView then
     return core.active_view
@@ -170,8 +173,8 @@ local function get_active_view()
   return nil
 end
 
---- Generates a code preview of a location
---- @param location table
+---Generates a code preview of a location
+---@param location table
 local function get_location_preview(location)
   local line1, col1 = Util.toselection(
     location.range or location.targetRange
@@ -216,8 +219,8 @@ local function get_location_preview(location)
   return preview, position
 end
 
---- Generate a list ready to use for the lsp.request_references() action.
---- @param locations table
+---Generate a list ready to use for the lsp.request_references() action.
+---@param locations table
 local function get_references_lists(locations)
   local references, reference_names = {}, {}
 
@@ -231,8 +234,10 @@ local function get_references_lists(locations)
   return references, reference_names
 end
 
---- Apply an lsp textEdit to a document if possible.
---- @return boolean True on success
+---Apply an lsp textEdit to a document if possible.
+---@param doc Doc
+---@param text_edit table
+---@return boolean True on success
 local function apply_edit(doc, text_edit)
   local range = nil
 
@@ -264,10 +269,12 @@ local function apply_edit(doc, text_edit)
   return true
 end
 
---- Callback given to autocomplete plugin which is executed once for each
---- element of the autocomplete box which is hovered with the idea of providing
---- better description of the selected element by requesting the LSP server for
---- detailed information/documentation.
+---Callback given to autocomplete plugin which is executed once for each
+---element of the autocomplete box which is hovered with the idea of providing
+---better description of the selected element by requesting the LSP server for
+---detailed information/documentation.
+---@param index integer
+---@param item table
 local function autocomplete_onhover(index, item)
   local completion_item = item.data.completion_item
 
@@ -326,8 +333,10 @@ local function autocomplete_onhover(index, item)
   end
 end
 
---- Callback that handles insertion of an autocompletion item that has
---- the information of insertion
+---Callback that handles insertion of an autocompletion item that has
+---the information of insertion
+---@param index integer
+---@param item table
 local function autocomplete_onselect(index, item)
   local completion = item.data.completion_item
   if completion.textEdit then
@@ -362,8 +371,8 @@ end
 -- Public functions
 --
 
---- Open a document location returned by LSP
---- @param location table
+---Open a document location returned by LSP
+---@param location table
 function lsp.goto_location(location)
   core.root_view:open_doc(
     core.open_doc(
@@ -380,8 +389,8 @@ end
 
 lsp.get_location_preview = get_location_preview
 
---- Register an LSP server to be launched on demand
---- @param options table
+---Register an LSP server to be launched on demand
+---@param options table
 function lsp.add_server(options)
   local required_fields = {
     "name", "language", "file_patterns", "command"
@@ -411,9 +420,10 @@ function lsp.add_server(options)
   return true
 end
 
---- Get valid running lsp servers for a given filename
---- @param filename string
---- @param initialized boolean
+---Get valid running lsp servers for a given filename
+---@param filename string
+---@param initialized boolean
+---@return table active_servers
 function lsp.get_active_servers(filename, initialized)
   local servers = {}
   for name, server in pairs(lsp.servers) do
@@ -444,16 +454,16 @@ end
 local cached_workspace_settings = {}
 local cached_workspace_settings_timestamp = 0
 
---- Get table of configuration settings in the following way:
---- 1. Scan the USERDIR for settings.lua or settings.json (in that order)
---- 2. Merge server.settings
---- 4. Scan workspace if set also for settings.lua/json and merge them or
---- 3. Scan server.path also for settings.lua/json and merge them
---- Note: settings are cached for 5 seconds for faster retrieval
----       on repetitive calls to this function.
---- @param server Server
---- @param workspace? string
---- @return table
+---Get table of configuration settings in the following way:
+---1. Scan the USERDIR for settings.lua or settings.json (in that order)
+---2. Merge server.settings
+---4. Scan workspace if set also for settings.lua/json and merge them or
+---3. Scan server.path also for settings.lua/json and merge them
+---Note: settings are cached for 5 seconds for faster retrieval
+---      on repetitive calls to this function.
+---@param server Server
+---@param workspace? string
+---@return table
 function lsp.get_workspace_settings(server, workspace)
   -- Search settings on the following directories, subsequent settings
   -- overwrite the previous ones
@@ -1168,7 +1178,7 @@ function lsp.request_completion(doc, line, col, forced)
 end
 
 --- Send to applicable LSP servers a request for info about a function
--- signatures and display them on a tooltip.
+--- signatures and display them on a tooltip.
 function lsp.request_signature(doc, line, col, forced, fallback)
   if not doc.lsp_open then return end
 
@@ -1225,7 +1235,7 @@ function lsp.request_signature(doc, line, col, forced, fallback)
 end
 
 --- Sends a request to applicable LSP servers for information about the
--- symbol where the cursor is placed and shows it on a tooltip.
+--- symbol where the cursor is placed and shows it on a tooltip.
 function lsp.request_hover(doc, line, col)
   if not doc.lsp_open then return end
 
@@ -1311,8 +1321,9 @@ function lsp.request_references(doc, line, col)
   end
 end
 
---- Sends a request to applicable LSP servers to search for symbol on workspace
---- @param symbol string
+---Sends a request to applicable LSP servers to search for symbol on workspace.
+---@param doc Doc
+---@param symbol string
 function lsp.request_workspace_symbol(doc, symbol)
   if not doc.lsp_open then return end
 
@@ -1879,11 +1890,11 @@ command.add("core.docview", {
     end
   end,
 
-  ["lsp:view-document-symbols"] = function()
+  ["lsp:view-document-diagnostics"] = function()
     if core.active_view and core.active_view.doc then
       local doc = core.active_view.doc
       if doc and doc.filename then
-        lsp.request_document_symbols(doc)
+        lsp.view_document_diagnostics(doc)
       end
     end
   end,

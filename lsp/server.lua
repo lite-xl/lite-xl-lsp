@@ -14,42 +14,42 @@ local json = require "plugins.lsp.json"
 local util = require "plugins.lsp.util"
 local Object = require "core.object"
 
---- LSP Server communication library.
---- @class Server
---- @field public name string
---- @field public language string
---- @field public file_patterns table
---- @field public current_request integer
---- @field public init_options table
---- @field public settings table
---- @field public event_listeners table
---- @field public message_listeners table
---- @field public request_listeners table
---- @field public request_list table
---- @field public response_list table
---- @field public notification_list table
---- @field public raw_list table
---- @field public command table
---- @field public write_fails integer
---- @field public write_fails_before_shutdown integer
---- @field public verbose boolean
---- @field public initialized boolean
---- @field public hitrate_list table
---- @field public requests_per_second integer
---- @field public requests_in_chunks boolean
---- @field public proc process
---- @field public capabilites table
+---LSP Server communication library.
+---@class lsp.server
+---@field public name string
+---@field public language string
+---@field public file_patterns table
+---@field public current_request integer
+---@field public init_options table
+---@field public settings table
+---@field public event_listeners table
+---@field public message_listeners table
+---@field public request_listeners table
+---@field public request_list table
+---@field public response_list table
+---@field public notification_list table
+---@field public raw_list table
+---@field public command table
+---@field public write_fails integer
+---@field public write_fails_before_shutdown integer
+---@field public verbose boolean
+---@field public initialized boolean
+---@field public hitrate_list table
+---@field public requests_per_second integer
+---@field public requests_in_chunks boolean
+---@field public proc process
+---@field public capabilites table
 local Server = Object:extend()
 
---- Default timeout when sending a request to lsp server.
---- @type integer Time in seconds
+---Default timeout when sending a request to lsp server.
+---@type integer Time in seconds
 Server.DEFAULT_TIMEOUT = 10
 
----@alias ServerCallBack function(server: Server):void
----@alias ServerNotificationCB function(server: Server, params: table):void
----@alias ServerResponse function(server: Server, response: table):void
+---@alias lsp.server.callback function(server: lsp.server, ...):void
+---@alias lsp.server.notificationcb function(server: lsp.server, params: table):void
+---@alias lsp.server.responsecb function(server: lsp.server, response: table):void
 
---- LSP Docs: /#errorCodes
+---LSP Docs: /#errorCodes
 Server.error_code = {
   ParseError                      = -32700,
   InvalidRequest                  = -32600,
@@ -68,14 +68,14 @@ Server.error_code = {
   lspReservedErrorRangeEnd        = -32800,
 }
 
---- LSP Docs: /#completionTriggerKind
+---LSP Docs: /#completionTriggerKind
 Server.completion_trigger_Kind = {
   Invoked = 1,
   TriggerCharacter = 2,
   TriggerForIncompleteCompletions = 3
 }
 
---- LSP Docs: /#diagnosticSeverity
+---LSP Docs: /#diagnosticSeverity
 Server.diagnostic_severity = {
   Error = 1,
   Warning = 2,
@@ -83,14 +83,14 @@ Server.diagnostic_severity = {
   Hint = 4
 }
 
---- LSP Docs: /#textDocumentSyncKind
+---LSP Docs: /#textDocumentSyncKind
 Server.text_document_sync_kind = {
   None = 0,
   Full = 1,
   Incremental = 2
 }
 
---- LSP Docs: /#completionItemKind
+---LSP Docs: /#completionItemKind
 Server.completion_item_kind = {
   'Text', 'Method', 'Function', 'Constructor', 'Field', 'Variable', 'Class',
   'Interface', 'Module', 'Property', 'Unit', 'Value', 'Enum', 'Keyword',
@@ -98,7 +98,7 @@ Server.completion_item_kind = {
   'Constant', 'Struct', 'Event', 'Operator', 'TypeParameter'
 }
 
---- LSP Docs: /#symbolKind
+---LSP Docs: /#symbolKind
 Server.symbol_kind = {
   'File', 'Module', 'Namespace', 'Package', 'Class', 'Method', 'Property',
   'Field', 'Constructor', 'Enum', 'Interface', 'Function', 'Variable',
@@ -106,9 +106,9 @@ Server.symbol_kind = {
   'Null', 'EnumMember', 'Struct', 'Event', 'Operator', 'TypeParameter'
 }
 
---- Get list of completion kinds or label if id is given.
---- @param id? integer
---- @return table|string
+---Get list of completion kinds or label if id is given.
+---@param id? integer
+---@return table|string
 function Server.get_completion_items_kind(id)
   if id then
     return Server.completion_item_kind[id]
@@ -124,9 +124,9 @@ function Server.get_completion_items_kind(id)
   return list
 end
 
---- Get list of symbol kinds or label if id is given.
---- @param id? integer
---- @return table|string
+---Get list of symbol kinds or label if id is given.
+---@param id? integer
+---@return table|string
 function Server.get_symbols_kind(id)
   if id then
     return Server.symbol_kind[id]
@@ -140,8 +140,8 @@ function Server.get_symbols_kind(id)
   return list
 end
 
---- Instantiates a new LSP server.
---- @param options table
+---Instantiates a new LSP server.
+---@param options table
 function Server:new(options)
   Server.super.new(self)
 
@@ -180,11 +180,11 @@ function Server:new(options)
   self.incremental_changes = options.incremental_changes or false
 end
 
---- Starts the LSP server process, any listeners should be registered before
---- calling this method and this method should be called before any pushes.
---- @param workspace string
---- @param editor_name? string
---- @param editor_version? string
+---Starts the LSP server process, any listeners should be registered before
+---calling this method and this method should be called before any pushes.
+---@param workspace string
+---@param editor_name? string
+---@param editor_version? string
 function Server:initialize(workspace, editor_name, editor_version)
   local root_uri = "";
   if PLATFORM ~= "Windows" then
@@ -367,9 +367,9 @@ function Server:initialize(workspace, editor_name, editor_version)
   )
 end
 
---- Register an event listener.
---- @param event_name string
---- @param callback function
+---Register an event listener.
+---@param event_name string
+---@param callback lsp.server.callback
 function Server:add_event_listener(event_name, callback)
   if self.verbose then
     self:log(
@@ -395,9 +395,9 @@ function Server:on_event(event_name)
   end
 end
 
---- Send a message to the server that doesn't needs a response.
---- @param method string
---- @param params table
+---Send a message to the server that doesn't needs a response.
+---@param method string
+---@param params table
 function Server:notify(method, params)
   local message = {
     jsonrpc = '2.0',
@@ -418,9 +418,9 @@ function Server:notify(method, params)
   end
 end
 
---- Reply to a server request.
---- @param id integer
---- @param result table
+---Reply to a server request.
+---@param id integer
+---@param result table
 function Server:respond(id, result)
   local message = {
     jsonrpc = '2.0',
@@ -441,10 +441,10 @@ function Server:respond(id, result)
   end
 end
 
---- Respond to a an unknown server request with a method not found error code.
---- @param id integer
---- @param error_message string
---- @param error_code integer
+---Respond to a an unknown server request with a method not found error code.
+---@param id integer
+---@param error_message string
+---@param error_code integer
 function Server:respond_error(id, error_message, error_code)
   local message = {
     jsonrpc = '2.0',
@@ -468,7 +468,7 @@ function Server:respond_error(id, error_message, error_code)
   end
 end
 
---- Sends one of the queued notifications.
+---Sends one of the queued notifications.
 function Server:process_notifications()
   if not self.initialized then return end
 
@@ -514,7 +514,7 @@ function Server:process_notifications()
   end
 end
 
---- Sends one of the queued client requests.
+---Sends one of the queued client requests.
 function Server:process_requests()
   local remove_request = nil
   for id, request in pairs(self.request_list) do
@@ -591,8 +591,8 @@ function Server:process_requests()
   return nil
 end
 
---- Read the lsp server stdout, parse any responses, requests or
---- notifications and properly dispatch signals to any listeners.
+---Read the lsp server stdout, parse any responses, requests or
+---notifications and properly dispatch signals to any listeners.
 function Server:process_responses()
   local responses = self:read_responses(0)
 
@@ -624,7 +624,7 @@ function Server:process_responses()
   return responses
 end
 
---- Sends all queued client responses to server.
+---Sends all queued client responses to server.
 function Server:process_client_responses()
   if not self.initialized then return end
 
@@ -667,8 +667,9 @@ function Server:process_client_responses()
   end
 end
 
---- Should be called periodically to prevent the server from stalling
---- because of not flushing the stderr (especially true of clangd).
+---Should be called periodically to prevent the server from stalling
+---because of not flushing the stderr (especially true of clangd).
+---@param log_errors boolean
 function Server:process_errors(log_errors)
   -- only process when initialized
   if not self.initialized then
@@ -684,8 +685,8 @@ function Server:process_errors(log_errors)
   return errors
 end
 
---- Send one of the queued chunks of raw data to lsp server which are
---- usually huge, like the textDocument/didOpen notification.
+---Send one of the queued chunks of raw data to lsp server which are
+---usually huge, like the textDocument/didOpen notification.
 function Server:process_raw()
   if not self.initialized then return end
 
@@ -751,10 +752,10 @@ function Server:process_raw()
   end
 end
 
---- Help controls the amount of requests sent to the lsp server per second
---- which prevents overloading it and causing a pipe hang.
---- @param type string
---- @return boolean true if max hitrate was reached
+---Help controls the amount of requests sent to the lsp server per second
+---which prevents overloading it and causing a pipe hang.
+---@param type string
+---@return boolean true if max hitrate was reached
 function Server:hitrate_reached(type)
   if not self.hitrate_list[type] then
     self.hitrate_list[type] = {
@@ -773,9 +774,9 @@ function Server:hitrate_reached(type)
   return false
 end
 
---- Check if it is possible to queue a new request of any kind except
---- raw ones. This is useful to delay a request and not loose it in case
---- the lsp reached maximum amount of hit rate per second.
+---Check if it is possible to queue a new request of any kind except
+---raw ones. This is useful to delay a request and not loose it in case
+---the lsp reached maximum amount of hit rate per second.
 function Server:can_push()
   local type = "request"
   if not self.hitrate_list[type] then
@@ -788,17 +789,17 @@ function Server:can_push()
   return self.initialized
 end
 
---- notifications that should bypass the hitrate limit
+-- Notifications that should bypass the hitrate limit
 local notifications_whitelist = {
   "textDocument/didOpen",
   "textDocument/didSave",
   "textDocument/didClose"
 }
 
---- Queue a new notification but ignores new ones if the hit rate was reached.
---- @param method string
---- @param params table
---- @param callback ServerNotificationCB
+---Queue a new notification but ignores new ones if the hit rate was reached.
+---@param method string
+---@param params table
+---@param callback lsp.server.notificationcb
 function Server:push_notification(method, params, callback)
   if not self.initialized then return end
 
@@ -826,15 +827,15 @@ function Server:push_notification(method, params, callback)
   })
 end
 
---- Requests that should bypass the hitrate limit
+-- Requests that should bypass the hitrate limit
 local requests_whitelist = {
   "completionItem/resolve"
 }
 
---- Queue a new request but ignores new ones if the hit rate was reached.
---- @param method string
---- @param params table
---- @param callback ServerResponse
+---Queue a new request but ignores new ones if the hit rate was reached.
+---@param method string
+---@param params table
+---@param callback lsp.server.responsecb
 function Server:push_request(method, params, callback)
   if not self.initialized and method ~= "initialize" then
     return
@@ -866,13 +867,13 @@ function Server:push_request(method, params, callback)
   }
 end
 
---- Queue a client response to a server request which can be an error
---- or a regular response, one of both. This may ignore new ones if
---- the hit rate was reached.
---- @param method string
---- @param id integer
---- @param result table|nil
---- @param error table|nil
+---Queue a client response to a server request which can be an error
+---or a regular response, one of both. This may ignore new ones if
+---the hit rate was reached.
+---@param method string
+---@param id integer
+---@param result table|nil
+---@param error table|nil
 function Server:push_response(method, id, result, error)
   if self:hitrate_reached("request") then
     return
@@ -895,10 +896,10 @@ function Server:push_response(method, id, result, error)
   table.insert(self.response_list, response)
 end
 
---- Send raw json strings to server in cases where the json encoder
---- would be too slow to convert a lua table into a json representation.
---- @param data table
---- @param callback ServerCallBack
+---Send raw json strings to server in cases where the json encoder
+---would be too slow to convert a lua table into a json representation.
+---@param data table
+---@param callback lsp.server.callback
 function Server:push_raw(data, callback)
   if not self.initialized then return end
 
@@ -913,9 +914,9 @@ function Server:push_raw(data, callback)
   })
 end
 
---- Retrieve a request and removes it from the internal requests list
---- @param id integer
---- @return table
+---Retrieve a request and removes it from the internal requests list
+---@param id integer
+---@return table
 function Server:pop_request(id)
   local request = self.request_list[id]
   if request then
@@ -924,10 +925,10 @@ function Server:pop_request(id)
   return request
 end
 
---- Try to fetch a server rsponses, notifications or requests
---- in a specific amount of time.
---- @param timeout integer Time in seconds, set to 0 to not wait
---- @return table[]|boolean Responses list or false if failed
+---Try to fetch a server rsponses, notifications or requests
+---in a specific amount of time.
+---@param timeout integer Time in seconds, set to 0 to not wait
+---@return table[]|boolean Responses list or false if failed
 function Server:read_responses(timeout)
   if not self.proc:running() then
     return false
@@ -1071,9 +1072,9 @@ function Server:read_responses(timeout)
   return false
 end
 
---- Get messages thrown by the stderr pipe of the server.
---- @param timeout integer Time in seconds, set to 0 to not wait
---- @return string|nil
+---Get messages thrown by the stderr pipe of the server.
+---@param timeout integer Time in seconds, set to 0 to not wait
+---@return string|nil
 function Server:read_errors(timeout)
   timeout = timeout or Server.DEFAULT_TIMEOUT
   local inside_coroutine = config.fps <= 30 and false or  coroutine.running()
@@ -1105,10 +1106,10 @@ function Server:read_errors(timeout)
   return output
 end
 
---- Try to send a request to a server in a specific amount of time.
---- @param data table Table or string with the json request
---- @param timeout integer Time in seconds, set to 0 to not wait for write
---- @return integer|boolean Amount of characters written or false if failed
+---Try to send a request to a server in a specific amount of time.
+---@param data table Table or string with the json request
+---@param timeout integer Time in seconds, set to 0 to not wait for write
+---@return integer|boolean Amount of characters written or false if failed
 function Server:write_request(data, timeout)
   if not self.proc:running() then
     return false
@@ -1184,8 +1185,8 @@ function Server:log(message, ...)
   print (string.format("%s: " .. message .. "\n", self.name, ...))
 end
 
---- Call an apropriate signal handler for a given response.
---- @param response table
+---Call an apropriate signal handler for a given response.
+---@param response table
 function Server:send_response_signal(response)
   local request = self:pop_request(response.id)
   if request and request.callback then
@@ -1195,8 +1196,8 @@ function Server:send_response_signal(response)
   end
 end
 
---- Called for each response that doesn't has a signal handler.
---- @param response table
+---Called for each response that doesn't has a signal handler.
+---@param response table
 function Server:on_response(response)
   if self.verbose then
     self:log(
@@ -1207,9 +1208,9 @@ function Server:on_response(response)
   end
 end
 
---- Register a request handler.
---- @param method string
---- @param callback ServerResponse
+---Register a request handler.
+---@param method string
+---@param callback lsp.server.responsecb
 function Server:add_request_listener(method, callback)
   if self.verbose then
     self:log(
@@ -1220,8 +1221,8 @@ function Server:add_request_listener(method, callback)
   self.request_listeners[method] = callback
 end
 
---- Call an apropriate signal handler for a given request.
---- @param request table
+---Call an apropriate signal handler for a given request.
+---@param request table
 function Server:send_request_signal(request)
   if not request.method then
     if self.verbose and request.id then
@@ -1242,8 +1243,8 @@ function Server:send_request_signal(request)
   end
 end
 
---- Called for each request that doesn't has a signal handler.
---- @param request table
+---Called for each request that doesn't has a signal handler.
+---@param request table
 function Server:on_request(request)
   if self.verbose then
     self:log(
@@ -1264,11 +1265,11 @@ function Server:on_request(request)
   )
 end
 
---- Register a specialized message or notification listener.
---- Notice that if no specialized listener is registered the
---- on_notification() method will be called instead.
---- @param method string
---- @param callback ServerNotificationCB
+---Register a specialized message or notification listener.
+---Notice that if no specialized listener is registered the
+---on_notification() method will be called instead.
+---@param method string
+---@param callback lsp.server.notificationcb
 function Server:add_message_listener(method, callback)
   if self.verbose then
     self:log(
@@ -1279,8 +1280,8 @@ function Server:add_message_listener(method, callback)
   self.message_listeners[method] = callback
 end
 
---- Call an apropriate signal handler for a given message or notification.
---- @param message table
+---Call an apropriate signal handler for a given message or notification.
+---@param message table
 function Server:send_message_signal(message)
   if self.message_listeners[message.method] then
     self.message_listeners[message.method](
@@ -1291,9 +1292,9 @@ function Server:send_message_signal(message)
   end
 end
 
---- Called for every message or notification without a signal handler.
---- @param method string
---- @Param params table
+---Called for every message or notification without a signal handler.
+---@param method string
+---@Param params table
 function Server:on_message(method, params)
   if self.verbose then
     self:log(
@@ -1304,8 +1305,8 @@ function Server:on_message(method, params)
   end
 end
 
---- Shut downs the server is not running or amount of write fails has
---- reached its maximum allowed.
+---Shut downs the server is not running or amount of write fails has
+---reached its maximum allowed.
 function Server:shutdown_if_needed()
   if
     self.write_fails >=  self.write_fails_before_shutdown
@@ -1327,12 +1328,12 @@ function Server:shutdown_if_needed()
   self.write_fails = self.write_fails + 1
 end
 
---- Can be overwritten to handle server shutdowns.
+---Can be overwritten to handle server shutdowns.
 function Server:on_shutdown()
   self:log("The server was shutdown.")
 end
 
---- Instructs the server to exit.
+---Instructs the server to exit.
 function Server:exit()
   self.initialized = false
 
@@ -1355,5 +1356,6 @@ function Server:exit()
     self.proc:kill()
   end
 end
+
 
 return Server
