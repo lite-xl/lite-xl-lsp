@@ -68,6 +68,36 @@ lsp.add_server {
 }
 ```
 
+### LSP Settings
+
+```lua
+---Set to a file path to log all json
+---@type string
+config.lsp.log_file = ""
+
+---Setting to true prettyfies json for more readability on the log
+---but this setting will impact performance so only enable it when
+---in need of easy to read json output when developing the plugin.
+---@type boolean
+config.lsp.prettify_json = false
+
+---Show diagnostic messages
+---@type boolean
+config.lsp.show_diagnostics = true
+
+---Stop servers that aren't needed by any of the open files
+---@type boolean
+config.lsp.stop_unneeded_servers = true
+
+---Send a server stderr output to lite log
+---@type boolean
+config.lsp.log_server_stderr = false
+
+---Force verbosity off even if a server is configured with verbosity on
+---@type boolean
+config.lsp.force_verbosity_off = false
+```
+
 ## TODO
 
 - [ ] Handle window/showMessage, window/showMessageRequest,
