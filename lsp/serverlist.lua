@@ -284,11 +284,6 @@ lspconfig.sumneko_lua = add_lsp {
   name = "lua-language-server",
   language = "lua",
   file_patterns = {"%.lua$"},
-  command = {
-    "/path/to/lua-language-server/bin/Linux/lua-language-server",
-    "-E",
-    "/path/to/lua-language-server/main.lua"
-  },
   verbose = false,
   settings = {
     Lua = {
@@ -328,7 +323,7 @@ lspconfig.sumneko_lua = add_lsp {
         preloadFileSize = 1000
       },
       telemetry = {
-        enable = true
+        enable = false
       }
     }
   }
