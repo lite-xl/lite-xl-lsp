@@ -1,4 +1,4 @@
--- mod-version:1 lite-xl 1.16
+-- mod-version:2 -- lite-xl 2.00
 --
 -- LSP client for lite-xl
 -- @copyright Jefferson Gonzalez
@@ -44,33 +44,33 @@ end
 --
 
 ---Configuration options for the LSP plugin.
-config.lsp = {}
+config.plugins.lsp = {
+  ---Set to a file path to log all json
+  ---@type string
+  log_file = "",
 
----Set to a file path to log all json
----@type string
-config.lsp.log_file = config.lsp.log_file or ""
+  ---Setting to true prettyfies json for more readability on the log
+  ---but this setting will impact performance so only enable it when
+  ---in need of easy to read json output when developing the plugin.
+  ---@type boolean
+  prettify_json = false,
 
----Setting to true prettyfies json for more readability on the log
----but this setting will impact performance so only enable it when
----in need of easy to read json output when developing the plugin.
----@type boolean
-config.lsp.prettify_json = config.lsp.prettify_json or false
+  ---Show diagnostic messages
+  ---@type boolean
+  show_diagnostics = true,
 
----Show diagnostic messages
----@type boolean
-config.lsp.show_diagnostics = config.lsp.show_diagnostics or true
+  ---Stop servers that aren't needed by any of the open files
+  ---@type boolean
+  stop_unneeded_servers = true,
 
----Stop servers that aren't needed by any of the open files
----@type boolean
-config.lsp.stop_unneeded_servers = config.lsp.stop_unneeded_servers or true
+  ---Send a server stderr output to lite log
+  ---@type boolean
+  log_server_stderr = false,
 
----Send a server stderr output to lite log
----@type boolean
-config.lsp.log_server_stderr = config.lsp.log_server_stderr or false
-
----Force verbosity off even if a server is configured with verbosity on
----@type boolean
-config.lsp.force_verbosity_off = config.lsp.force_verbosity_off or false
+  ---Force verbosity off even if a server is configured with verbosity on
+  ---@type boolean
+  force_verbosity_off = false
+}
 
 --
 -- Main plugin functionality
@@ -411,7 +411,7 @@ function lsp.add_server(options)
     return false
   end
 
-  if config.lsp.force_verbosity_off then
+  if config.plugins.lsp.force_verbosity_off then
     options.verbose = false
   end
 
@@ -649,7 +649,7 @@ function lsp.start_server(filename, project_directory)
               Diagnostics.add(filename, params.diagnostics)
 
               if
-                config.lsp.show_diagnostics
+                config.plugins.lsp.show_diagnostics
                 and
                 lintplus and lintplus.add_message
               then
@@ -666,7 +666,7 @@ function lsp.start_server(filename, project_directory)
             else
               Diagnostics.clear(filename)
               if
-                config.lsp.show_diagnostics
+                config.plugins.lsp.show_diagnostics
                 and
                 lintplus and lintplus.add_message
               then
@@ -678,7 +678,7 @@ function lsp.start_server(filename, project_directory)
 
         -- Send settings table after initialization if available.
         client:add_event_listener("initialized", function(server)
-          if config.lsp.force_verbosity_off then
+          if config.plugins.lsp.force_verbosity_off then
             core.log_quiet("["..server.name.."] " .. "Initialized")
           else
             log(server, "Initialized")
@@ -982,9 +982,9 @@ end
 
 --- Enable or disable diagnostic messages
 function lsp.toggle_diagnostics()
-  config.lsp.show_diagnostics = not config.lsp.show_diagnostics
+  config.plugins.lsp.show_diagnostics = not config.plugins.lsp.show_diagnostics
 
-  if not config.lsp.show_diagnostics and lintplus then
+  if not config.plugins.lsp.show_diagnostics and lintplus then
     for name, message in pairs(lintplus.messages) do
       lintplus.clear_messages(name)
     end
@@ -1321,6 +1321,69 @@ function lsp.request_references(doc, line, col)
   end
 end
 
+---Sends a request to applicable LSP servers to retrieve the
+---hierarchy of calls for the given function under the cursor.
+function lsp.request_call_hierarchy(doc, line, col)
+  if not doc.lsp_open then return end
+
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+    local server = lsp.servers_running[name]
+    if server.capabilities.callHierarchyProvider then
+      server:push_request(
+        'textDocument/prepareCallHierarchy',
+        get_buffer_position_params(doc, line, col),
+        function(server, response)
+          if response.result and #response.result > 0 then
+            -- TODO: Finish implement call hierarchy funcitonality
+          end
+        end
+      )
+      return
+    end
+  end
+
+  core.log("[LSP] Call hierarchy not supported.")
+end
+
+---Sends a request to applicable LSP servers to rename a symbol.
+---@param doc Doc
+---@param line integer
+---@param col integer
+---@param new_name string
+function lsp.request_symbol_rename(doc, line, col, new_name)
+  if not doc.lsp_open then return end
+
+  local servers_found = false
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+    servers_found = true
+    local server = lsp.servers_running[name]
+    if server.capabilities.renameProvider then
+      local request_params = get_buffer_position_params(doc, line, col)
+      request_params.newName = new_name
+      server:push_request(
+        'textDocument/rename',
+        request_params,
+        function(server, response)
+          if response.result and #response.result.changes then
+            for file_uri, changes in pairs(response.result.changes) do
+              core.log(file_uri .. " " .. #changes)
+              -- TODO: Finish implement textDocument/rename
+            end
+          end
+          core.log("%s", Json.prettify(Json.encode(response)))
+        end
+      )
+      return
+    end
+  end
+
+  if not servers_found then
+    core.log("[LSP] " .. "No server ready or running")
+  else
+    core.log("[LSP] " .. "Symbols rename not supported")
+  end
+end
+
 ---Sends a request to applicable LSP servers to search for symbol on workspace.
 ---@param doc Doc
 ---@param symbol string
@@ -1592,7 +1655,7 @@ core.add_thread(function()
         end)
         coroutine.resume(raw_send)
         while coroutine.status(raw_send) ~= "dead" do
-          server:process_errors(config.lsp.log_server_stderr)
+          server:process_errors(config.plugins.lsp.log_server_stderr)
           server:process_responses()
           server:process_client_responses()
           coroutine.yield(0)
@@ -1616,7 +1679,7 @@ core.add_thread(function()
         coroutine.yield()
       end
 
-      server:process_errors(config.lsp.log_server_stderr)
+      server:process_errors(config.plugins.lsp.log_server_stderr)
 
       servers_running = true
     end
@@ -1711,7 +1774,7 @@ function Doc:on_close()
     lsp.close_document(self)
   end)
 
-  if not config.lsp.stop_unneeded_servers then
+  if not config.plugins.lsp.stop_unneeded_servers then
     return
   end
 
@@ -1881,6 +1944,17 @@ command.add("core.docview", {
     end
   end,
 
+  ["lsp:view-call-hierarchy"] = function()
+    local av = core.active_view
+    if av and av.doc and av.doc.filename then
+      local doc = core.active_view.doc
+      local line1, col1, line2 = doc:get_selection()
+      if line1 == line2 then
+        lsp.request_call_hierarchy(doc, line1, col1)
+      end
+    end
+  end,
+
   ["lsp:view-document-symbols"] = function()
     if core.active_view and core.active_view.doc then
       local doc = core.active_view.doc
@@ -1902,6 +1976,26 @@ command.add("core.docview", {
   ["lsp:view-all-diagnostics"] = function()
     if core.active_view and core.active_view.doc then
         lsp.view_all_diagnostics()
+    end
+  end,
+
+  ["lsp:rename-symbol"] = function()
+    local doc = nil
+    local symbol = ""
+    if core.active_view and core.active_view.doc then
+      doc = core.active_view.doc
+      symbol = core.active_view.doc:get_text(core.active_view.doc:get_selection())
+    else
+      return
+    end
+    local line1, col1, line2 = doc:get_selection()
+    if #symbol > 0 and line1 == line2 then
+      core.command_view:set_text(symbol)
+      core.command_view:enter("New Symbol Name", function(new_name)
+        lsp.request_symbol_rename(doc, line1, col1, new_name)
+      end, nil)
+    else
+      core.log("Please select a symbol on the document to rename.")
     end
   end,
 
@@ -1954,6 +2048,8 @@ keymap.add {
   ["alt+e"]             = "lsp:view-document-diagnostics",
   ["ctrl+alt+e"]        = "lsp:view-all-diagnostics",
   ["alt+shift+e"]       = "lsp:toggle-diagnostics",
+  ["alt+c"]             = "lsp:view-call-hierarchy",
+  ["alt+r"]             = "lsp:rename-symbol",
 }
 
 --

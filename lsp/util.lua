@@ -103,12 +103,12 @@ end
 ---@param code string
 ---@return string
 function util.jsonprettify(code)
-  if config.lsp.prettify_json then
+  if config.plugins.lsp.prettify_json then
     code = json.prettify(code)
   end
 
-  if config.lsp.log_file and #config.lsp.log_file > 0 then
-    local log = io.open(config.lsp.log_file, "a+")
+  if config.plugins.lsp.log_file and #config.plugins.lsp.log_file > 0 then
+    local log = io.open(config.plugins.lsp.log_file, "a+")
     log:write("Output: \n" .. tostring(code) .. "\n\n")
     log:close()
   end

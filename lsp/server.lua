@@ -1077,7 +1077,7 @@ end
 ---@return string|nil
 function Server:read_errors(timeout)
   timeout = timeout or Server.DEFAULT_TIMEOUT
-  local inside_coroutine = config.fps <= 30 and false or  coroutine.running()
+  local inside_coroutine = config.fps <= 30 and false or coroutine.running()
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
@@ -1095,6 +1095,9 @@ function Server:read_errors(timeout)
     while new_output ~= "" do
       new_output = self.proc:read_stderr(1024)
       if new_output ~= "" then
+        if new_output == nil then
+          break
+        end
         output = output .. new_output
         if inside_coroutine then
           coroutine.yield()
