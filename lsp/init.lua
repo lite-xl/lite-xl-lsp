@@ -1094,6 +1094,7 @@ function lsp.request_completion(doc, line, col, forced)
             items = {}
           }
 
+          local symbol_count = 1
           for _, symbol in ipairs(result.items) do
             local label = symbol.label
               or (
@@ -1161,6 +1162,11 @@ function lsp.request_completion(doc, line, col, forced)
             then
               symbols.items[label].onhover = autocomplete_onhover
             end
+
+            if (symbol_count % 10) == 0 then
+              coroutine.yield()
+            end
+            symbol_count = symbol_count + 1
           end
 
           if trigger_char and complete_result then

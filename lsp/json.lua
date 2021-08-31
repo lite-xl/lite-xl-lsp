@@ -193,17 +193,7 @@ local literal_map = {
   [ "null"  ] = nil,
 }
 
-local next_iterations = 0
 local function next_char(str, idx, set, negate)
-  if coroutine.running() then
-    if next_iterations == 250 then
-      next_iterations = 0
-      coroutine.yield()
-    else
-      next_iterations = next_iterations + 1
-    end
-  end
-
   for i = idx, #str do
     if set[str:sub(i, i)] ~= negate then
       return i
