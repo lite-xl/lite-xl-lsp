@@ -591,6 +591,12 @@ command.add(predicate, {
     suggestions_idx = math.min(suggestions_idx + 1, #suggestions)
   end,
 
+  ["autocomplete:cycle"] = function()
+    local newidx = suggestions_idx + 1
+    if newidx > #suggestions then newidx = 1 end
+    suggestions_idx = newidx
+  end,
+
   ["autocomplete:cancel"] = function()
     reset_suggestions()
   end,
