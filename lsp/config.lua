@@ -11,12 +11,43 @@
 
 local lsp = require "plugins.lsp"
 
+local function merge(a, b)
+  local output = {}
+  local stack = { a, output, b, output }
+  while #stack > 0 do
+    local target = table.remove(stack)
+    local src = table.remove(stack)
+    for key, value in pairs(src) do
+      if type(value) == "table" then
+        stack[#stack+1] = value
+        if type(target[key]) ~= "table" then target[key] = {} end
+        stack[#stack+1] = target[key]
+      else
+        target[key] = value
+      end
+    end
+  end
+  return output
+end
+
+local function add_lsp(o)
+  return {
+    setup = function(p)
+      local options = merge(p, o)
+      lsp.add_server(options)
+    end
+  }
+end
+
+
+local lspconfig = {}
+
 -- bash-language-server
 -- Status: Works but performs really badly
 --         set 'requests_per_second' to 2-4 if too slow
 -- Site: https://github.com/bash-lsp/bash-language-server
 -- Installation: npm i -g bash-language-server
-lsp.add_server {
+lspconfig.bashls = add_lsp {
   name = "bash-language-server",
   language = "shell",
   file_patterns = { "%.sh$" },
@@ -29,7 +60,7 @@ lsp.add_server {
 -- Status: Works
 -- Site: https://clangd.llvm.org/
 -- Installation: install the clang software package on your system
-lsp.add_server {
+lspconfig.clangd = add_lsp {
   name = "clangd",
   language = "c/cpp",
   file_patterns = {
@@ -45,7 +76,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://clojure-lsp.github.io/
 -- Installation: https://clojure-lsp.github.io/clojure-lsp/installation/
-lsp.add_server {
+lspconfig.clojure_lsp = add_lsp {
   name = "clojure-lsp",
   language = "clojure",
   file_patterns = { "%.clj$", "%.cljs$", "%.clc$", "%.edn$" },
@@ -57,7 +88,7 @@ lsp.add_server {
 -- Status: Requires snippets support for completion to work which isn't implemented
 -- Site: https://github.com/vscode-langservers/vscode-css-languageserver-bin
 -- Installation: npm install -g vscode-css-languageserver-bin
-lsp.add_server {
+lspconfig.cssls = add_lsp {
   name = "css-languageserver",
   language = "css",
   file_patterns = {"%.css$", "%.less$", "%.sass$"},
@@ -69,7 +100,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://github.com/rcjsuen/dockerfile-language-server-nodejs
 -- Installation: npm install -g dockerfile-language-server-nodejs
-lsp.add_server {
+lspconfig.dockerls = add_lsp {
   name = "docker-langserver",
   language = "dockerfile",
   file_patterns = { "Dockerfile$" },
@@ -81,7 +112,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://flow.org/
 -- Installation: npm install -g flow-bin
-lsp.add_server {
+lspconfig.flow = add_lsp {
   name = "flow",
   language = "javascript",
   file_patterns = { "%.js$", "%.jsx$" },
@@ -93,7 +124,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://pkg.go.dev/golang.org/x/tools/gopls
 -- Installation: go get -u golang.org/x/tools/gopls
-lsp.add_server {
+lspconfig.gopls = add_lsp {
   name = "gopls",
   language = "go",
   file_patterns = { "%.go$" },
@@ -110,7 +141,7 @@ lsp.add_server {
 --    git clone https://github.com/prominic/groovy-language-server.git
 --    cd ~/lsp/groovy-language-server
 --    ./gradlew build
-lsp.add_server {
+lspconfig.groovyls = add_lsp {
   name = "groovy-language-server",
   language = "groovy",
   file_patterns = { "%.groovy$", "%.gvy$", "%.gy$", "%.gsh$" },
@@ -124,7 +155,7 @@ lsp.add_server {
 -- Site: https://github.com/haskell/haskell-language-server
 -- Installation: ghcup install hls
 -- or https://github.com/haskell/haskell-language-server#installation
-lsp.add_server {
+lspconfig.hls = add_lsp {
   name = "haskell-language-server",
   language = "haskell",
   file_patterns = { "%.hs$", "%.lhs$" },
@@ -136,7 +167,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://github.com/vscode-langservers/vscode-html-languageserver-bin
 -- Installation: npm install --global vscode-html-languageserver-bin
-lsp.add_server {
+lspconfig.html = add_lsp {
   name = "html-languageserver",
   language = "html",
   file_patterns = { "%.html$" },
@@ -148,7 +179,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://www.npmjs.com/package/vscode-json-languageserver
 -- Installation: npm install -g vscode-json-languageserver
-lsp.add_server {
+lspconfig.jsonls = add_lsp {
   name = "vscode-json-languageserver",
   language = "json",
   file_patterns = { "%.json$", "%.jsonc$" },
@@ -160,7 +191,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://github.com/joe-re/sql-language-server
 -- Installation: npm i -g sql-language-server
-lsp.add_server {
+lspconfig.sqlls = add_lsp {
   name = "sql-language-server",
   language = "sql",
   file_patterns = { "%.sql$" },
@@ -172,7 +203,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://github.com/theia-ide/typescript-language-server
 -- Installation: npm install -g typescript typescript-language-server
-lsp.add_server {
+lspconfig.tsserver = add_lsp {
   name = "typescript-language-server",
   language = "javascript",
   file_patterns = { "%.js$", "%.cjs$", "%.mjs$" },
@@ -184,7 +215,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://github.com/fwcd/kotlin-language-server
 -- Installation: https://github.com/fwcd/kotlin-language-server/releases
-lsp.add_server {
+lspconfig.kotlin_language_server = add_lsp {
   name = "kotlin-language-server",
   language = "kotlin",
   file_patterns = { "%.kt$", "%.kts$", "%.ktm$" },
@@ -198,7 +229,7 @@ lsp.add_server {
 -- Installation: npm -g install intelephense
 -- Note: Set your license and storage by passing the init_options as follows:
 -- init_options = { licenceKey = "...", storagePath = "/some/path"}
-lsp.add_server {
+lspconfig.intelephense = add_lsp {
   name = "intelephense",
   language = "php",
   file_patterns = {"%.php$"},
@@ -213,7 +244,7 @@ lsp.add_server {
 -- Note: Also don't forget to install any additional optional dependencies
 -- for additional features like: rope, pyflakes, flake8, pycodestyle,
 -- pylint, autopep8, yapf, pydocstyle
-lsp.add_server {
+lspconfig.pylsp = add_lsp {
   name = "pyls",
   language = "python",
   file_patterns = { "%.py$" },
@@ -225,7 +256,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://github.com/castwide/solargraph
 -- Installation: gem install solargraph
-lsp.add_server {
+lspconfig.solargraph = add_lsp {
   name = "solargraph",
   language = "ruby",
   file_patterns = { "%.rb$" },
@@ -237,7 +268,7 @@ lsp.add_server {
 -- Status: Works
 -- Site: https://github.com/rust-lang/rls
 -- Installation: Install rust on your system
-lsp.add_server {
+lspconfig.rls = add_lsp {
   name = "rust-language-server",
   language = "rust",
   file_patterns = { "%.rs$" },
@@ -249,15 +280,10 @@ lsp.add_server {
 -- Status: Works
 -- Site: https://github.com/sumneko/lua-language-server
 -- Installation: https://github.com/sumneko/lua-language-server/wiki/Build-and-Run-(Standalone)
-lsp.add_server {
+lspconfig.sumneko_lua = add_lsp {
   name = "lua-language-server",
   language = "lua",
   file_patterns = {"%.lua$"},
-  command = {
-    "/path/to/lua-language-server/bin/Linux/lua-language-server",
-    "-E",
-    "/path/to/lua-language-server/main.lua"
-  },
   verbose = false,
   settings = {
     Lua = {
@@ -297,7 +323,7 @@ lsp.add_server {
         preloadFileSize = 1000
       },
       telemetry = {
-        enable = true
+        enable = false
       }
     }
   }
@@ -311,7 +337,7 @@ lsp.add_server {
 --  git clone https://github.com/vlang/vls.git vls && cd vls/
 --  v -prod cmd/vls
 --  mv cmd/vls vlang-vls
-lsp.add_server {
+lspconfig.vls = add_lsp {
   name = "vlang-vls",
   language = "v",
   file_patterns = { "%.v$" },
@@ -323,7 +349,7 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://github.com/iamcco/vim-language-server
 -- Installation: npm install -g vim-language-server
-lsp.add_server {
+lspconfig.vimls = add_lsp {
   name = "vim-language-server",
   language = "vim",
   file_patterns = { "%.vim$" },
@@ -335,10 +361,12 @@ lsp.add_server {
 -- Status: Untested
 -- Site: https://github.com/redhat-developer/yaml-language-server
 -- Installation: Install rust on your system
-lsp.add_server {
+lspconfig.yamlls = add_lsp {
   name = "yaml-language-server",
   language = "yaml",
   file_patterns = { "%.yml$", "%.yaml$" },
   command = { 'yaml-language-server', '--stdio' },
   verbose = false
 }
+
+return lspconfig
