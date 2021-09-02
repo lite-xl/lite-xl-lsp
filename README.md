@@ -4,13 +4,13 @@ Plugin that provides intellisense for Lite XL by leveraging the
 [LSP protocol](https://microsoft.github.io/language-server-protocol/specifications/specification-current/).
 While still a work in progress it already implements all the most important
 features to make your life easier while coding with Lite XL. Using it
-requires the latest changes on the master branch of __Lite XL__ which
-includes the new lua __process__ functionality in order to communicate
-with lsp servers. Also [lint+](https://github.com/liquidev/lintplus)
-is used for diagnostics so make sure to grab that too.
+requires at least __Lite XL v2.0.1__  which includes the new lua __process__
+functionality in order to communicate with lsp servers.
+Also  [lint+](https://github.com/liquidev/lintplus) is used to render
+diagnostic messages while you type so make sure to grab that too.
 
 To test, clone this project, place the __lsp__ directory in your plugins
-directory, then replace or overwrite __autocomplete.lua__ plugin with the
+directory, then override __autocomplete.lua__ plugin with the
 version on this repository which should later be merged into upstream.
 Finally you will need the [Widgets](https://github.com/jgmdev/lite-xl-widgets)
 small lib so make sure to also drop it into your lite-xl configs directory.
@@ -39,9 +39,8 @@ Stuff that is currently implemented:
 
 ## Setting a LSP Server
 
-To add an lsp server in your user init.lua file you can see the
-__[serverlist.lua](https://github.com/jgmdev/lite-xl-lsp/blob/master/lsp/serverlist.lua)__
-as an example, the structure is as follows:
+To add an lsp server in your user init.lua file you need to require the lsp
+plugin and use the **add_server** function as shown below:
 
 ```lua
 local lsp = require "plugins.lsp"
@@ -68,7 +67,62 @@ lsp.add_server {
 }
 ```
 
-### LSP Settings
+an example:
+
+```lua
+lsp.add_server {
+  name = "intelephense",
+  language = "php",
+  file_patterns = {"%.php$"},
+  command = { "intelephense", "--stdio" },
+  verbose = false
+}
+```
+
+### Using predefined list of servers
+
+Besides manually defining your lsp servers you can use the
+__[config.lua](https://github.com/jgmdev/lite-xl-lsp/blob/master/lsp/config.lua)__
+file shipped with the lsp plugin which already contains a list of predefined
+servers (notice: not all of them have been tested to work). Require this file
+on your users **init.lua** and overwrite the configuration options of the
+defined lsp servers if needed as shown below:
+
+```lua
+local lspconfig = require "plugins.lsp.config"
+
+-- Define the command to launch sumneko lsp and disable diagnostics
+lspconfig.sumneko_lua {
+  command = {
+    "/path/to/lua-language-server/bin/Linux/lua-language-server",
+    "-E",
+    "/path/to/lua-language-server/main.lua"
+  },
+  settings = {
+    Lua = {
+      diagnostics = {
+        enable = false
+      }
+    }
+  }
+}
+
+-- Pass additional initializationOptions to intelephense like the license
+-- key which enables premium features as symbol renaming.
+lspconfig.intelephense {
+  init_options = {
+    licenceKey = "MYLICENSEKEY",
+    storagePath = "/home/myuser/.cache/intelephense"
+  }
+}
+```
+
+If your preferred LSP server is not listed on the config.lua file feel free
+to submit a __pull request__ with the addition!
+
+## LSP Plugin Settings
+
+Configuration options that can be used to control the plugin behaviour:
 
 ```lua
 ---Set to a file path to log all json
