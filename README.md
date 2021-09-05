@@ -91,8 +91,9 @@ defined lsp servers if needed as shown below:
 ```lua
 local lspconfig = require "plugins.lsp.config"
 
+-- Note: you MUST specify where lua-language-server is
 -- Define the command to launch sumneko lsp and disable diagnostics
-lspconfig.sumneko_lua {
+lspconfig.sumneko_lua.setup {
   command = {
     "/path/to/lua-language-server/bin/Linux/lua-language-server",
     "-E",
@@ -109,7 +110,7 @@ lspconfig.sumneko_lua {
 
 -- Pass additional initializationOptions to intelephense like the license
 -- key which enables premium features as symbol renaming.
-lspconfig.intelephense {
+lspconfig.intelephense.setup {
   init_options = {
     licenceKey = "MYLICENSEKEY",
     storagePath = "/home/myuser/.cache/intelephense"
