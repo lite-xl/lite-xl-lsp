@@ -289,6 +289,18 @@ lspconfig.rls = add_lsp {
   verbose = false
 }
 
+-- Rust Analyzer
+-- Status: Works
+-- Site: https://rust-analyzer.github.io/
+-- Installation: See official website for instructions
+lspconfig.rust_analyzer = add_lsp {
+  name = "rust-analyzer",
+  language = "rust",
+  file_patterns = { "%.rs$" },
+  command = { 'rust-analyzer' },
+  verbose = true
+}
+
 -- lua-language-server
 -- Status: Works
 -- Site: https://github.com/sumneko/lua-language-server
