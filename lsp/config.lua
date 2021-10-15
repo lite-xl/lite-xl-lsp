@@ -238,17 +238,30 @@ lspconfig.intelephense = add_lsp {
 }
 
 -- python-language-server
--- Status: Works
+-- Status: Works (deprecated in favor of python-lsp-server)
 -- Site: https://github.com/palantir/python-language-server
 -- Installation: pip install python-language-server
 -- Note: Also don't forget to install any additional optional dependencies
--- for additional features like: rope, pyflakes, flake8, pycodestyle,
--- pylint, autopep8, yapf, pydocstyle
-lspconfig.pylsp = add_lsp {
+-- for additional features (see official site for details).
+lspconfig.pyls = add_lsp {
   name = "pyls",
   language = "python",
   file_patterns = { "%.py$" },
   command = { 'pyls' },
+  verbose = false
+}
+
+-- python-lsp-server
+-- Status: Works
+-- Site: https://github.com/python-lsp/python-lsp-server
+-- Installation: pip install python-lsp-server
+-- Note: Also don't forget to install any additional optional dependencies
+-- for additional features (see official site for details).
+lspconfig.pylsp = add_lsp {
+  name = "pylsp",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { 'pylsp' },
   verbose = false
 }
 
