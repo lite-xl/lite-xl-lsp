@@ -1106,7 +1106,7 @@ function Server:read_errors(timeout)
     end
   end
 
-  return output
+  return output or ""
 end
 
 ---Try to send a request to a server in a specific amount of time.
