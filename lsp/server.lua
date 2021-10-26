@@ -261,8 +261,8 @@ function Server:initialize(workspace, editor_name, editor_version)
             -- hierarchicalDocumentSymbolSupport = true,
             -- tagSupport = {valueSet = {}},
             -- labelSupport = true
-          }
-          -- formatting = {dynamicRegistration = false}, -- not supported
+          },
+          formatting = {dynamicRegistration = true},
           -- rangeFormatting = {dynamicRegistration = false}, -- not supported
           -- onTypeFormatting = {dynamicRegistration = false}, -- not supported
           -- declaration = {

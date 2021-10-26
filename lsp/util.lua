@@ -153,11 +153,11 @@ end
 ---@param command string
 ---@return boolean
 function util.command_exists(command)
-  local path_list = {}
-
   if util.file_exists(command) then
     return true
   end
+
+  local path_list = {}
 
   if PLATFORM ~= "Windows" then
     path_list = util.split(os.getenv("PATH"), ":")

@@ -1495,6 +1495,55 @@ function lsp.request_document_symbols(doc)
   end
 end
 
+--- Format current document if supported by one of the running lsp servers.
+function lsp.request_document_format(doc)
+  if not doc.lsp_open then return end
+
+  local servers_found = false
+  local format_executed = false
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+    servers_found = true
+    local server = lsp.servers_running[name]
+    if server.capabilities.documentSymbolProvider then
+      server:push_request(
+        'textDocument/formatting',
+        {
+          textDocument = {
+            uri = Util.touri(system.absolute_path(doc.filename)),
+          },
+          options = {
+            tabSize = config.indent_size,
+            insertSpaces = config.tab_type == "soft",
+            trimTrailingWhitespace = config.plugins.trimwhitespace or true,
+            insertFinalNewline = false,
+            trimFinalNewlines = true
+          }
+        },
+        function(server, response)
+          if response.error and response.error.message then
+            log(server, "Error formatting: " .. response.error.message)
+          elseif response.result and #response.result > 0 then
+            for _, result in pairs(response.result) do
+              apply_edit(doc, result)
+            end
+            log(server, "Formatted document")
+          else
+            log(server, "Formatting not required")
+          end
+        end
+      )
+      format_executed = true
+      break
+    end
+  end
+
+  if not servers_found then
+    core.log("[LSP] " .. "No server running")
+  elseif not format_executed then
+    core.log("[LSP] " .. "Formatting not supported")
+  end
+end
+
 function lsp.view_document_diagnostics(doc)
   local diagnostics = Diagnostics.get(system.absolute_path(doc.filename))
   if not diagnostics or #diagnostics <= 0 then
@@ -1970,6 +2019,15 @@ command.add("core.docview", {
     end
   end,
 
+  ["lsp:format-document"] = function()
+    if core.active_view and core.active_view.doc then
+      local doc = core.active_view.doc
+      if doc and doc.filename then
+        lsp.request_document_format(doc)
+      end
+    end
+  end,
+
   ["lsp:view-document-diagnostics"] = function()
     if core.active_view and core.active_view.doc then
       local doc = core.active_view.doc
@@ -2051,6 +2109,7 @@ keymap.add {
   ["alt+s"]             = "lsp:view-document-symbols",
   ["alt+shift+s"]       = "lsp:find-workspace-symbol",
   ["alt+f"]             = "lsp:find-references",
+  ["alt+shift+f"]       = "lsp:format-document",
   ["alt+e"]             = "lsp:view-document-diagnostics",
   ["ctrl+alt+e"]        = "lsp:view-all-diagnostics",
   ["alt+shift+e"]       = "lsp:toggle-diagnostics",
@@ -2110,7 +2169,8 @@ if found then
     menu.DIVIDER,
     { text = "Document Symbols",       command = "lsp:view-document-symbols" },
     { text = "Document Diagnostics",   command = "lsp:view-document-diagnostics" },
-    { text = "Toggle Diagnostics",     command = "lsp:toggle-diagnostics" }
+    { text = "Toggle Diagnostics",     command = "lsp:toggle-diagnostics" },
+    { text = "Format Document",        command = "lsp:format-document" },
   })
 end
 

@@ -33,6 +33,7 @@ Stuff that is currently implemented:
 * Find workspace symbols (__alt+shift+s__)
 * View/jump to symbol references (__alt+f__)
 * View/jump to document diagnostic messages (__alt+e__)
+* Document format (__alt+shift+f__)
 * Optional diagnostics rendering while typing with
   [LintPlus](https://github.com/liquidev/lintplus) (__alt+shift+e__ to toggle)
 * List all documents with diagnostics (__ctrl+alt+e__)
@@ -60,7 +61,8 @@ lsp.add_server {
   -- 10KB, if this gives issues set to false to write everything at once.
   requests_in_chunks = true,
   -- Some servers like bash language server support incremental changes
-  -- which are more performant but don't advertise it
+  -- which are more performant but don't advertise it, set to true to force
+  -- incremental changes even if server doesn't advertise them.
   incremental_changes = false,
   -- True to debug the lsp client when developing it
   verbose = false
