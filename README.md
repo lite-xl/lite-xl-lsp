@@ -163,7 +163,7 @@ config.plugins.lsp.force_verbosity_off = false
 - [ ] Completion preselectSupport (needs autocomplete plugin change)
 - [ ] Add symbol renaming support 'textDocument/rename'
 - [ ] Add Snippets support (this will need a whole standalone plugin).
-- [ ] Fix issues when parsing stdout from some lsp servers (eg: css-languageserver).
+- [x] Fix issues when parsing stdout from some lsp servers (really fixed?).
 - [x] More improvements to autocomplete.lua plugin
   - [x] Detect view edges and render to the most visible side
   - [x] Description box, detect view width and expand accordingly
