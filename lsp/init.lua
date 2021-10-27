@@ -1504,7 +1504,7 @@ function lsp.request_document_format(doc)
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     servers_found = true
     local server = lsp.servers_running[name]
-    if server.capabilities.documentSymbolProvider then
+    if server.capabilities.documentFormattingProvider then
       server:push_request(
         'textDocument/formatting',
         {

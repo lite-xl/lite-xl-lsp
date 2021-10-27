@@ -221,7 +221,7 @@ function Server:initialize(workspace, editor_name, editor_version)
             -- willSave = true,
             -- willSaveWaitUntil = true,
             didSave = true,
-            dynamicRegistration = true
+            -- dynamicRegistration = false -- not supported
           },
           completion = {
             -- dynamicRegistration = false, -- not supported
@@ -262,7 +262,7 @@ function Server:initialize(workspace, editor_name, editor_version)
             -- tagSupport = {valueSet = {}},
             -- labelSupport = true
           },
-          formatting = {dynamicRegistration = true},
+          -- formatting = {dynamicRegistration = false},-- not supported
           -- rangeFormatting = {dynamicRegistration = false}, -- not supported
           -- onTypeFormatting = {dynamicRegistration = false}, -- not supported
           -- declaration = {
