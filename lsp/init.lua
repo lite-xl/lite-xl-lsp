@@ -757,8 +757,8 @@ function lsp.open_document(doc)
         local file_info = system.get_file_info(
           system.absolute_path(doc.filename)
         )
-        if file_info.size / 1024 <= 100 then
-          -- file is in the range of 100kb so push the notification as usual.
+        if file_info.size / 1024 <= 50 then
+          -- file is in the range of 50kb so push the notification as usual.
           server:push_notification(
             'textDocument/didOpen',
             {
@@ -772,8 +772,9 @@ function lsp.open_document(doc)
             function() doc.lsp_open = true end
           )
         else
-          -- file seems too big and json encoder is too slow, plus sending a
-          -- huge file without yielding would stall the ui
+          -- big files too slow for json encoder, also sending a huge file
+          -- without yielding would stall the ui, and some lsp servers have
+          -- issues with receiving big files in a single chunk.
           local text = doc
             :get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
             :gsub('\\', '\\\\'):gsub("\n", "\\n"):gsub("\r", "\\r")
