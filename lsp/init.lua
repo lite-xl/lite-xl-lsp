@@ -758,7 +758,7 @@ function lsp.open_document(doc)
           system.absolute_path(doc.filename)
         )
         if file_info.size / 1024 <= 50 then
-          -- file is in the range of 50kb so push the notification as usual.
+          -- file size is in range so push the notification as usual.
           server:push_notification(
             'textDocument/didOpen',
             {

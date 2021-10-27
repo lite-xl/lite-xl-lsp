@@ -166,10 +166,11 @@ function Server:new(options)
   self.write_fails_before_shutdown = 60
   self.verbose = options.verbose or false
   self.initialized = false
+  self.initialized_warmup = 0
   self.hitrate_list = {}
   self.requests_per_second = options.requests_per_second or 16
-  self.requests_in_chunks = type(options.requests_in_chunks) ~= "nil" and
-    options.requests_in_chunks or true
+  self.requests_in_chunks = type(options.requests_in_chunks) == "nil" and
+    true or options.requests_in_chunks
 
   self.proc = process.start(
     options.command, {
@@ -359,12 +360,21 @@ function Server:initialize(workspace, editor_name, editor_version)
         end
 
         server.initialized = true;
+        server.initialized_warmup = os.time() + 3
 
         server:notify('initialized') -- required by protocol
         server:send_event_signal("initialized", server, result)
       end
     end
   )
+end
+
+function Server:is_initialized()
+  -- We use a warmup to prevent initialization issues
+  if self.initialized and self.initialized_warmup < os.time() then
+    return true
+  end
+  return false
 end
 
 ---Register an event listener.
@@ -470,7 +480,7 @@ end
 
 ---Sends one of the queued notifications.
 function Server:process_notifications()
-  if not self.initialized then return end
+  if not self:is_initialized() then return end
 
   for index, request in ipairs(self.notification_list) do
     local message = {
@@ -561,7 +571,7 @@ function Server:process_requests()
 
         self.write_fails = 0
 
-        -- if request has been sent more than 3 times remove them
+        -- if request has been sent more than 2 times remove them
         self.request_list[id].times_sent = self.request_list[id].times_sent + 1
         if
           self.request_list[id].times_sent > 1
@@ -626,7 +636,7 @@ end
 
 ---Sends all queued client responses to server.
 function Server:process_client_responses()
-  if not self.initialized then return end
+  if not self:is_initialized() then return end
 
   for index, response in pairs(self.response_list) do
     local message = {
@@ -671,11 +681,6 @@ end
 ---because of not flushing the stderr (especially true of clangd).
 ---@param log_errors boolean
 function Server:process_errors(log_errors)
-  -- only process when initialized
-  if not self.initialized then
-    return nil
-  end
-
   local errors = self:read_errors(0)
 
   if #errors > 0 and log_errors then
@@ -688,7 +693,18 @@ end
 ---Send one of the queued chunks of raw data to lsp server which are
 ---usually huge, like the textDocument/didOpen notification.
 function Server:process_raw()
-  if not self.initialized then return end
+  if not self:is_initialized() then return end
+
+  -- Wait until everything else is processed to prevent initialization issues
+  if
+    #self.notification_list > 0
+    or
+    #self.request_list > 0
+    or
+    #self.response_list > 0
+  then
+    return
+  end
 
   if not self.proc:running() then
     self.raw_list = {}
@@ -801,9 +817,9 @@ local notifications_whitelist = {
 ---@param params table
 ---@param callback lsp.server.notificationcb
 function Server:push_notification(method, params, callback)
-  if not self.initialized then return end
-
   if
+    method ~= "textDocument/didOpen"
+    and
     self:hitrate_reached("request")
     and
     not util.intable(method, notifications_whitelist)
@@ -837,11 +853,13 @@ local requests_whitelist = {
 ---@param params table
 ---@param callback lsp.server.responsecb
 function Server:push_request(method, params, callback)
-  if not self.initialized and method ~= "initialize" then
+  if not self:is_initialized() and method ~= "initialize" then
     return
   end
 
   if
+    method ~= "initialize"
+    and
     self:hitrate_reached("request")
     and
     not util.intable(method, requests_whitelist)
@@ -901,8 +919,6 @@ end
 ---@param data table
 ---@param callback lsp.server.callback
 function Server:push_raw(data, callback)
-  if not self.initialized then return end
-
   if self.verbose then
     self:log("Adding raw request")
   end
