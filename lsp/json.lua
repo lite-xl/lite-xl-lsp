@@ -193,16 +193,6 @@ local literal_map = {
   [ "null"  ] = nil,
 }
 
-local function next_char(str, idx, set, negate)
-  for i = idx, #str do
-    if set[str:sub(i, i)] ~= negate then
-      return i
-    end
-  end
-  return #str + 1
-end
-
-
 local function decode_error(str, idx, msg)
   local line_count = 1
   local col_count = 1
@@ -214,6 +204,20 @@ local function decode_error(str, idx, msg)
     end
   end
   error_message = string.format("%s at line %d col %d", msg, line_count, col_count)
+end
+
+
+local function next_char(str, idx, set, negate)
+  if type(idx) ~= "number" then
+    decode_error(str, #str, "invalid json string")
+    return #str + 1
+  end
+  for i = idx, #str do
+    if set[str:sub(i, i)] ~= negate then
+      return i
+    end
+  end
+  return #str + 1
 end
 
 
@@ -437,6 +441,10 @@ end
 --- @param indent_width integer The amount of spaces per indentation
 --- @return string
 function json.prettify(text, indent_width)
+  if type(text) ~= "string" then
+    return ""
+  end
+
   local out = ""
   indent_width = indent_width or 2
 

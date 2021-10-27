@@ -949,6 +949,7 @@ function Server:read_responses(timeout)
   end
 
   local responses = {}
+  local readmode = ""
 
   local bytes = 0;
   if output ~= "" then
@@ -1001,9 +1002,11 @@ function Server:read_responses(timeout)
           end
         end
 
+        readmode = "Response header and content received at once:\n"
+
         if self.verbose then
           self:log(
-            "Response header and content received at once:\n%s",
+            readmode .. "%s",
             output
           )
         end
@@ -1022,24 +1025,18 @@ function Server:read_responses(timeout)
 
         table.insert(responses, output)
 
+        readmode = "Response header and content received separately:\n"
+
         if self.verbose then
           self:log(
-            "Response header and content received separately:\n%s",
+            readmode .. "%s",
             output
           )
-
-          -- TODO: Debug this having issues with some servers
-          --local thefile = io.open("/home/user/.config/lite-xl/out.txt", "a+")
-          --thefile:write("Output: \n" .. output .. "\n")
-          --for _,value in pairs(responses) do
-          --  thefile:write(value .. "\n")
-          --end
-          --thefile:close()
         end
       end
     elseif #output > 0 then
       if self.verbose then
-        self:log("Output withuot header:\n%s", output)
+        self:log("Output without header:\n%s", output)
       end
     end
   end
@@ -1052,10 +1049,12 @@ function Server:read_responses(timeout)
       else
         responses[index] = nil
         self:log(
-          "JSON Parser Error: %s\n%s",
+          "JSON Parser Error: %s\n%s\n%s",
           json.last_error(),
-          util.jsonprettify(data)
+          readmode,
+          output
         )
+        return false
       end
     end
 
