@@ -965,7 +965,7 @@ function Server:read_responses(timeout)
       end
     end
 
-    if output:find('^Content%-Length: %d+') then
+    if output:find('^Content%-Length: %d+\r\n') then
       bytes = tonumber(output:match("%d+"))
 
       local header_content = util.split(output, "\r\n\r\n")
@@ -1011,8 +1011,14 @@ function Server:read_responses(timeout)
           )
         end
       else
-        -- read again to retrieve actual response content
-        output = ""
+        -- store partial content if available
+        if #header_content > 1 and #header_content[2] > 0 then
+          output = header_content[2]
+        else
+          output = ""
+        end
+
+        -- read again to retrieve full response content
         while #output < bytes do
           local chars = self.proc:read_stdout(bytes - #output)
           if #chars > 0 then
