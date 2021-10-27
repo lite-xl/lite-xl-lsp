@@ -298,7 +298,7 @@ lspconfig.rust_analyzer = add_lsp {
   language = "rust",
   file_patterns = { "%.rs$" },
   command = { 'rust-analyzer' },
-  verbose = true
+  verbose = false
 }
 
 -- lua-language-server
@@ -391,6 +391,18 @@ lspconfig.yamlls = add_lsp {
   language = "yaml",
   file_patterns = { "%.yml$", "%.yaml$" },
   command = { 'yaml-language-server', '--stdio' },
+  verbose = false
+}
+
+-- Zig Language Server
+-- Status: Untested
+-- Site: https://github.com/zigtools/zls
+-- Installation: See official website for instructions
+lspconfig.zls = add_lsp {
+  name = "zls",
+  language = "zig",
+  file_patterns = { "%.zig$" },
+  command = { 'zls' },
   verbose = false
 }
 
