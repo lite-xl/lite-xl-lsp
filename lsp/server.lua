@@ -34,6 +34,7 @@ local Object = require "core.object"
 ---@field public write_fails_before_shutdown integer
 ---@field public verbose boolean
 ---@field public initialized boolean
+---@field public initialized_warmup integer
 ---@field public hitrate_list table
 ---@field public requests_per_second integer
 ---@field public requests_in_chunks boolean
