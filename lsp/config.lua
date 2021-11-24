@@ -237,6 +237,19 @@ lspconfig.intelephense = add_lsp {
   verbose = false
 }
 
+-- ocaml-lsp
+-- Status: Reported working on https://github.com/jgmdev/lite-xl-lsp/issues/17
+-- Site: https://github.com/ocaml/ocaml-lsp
+-- Installation: https://github.com/ocaml/ocaml-lsp#installation
+lspconfig.ocaml_lsp = add_lsp {
+  name = "ocaml-lsp",
+  language = "ocaml",
+  file_patterns = {"%.ml$", "%.mli$"},
+  command = {"ocamllsp"},
+  id_not_extension = true,
+  verbose = false
+}
+
 -- python-language-server
 -- Status: Works (deprecated in favor of python-lsp-server)
 -- Site: https://github.com/palantir/python-language-server
