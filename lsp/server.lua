@@ -148,6 +148,7 @@ function Server:new(options)
 
   self.name = options.name
   self.language = options.language
+  self.id_not_extension = options.id_not_extension or false
   self.file_patterns = options.file_patterns
   self.current_request = 0
   self.init_options = options.init_options or {}
