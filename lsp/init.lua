@@ -262,8 +262,8 @@ local function apply_edit(doc, text_edit)
   end
 
   doc:remove(line1, col1, line2, col2+#current_text)
-  doc:insert(line1, col1, text_edit.newText)
-  doc:set_selection(line2, col2+#text, line2, col2+#text)
+  doc:insert(line1, col1, text)
+  doc:set_selection(line2, col1+#text, line2, col1+#text)
   lsp.update_document(doc)
 
   return true
