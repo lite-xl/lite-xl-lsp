@@ -967,9 +967,9 @@ function lsp.update_document(doc)
           .. '"uri": "'..Util.touri(system.absolute_path(doc.filename))..'",'
           .. '"version": '..doc.lsp_version
           .. '},'
-          .. '"contentChanges": {'
-          .. '"text": "'..text..'"'
-          .. "}"
+          .. '"contentChanges": ['
+          .. '{"text": "'..text..'"}'
+          .. "]"
           .. '} '
           .. '}'
         )
