@@ -982,6 +982,9 @@ function Server:read_responses(timeout)
     while more_output ~= "" do
       more_output = self.proc:read_stdout(1024)
       if more_output ~= "" then
+        if more_output == nil then
+          break
+        end
         output = output .. more_output
         if inside_coroutine then
           coroutine.yield()
@@ -1002,6 +1005,9 @@ function Server:read_responses(timeout)
         while new_output ~= "" do
           new_output = self.proc:read_stdout(1024)
           if new_output ~= "" then
+            if new_output == nil then
+              break
+            end
             output = output .. new_output
             if inside_coroutine then
               coroutine.yield()
