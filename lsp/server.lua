@@ -107,14 +107,16 @@ Server.symbol_kind = {
   'Null', 'EnumMember', 'Struct', 'Event', 'Operator', 'TypeParameter'
 }
 
----Get list of completion kinds or label if id is given.
----@param id? integer
----@return table|string
-function Server.get_completion_items_kind(id)
-  if id then
-    return Server.completion_item_kind[id]
-  end
+---Get a completion kind label from its id or empty string if not found.
+---@param id integer
+---@return string
+function Server.get_completion_item_kind(id)
+  return Server.completion_item_kind[id] or ""
+end
 
+---Get list of completion kinds.
+---@return table
+function Server.get_completion_items_kind_list()
   local list = {}
   for i = 1, #Server.completion_item_kind do
     if i ~= 15 then --Disable snippets
@@ -125,14 +127,16 @@ function Server.get_completion_items_kind(id)
   return list
 end
 
----Get list of symbol kinds or label if id is given.
----@param id? integer
----@return table|string
-function Server.get_symbols_kind(id)
-  if id then
-    return Server.symbol_kind[id]
-  end
+---Get a symbol kind label from its id or empty string if not found.
+---@param id integer
+---@return string
+function Server.get_symbol_kind(id)
+  return Server.symbol_kind[id] or ""
+end
 
+---Get list of symbol kinds.
+---@return table
+function Server.get_symbols_kind_list()
   local list = {}
   for i = 1, #Server.symbol_kind do
     list[i] = i
@@ -240,7 +244,9 @@ function Server:initialize(workspace, editor_name, editor_version)
               resolveSupport = {properties = {'documentation', 'detail'}},
               -- insertTextModeSupport = {valueSet = {}}
             },
-            completionItemKind = {valueSet = Server.get_completion_items_kind()}
+            completionItemKind = {
+              valueSet = Server.get_completion_items_kind_list()
+            }
             -- contextSupport = true
           },
           hover = {
@@ -260,7 +266,7 @@ function Server:initialize(workspace, editor_name, editor_version)
           -- documentHighlight = {dynamicRegistration = false}, -- not supported
           documentSymbol = {
             -- dynamicRegistration = false, -- not supported
-            symbolKind = {valueSet = Server.get_symbols_kind()}
+            symbolKind = {valueSet = Server.get_symbols_kind_list()}
             -- hierarchicalDocumentSymbolSupport = true,
             -- tagSupport = {valueSet = {}},
             -- labelSupport = true

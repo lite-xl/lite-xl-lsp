@@ -71,7 +71,7 @@ function SymbolResults:add_result(result)
     ListBox.COLEND,
     style.syntax.keyword, container_name .. result.name,
     ListBox.COLEND,
-    style.syntax.literal, Server.get_symbols_kind(result.kind),
+    style.syntax.literal, Server.get_symbol_kind(result.kind),
     ListBox.COLEND,
     style.text, position, ListBox.NEWLINE, style.accent, preview
   }

@@ -128,7 +128,7 @@ local function get_symbol_lists(list, parent)
     -- Include symbol kind to be able to filter by it
     local symbol_name = parent
       .. symbol.name
-      .. "||" .. Server.get_symbols_kind(symbol.kind)
+      .. "||" .. Server.get_symbol_kind(symbol.kind)
 
     table.insert(symbol_names, symbol_name)
 
@@ -1113,7 +1113,7 @@ function lsp.request_completion(doc, line, col, forced)
                 or symbol.insertText
               )
 
-            local info = server.get_completion_items_kind(symbol.kind) or ""
+            local info = server.get_completion_item_kind(symbol.kind)
 
             local desc = symbol.detail or ""
 
@@ -1483,7 +1483,7 @@ function lsp.request_document_symbols(doc)
                 for i, name in ipairs(res) do
                   res[i] = {
                     text = Util.split(name, "||")[1],
-                    info = Server.get_symbols_kind(symbols[name].kind),
+                    info = Server.get_symbol_kind(symbols[name].kind),
                     name = name
                   }
                 end
