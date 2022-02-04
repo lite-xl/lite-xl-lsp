@@ -207,7 +207,7 @@ function Server:initialize(workspace, editor_name, editor_version)
   self:push_request(
     'initialize',
     {
-      processId = nil,
+      processId = system["get_process_id"] and system.get_process_id() or nil,
       clientInfo = {
         name = editor_name or "unknown",
         version = editor_version or "0.1"
@@ -970,6 +970,10 @@ function Server:read_responses(timeout)
     if output == "" and inside_coroutine then
       coroutine.yield()
     end
+  end
+
+  if output == nil then
+    return false
   end
 
   local responses = {}
