@@ -383,6 +383,10 @@ end
 ---Open a document location returned by LSP
 ---@param location table
 function lsp.goto_location(location)
+  local source_line, source_col = core.active_view.doc:get_selection()
+  if not core.active_view.doc.lsp_stack then core.active_view.doc.lsp_stack = {} end
+  table.insert(core.active_view.doc.lsp_stack, {line = source_line, col = source_col})
+
   core.root_view:open_doc(
     core.open_doc(
       common.home_expand(
@@ -394,6 +398,15 @@ function lsp.goto_location(location)
     location.range or location.targetRange
   )
   core.active_view.doc:set_selection(line1, col1, line1, col1)
+end
+
+function lsp.go_back()
+  if core.active_view.doc.lsp_stack then
+    local last = table.remove(core.active_view.doc.lsp_stack)
+    if last then
+      core.active_view.doc:set_selection(last.line, last.col, last.line, last.col)
+    end
+  end
 end
 
 lsp.get_location_preview = get_location_preview
@@ -2105,6 +2118,10 @@ command.add("core.docview", {
     end
     lsp.toggle_diagnostics()
   end,
+
+  ["lsp:go-back"] = function()
+    lsp.go_back()
+  end
 })
 
 --
@@ -2125,6 +2142,7 @@ keymap.add {
   ["alt+shift+e"]       = "lsp:toggle-diagnostics",
   ["alt+c"]             = "lsp:view-call-hierarchy",
   ["alt+r"]             = "lsp:rename-symbol",
+  ["alt+z"]             = "lsp:go-back",
 }
 
 --
