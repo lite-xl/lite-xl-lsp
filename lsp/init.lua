@@ -29,9 +29,9 @@ local autocomplete = require "plugins.autocomplete"
 local Json = require "plugins.lsp.json"
 local Server = require "plugins.lsp.server"
 local Util = require "plugins.lsp.util"
-local Diagnostics = require "plugins.lsp.diagnostics"
 local SymbolResults = require "plugins.lsp.symbolresults"
 local listbox = require "plugins.lsp.listbox"
+local diagnostics = require "plugins.lsp.diagnostics"
 
 -- Try to load lintplus plugin if available for diagnostics rendering
 local lintplus = nil
@@ -44,31 +44,32 @@ end
 --
 
 ---Configuration options for the LSP plugin.
+---@class config.plugins.lsp @global
+---@field log_file string
+---@field prettify_json boolean
+---@field show_diagnostics boolean
+---@field stop_unneeded_servers boolean
+---@field log_server_stderr boolean
+---@field force_verbosity_off boolean
 config.plugins.lsp = {
   ---Set to a file path to log all json
-  ---@type string
   log_file = "",
 
   ---Setting to true prettyfies json for more readability on the log
   ---but this setting will impact performance so only enable it when
   ---in need of easy to read json output when developing the plugin.
-  ---@type boolean
   prettify_json = false,
 
   ---Show diagnostic messages
-  ---@type boolean
   show_diagnostics = true,
 
   ---Stop servers that aren't needed by any of the open files
-  ---@type boolean
   stop_unneeded_servers = true,
 
   ---Send a server stderr output to lite log
-  ---@type boolean
   log_server_stderr = false,
 
   ---Force verbosity off even if a server is configured with verbosity on
-  ---@type boolean
   force_verbosity_off = false
 }
 
@@ -655,7 +656,7 @@ function lsp.start_server(filename, project_directory)
             end
 
             if params.diagnostics and #params.diagnostics > 0 then
-              Diagnostics.add(filename, params.diagnostics)
+              diagnostics.add(filename, params.diagnostics)
 
               if
                 config.plugins.lsp.show_diagnostics
@@ -673,7 +674,7 @@ function lsp.start_server(filename, project_directory)
                 end
               end
             else
-              Diagnostics.clear(filename)
+              diagnostics.clear(filename)
               if
                 config.plugins.lsp.show_diagnostics
                 and
@@ -736,6 +737,15 @@ end
 
 --- Send notification to applicable LSP servers that a document was opened
 function lsp.open_document(doc)
+  -- in some rare ocassions this function may return nil when the
+  -- user closed lite-xl with files opened, removed the files from system
+  -- and opens lite-xl again which loads the non existent files.
+  local doc_path = system.absolute_path(doc.filename)
+  if not doc_path then
+    core.error("[LSP] could not open: %s", tostring(doc.filename))
+    return
+  end
+
   lsp.start_server(doc.filename, core.project_dir)
 
   local active_servers = lsp.get_active_servers(doc.filename, true)
@@ -763,16 +773,14 @@ function lsp.open_document(doc)
           )
         )
       then
-        local file_info = system.get_file_info(
-          system.absolute_path(doc.filename)
-        )
+        local file_info = system.get_file_info(doc_path)
         if file_info.size / 1024 <= 50 then
           -- file size is in range so push the notification as usual.
           server:push_notification(
             'textDocument/didOpen',
             {
               textDocument = {
-                uri = Util.touri(system.absolute_path(doc.filename)),
+                uri = Util.touri(doc_path),
                 languageId = lsp.get_language_id(server, doc),
                 version = doc.clean_change_id,
                 text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
@@ -796,7 +804,7 @@ function lsp.open_document(doc)
             .. '"method": "textDocument/didOpen",'
             .. '"params": {'
             .. '"textDocument": {'
-            .. '"uri": "'..Util.touri(system.absolute_path(doc.filename))..'",'
+            .. '"uri": "'..Util.touri(doc_path)..'",'
             .. '"languageId": "'..lsp.get_language_id(server, doc)..'",'
             .. '"version": '..doc.clean_change_id..','
             .. '"text": "'..text..'"'
@@ -1003,9 +1011,9 @@ function lsp.toggle_diagnostics()
     local av = get_active_view()
     if av and av.doc and av.doc.filename then
       local filename = system.absolute_path(av.doc.filename)
-      local diagnostics = Diagnostics.get(filename)
-      if diagnostics then
-        for _, diagnostic in pairs(diagnostics) do
+      local diagnostic_messages = diagnostics.get(filename)
+      if diagnostic_messages then
+        for _, diagnostic in pairs(diagnostic_messages) do
           local line, col = Util.toselection(diagnostic.range)
           local message = diagnostic.message
           local kind = diagnostic_kinds[diagnostic.severity]
@@ -1555,8 +1563,8 @@ function lsp.request_document_format(doc)
 end
 
 function lsp.view_document_diagnostics(doc)
-  local diagnostics = Diagnostics.get(system.absolute_path(doc.filename))
-  if not diagnostics or #diagnostics <= 0 then
+  local diagnostic_messages = diagnostics.get(system.absolute_path(doc.filename))
+  if not diagnostic_messages or #diagnostic_messages <= 0 then
     core.log("[LSP] %s", "No diagnostic messages found.")
     return
   end
@@ -1564,7 +1572,7 @@ function lsp.view_document_diagnostics(doc)
   local diagnostic_labels = { "Error", "Warning", "Info", "Hint" }
 
   local indexes, captions = {}, {}
-  for index, diagnostic in pairs(diagnostics) do
+  for index, diagnostic in pairs(diagnostic_messages) do
     local line1, col1 = Util.toselection(diagnostic.range)
     local label = diagnostic_labels[diagnostic.severity]
       .. ": " .. diagnostic.message .. " "
@@ -1576,7 +1584,7 @@ function lsp.view_document_diagnostics(doc)
   core.command_view:enter("Filter Diagnostics",
     function(text, item)
       if item then
-        local diagnostic = diagnostics[item.index]
+        local diagnostic = diagnostic_messages[item.index]
         local line1, col1 = Util.toselection(diagnostic.range)
         doc:set_selection(line1, col1, line1, col1)
       end
@@ -1584,7 +1592,7 @@ function lsp.view_document_diagnostics(doc)
     function(text)
       local res = common.fuzzy_match(captions, text)
       for i, name in ipairs(res) do
-        local diagnostic = diagnostics[indexes[name]]
+        local diagnostic = diagnostic_messages[indexes[name]]
         local line1, col1 = Util.toselection(diagnostic.range)
         res[i] = {
           text = diagnostic_kinds[diagnostic.severity]
@@ -1599,13 +1607,13 @@ function lsp.view_document_diagnostics(doc)
 end
 
 function lsp.view_all_diagnostics()
-  if Diagnostics.count <= 0 then
+  if diagnostics.count <= 0 then
     core.log("[LSP] %s", "No diagnostic messages found.")
     return
   end
 
   local captions = {}
-  for name, _ in pairs(Diagnostics.list) do
+  for name, _ in pairs(diagnostics.list) do
     table.insert(captions, core.normalize_to_project_dir(name))
   end
 
@@ -1624,12 +1632,12 @@ function lsp.view_all_diagnostics()
     function(text)
       local res = common.fuzzy_match(captions, text, true)
       for i, name in ipairs(res) do
-        local diagnostics = Diagnostics.get_messages_count(
+        local diagnostics_count = diagnostics.get_messages_count(
           system.absolute_path(name)
         )
         res[i] = {
           text = name,
-          info = "Messages: " .. diagnostics
+          info = "Messages: " .. diagnostics_count
         }
       end
       return res
@@ -1932,13 +1940,13 @@ function StatusView:get_items()
   local av = get_active_view()
   if av and av.doc and av.doc.filename then
     local filename = system.absolute_path(av.doc.filename)
-    local diagnostics = Diagnostics.get(filename)
+    local diagnostic_messages = diagnostics.get(filename)
 
-    if diagnostics and #diagnostics > 0 then
+    if diagnostic_messages and #diagnostic_messages > 0 then
       local t = {
         style.syntax["string"],
         style.icon_font, "!",
-        style.font, " " .. tostring(#diagnostics),
+        style.font, " " .. tostring(#diagnostic_messages),
         style.dim,
         self.separator2,
       }
