@@ -20,10 +20,10 @@ diagnostics.range = {}
 ---@field INFO integer
 ---@field HINT integer
 diagnostics.severity = {
-	ERROR = 1,
-	WARNING = 2,
-	INFO = 3,
-	HINT = 4
+  ERROR = 1,
+  WARNING = 2,
+  INFO = 3,
+  HINT = 4
 }
 
 ---@alias diagnostics.severity_code
@@ -40,8 +40,8 @@ diagnostics.code_description = {}
 ---@field UNNECESSARY integer
 ---@field DEPRECATED integer
 diagnostics.tag = {
-	UNNECESSARY = 1,
-	DEPRECATED = 2
+  UNNECESSARY = 1,
+  DEPRECATED = 2
 }
 
 ---@class diagnostics.location
