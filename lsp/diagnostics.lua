@@ -27,10 +27,10 @@ diagnostics.severity = {
 }
 
 ---@alias diagnostics.severity_code
----|>'diagnostics.ERROR'
----| 'diagnostics.WARNING'
----| 'diagnostics.INFO'
----| 'diagnostics.HINT'
+---|>'diagnostics.severity.ERROR'
+---| 'diagnostics.severity.WARNING'
+---| 'diagnostics.severity.INFO'
+---| 'diagnostics.severity.HINT'
 
 ---@class diagnostics.code_description
 ---@field href string
