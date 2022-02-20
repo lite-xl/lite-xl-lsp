@@ -80,9 +80,17 @@ end
 
 ---Get the diagnostics associated to a file.
 ---@param filename string
+---@param severity? diagnostics.severity_code
 ---@return diagnostics.message[] | nil
-function diagnostics.get(filename)
-  return diagnostics.list[filename]
+function diagnostics.get(filename, severity)
+  if not severity then return diagnostics.list[filename] end
+
+  local results = {}
+  for _, message in ipairs(diagnostics.list) do
+    if message.severity == severity then table.insert(results, message) end
+  end
+
+  return #results > 0 and results | nil
 end
 
 ---Adds a new list of diagnostics associated to a file replacing previous one.
@@ -90,9 +98,6 @@ end
 ---@param messages diagnostics.message[]
 function diagnostics.add(filename, messages)
   table.sort(messages, sort_helper)
-  for i,v in ipairs(messages) do
-    print (v.severity .. " " .. v.message)
-  end
   if not diagnostics.list[filename] then
     diagnostics.count = diagnostics.count + 1
   end
@@ -110,9 +115,16 @@ end
 
 ---Get the amount of diagnostics associated to a file.
 ---@param filename string
-function diagnostics.get_messages_count(filename)
+---@param severity? diagnostics.severity_code
+function diagnostics.get_messages_count(filename, severity)
   if diagnostics.list[filename] then
-    return #diagnostics.list[filename]
+    if not severity then return #diagnostics.list[filename] end
+
+    local count = 0
+    for _, message in ipairs(diagnostics.list) do
+      if message.severity == severity then count = count + 1 end
+    end
+    return count
   end
 
   return 0
