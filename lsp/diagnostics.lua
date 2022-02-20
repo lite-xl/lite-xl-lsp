@@ -44,6 +44,10 @@ diagnostics.tag = {
   DEPRECATED = 2
 }
 
+---@alias diagnostics.tag_code
+---|>'diagnostics.tag.UNNECESSARY'
+---| 'diagnostics.tag.DEPRECATED'
+
 ---@class diagnostics.location
 ---@field uri string
 ---@field range diagnostics.range
@@ -62,7 +66,7 @@ diagnostics.related_information = {}
 ---@field codeDescription diagnostics.code_description
 ---@field source string
 ---@field message string
----@field tags diagnostics.tag[]
+---@field tags diagnostics.tag_code[]
 ---@field relatedInformation diagnostics.related_information
 diagnostics.message = {}
 
@@ -80,7 +84,7 @@ end
 
 ---Get the diagnostics associated to a file.
 ---@param filename string
----@param severity? diagnostics.severity_code
+---@param severity? diagnostics.severity_code | integer
 ---@return diagnostics.message[] | nil
 function diagnostics.get(filename, severity)
   if not severity then return diagnostics.list[filename] end
@@ -116,7 +120,7 @@ end
 
 ---Get the amount of diagnostics associated to a file.
 ---@param filename string
----@param severity? diagnostics.severity_code
+---@param severity? diagnostics.severity_code | integer
 function diagnostics.get_messages_count(filename, severity)
   if diagnostics.list[filename] then
     if not severity then return #diagnostics.list[filename] end
