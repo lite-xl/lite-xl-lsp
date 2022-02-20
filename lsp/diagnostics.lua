@@ -84,9 +84,10 @@ end
 ---@return diagnostics.message[] | nil
 function diagnostics.get(filename, severity)
   if not severity then return diagnostics.list[filename] end
+  if not diagnostics.list[filename] then return nil end
 
   local results = {}
-  for _, message in ipairs(diagnostics.list) do
+  for _, message in ipairs(diagnostics.list[filename]) do
     if message.severity == severity then table.insert(results, message) end
   end
 
@@ -121,7 +122,7 @@ function diagnostics.get_messages_count(filename, severity)
     if not severity then return #diagnostics.list[filename] end
 
     local count = 0
-    for _, message in ipairs(diagnostics.list) do
+    for _, message in ipairs(diagnostics.list[filename]) do
       if message.severity == severity then count = count + 1 end
     end
     return count
