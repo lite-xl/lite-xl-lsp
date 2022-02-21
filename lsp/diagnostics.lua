@@ -95,7 +95,7 @@ function diagnostics.get(filename, severity)
     if message.severity == severity then table.insert(results, message) end
   end
 
-  return #results > 0 and results | nil
+  return #results > 0 and results or nil
 end
 
 ---Adds a new list of diagnostics associated to a file replacing previous one.
