@@ -10,6 +10,7 @@ local RootView = require "core.rootview"
 local DocView = require "core.docview"
 local Doc = require "core.doc"
 
+if common["merge"] then
 config.plugins.autocomplete = common.merge({
   -- Amount of characters that need to be written for autocomplete
   min_len = 3,
@@ -22,6 +23,20 @@ config.plugins.autocomplete = common.merge({
   -- Font size of the description box
   desc_font_size = 12
 }, config.plugins.autocomplete)
+else
+config.plugins.autocomplete = {
+  -- Amount of characters that need to be written for autocomplete
+  min_len = 3,
+  -- The max amount of visible items
+  max_height = 6,
+  -- The max amount of scrollable items
+  max_suggestions = 100,
+  -- Maximum amount of symbols to cache per document
+  max_symbols = 4000,
+  -- Font size of the description box
+  desc_font_size = 12
+}
+end
 
 local autocomplete = {}
 
