@@ -1971,7 +1971,7 @@ else
 
     local av = get_active_view()
     if av and av.doc and av.doc.filename then
-      local _, pr = status_view_items()
+      local _, pr = status_view_items(self)
       for i, item in ipairs(pr) do
         table.insert(right, i, item)
       end
