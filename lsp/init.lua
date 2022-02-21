@@ -1934,28 +1934,50 @@ function RootView:on_text_input(...)
   end
 end
 
-function StatusView:get_items()
-  local left, right = status_view_get_items(self)
-
+local function status_view_items(self)
   local av = get_active_view()
-  if av and av.doc and av.doc.filename then
-    local filename = system.absolute_path(av.doc.filename)
-    local diagnostic_messages = diagnostics.get(filename)
+  local filename = system.absolute_path(av.doc.filename)
+  local diagnostic_messages = diagnostics.get(filename)
 
-    if diagnostic_messages and #diagnostic_messages > 0 then
-      local t = {
-        style.syntax["string"],
-        style.icon_font, "!",
-        style.font, " " .. tostring(#diagnostic_messages),
-        style.dim,
-        self.separator2,
-      }
-      for i, item in ipairs(t) do
+  local right = {}
+
+  if diagnostic_messages and #diagnostic_messages > 0 then
+    right = {
+      style.syntax["string"],
+      style.icon_font, "!",
+      style.font, " " .. tostring(#diagnostic_messages),
+      style.dim,
+      self.separator2,
+    }
+  end
+
+  return {}, right
+end
+
+if StatusView["add_item"] then
+  core.status_view:add_item(
+    function()
+      local av = get_active_view()
+      return av and av.doc and av.doc.filename
+    end,
+    status_view_items,
+    1,
+    function() command.perform "lsp:view-document-diagnostics" end,
+    "LSP Diagnostics"
+  )
+else
+  function StatusView:get_items()
+    local left, right = status_view_get_items(self)
+
+    local av = get_active_view()
+    if av and av.doc and av.doc.filename then
+      local _, pr = status_view_items()
+      for i, item in ipairs(pr) do
         table.insert(right, i, item)
       end
     end
+    return left, right
   end
-  return left, right
 end
 
 --
