@@ -1958,7 +1958,14 @@ if StatusView["add_item"] then
   core.status_view:add_item(
     function()
       local av = get_active_view()
-      return av and av.doc and av.doc.filename
+      if av and av.doc and av.doc.filename then
+        local filename = system.absolute_path(av.doc.filename)
+        local diagnostic_messages = diagnostics.get(filename)
+        if diagnostic_messages and #diagnostic_messages > 0 then
+          return true
+        end
+      end
+      return false
     end,
     status_view_items,
     1,
