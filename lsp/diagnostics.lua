@@ -87,6 +87,7 @@ end
 ---@param severity? diagnostics.severity_code | integer
 ---@return diagnostics.message[] | nil
 function diagnostics.get(filename, severity)
+  filename = system.absolute_path(filename)
   if not severity then return diagnostics.list[filename] end
   if not diagnostics.list[filename] then return nil end
 
@@ -102,6 +103,7 @@ end
 ---@param filename string
 ---@param messages diagnostics.message[]
 function diagnostics.add(filename, messages)
+  filename = system.absolute_path(filename)
   table.sort(messages, sort_helper)
   if not diagnostics.list[filename] then
     diagnostics.count = diagnostics.count + 1
@@ -112,6 +114,7 @@ end
 ---Removes all diagnostics associated to a file.
 ---@param filename string
 function diagnostics.clear(filename)
+  filename = system.absolute_path(filename)
   if diagnostics.list[filename] then
     diagnostics.list[filename] = nil
     diagnostics.count = diagnostics.count - 1
@@ -122,6 +125,7 @@ end
 ---@param filename string
 ---@param severity? diagnostics.severity_code | integer
 function diagnostics.get_messages_count(filename, severity)
+  filename = system.absolute_path(filename)
   if diagnostics.list[filename] then
     if not severity then return #diagnostics.list[filename] end
 
