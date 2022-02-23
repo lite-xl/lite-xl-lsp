@@ -1939,19 +1939,15 @@ local function status_view_items(self)
   local filename = system.absolute_path(av.doc.filename)
   local diagnostic_messages = diagnostics.get(filename)
 
-  local right = {}
-
   if diagnostic_messages and #diagnostic_messages > 0 then
-    right = {
+    return {
       style.syntax["string"],
       style.icon_font, "!",
-      style.font, " " .. tostring(#diagnostic_messages),
-      style.dim,
-      self.separator2,
+      style.font, " " .. tostring(#diagnostic_messages)
     }
   end
 
-  return {}, right
+  return {}
 end
 
 if StatusView["add_item"] then
@@ -1967,19 +1963,23 @@ if StatusView["add_item"] then
       end
       return false
     end,
+    "lsp:diagnostics",
+    StatusView.Item.RIGHT,
     status_view_items,
+    "lsp:view-document-diagnostics",
     1,
-    function() command.perform "lsp:view-document-diagnostics" end,
     "LSP Diagnostics"
-  )
+  ).separator = core.status_view.separator2
 else
   function StatusView:get_items()
     local left, right = status_view_get_items(self)
 
     local av = get_active_view()
     if av and av.doc and av.doc.filename then
-      local _, pr = status_view_items(self)
-      for i, item in ipairs(pr) do
+      local items = status_view_items(self)
+      table.insert(items, style.dim)
+      table.insert(items, self.separator2)
+      for i, item in ipairs(items) do
         table.insert(right, i, item)
       end
     end
