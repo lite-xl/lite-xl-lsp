@@ -84,9 +84,11 @@ config.plugins.lsp = {
 local lsp = {}
 
 ---List of registered servers
+---@type table<string, lsp.server.options>
 lsp.servers = {}
 
 ---List of running servers
+---@type table<string, lsp.server>
 lsp.servers_running = {}
 
 ---Flag that indicates if last autocomplete request was a trigger
@@ -405,7 +407,7 @@ end
 lsp.get_location_preview = get_location_preview
 
 ---Register an LSP server to be launched on demand
----@param options table
+---@param options lsp.server.options
 function lsp.add_server(options)
   local required_fields = {
     "name", "language", "file_patterns", "command"
@@ -476,7 +478,7 @@ local cached_workspace_settings_timestamp = 0
 ---3. Scan server.path also for settings.lua/json and merge them
 ---Note: settings are cached for 5 seconds for faster retrieval
 ---      on repetitive calls to this function.
----@param server Server
+---@param server lsp.server
 ---@param workspace? string
 ---@return table
 function lsp.get_workspace_settings(server, workspace)
@@ -733,11 +735,32 @@ function lsp.start_server(filename, project_directory)
   end
 
   if server_registered and not server_started then
-    for _, server in pairs(servers_not_found) do
+    for _,_ in pairs(servers_not_found) do
       core.error(
         "[LSP] servers registered but not installed: %s",
         table.concat(servers_not_found, ", ")
       )
+      break
+    end
+  end
+end
+
+---Stops all running servers.
+function lsp.stop_servers()
+  for name, _ in pairs(lsp.servers) do
+    if lsp.servers_running[name] then
+       lsp.servers_running[name]:exit()
+       core.log("[LSP] stopped %s", name)
+       lsp.servers_running = Util.table_remove_key(lsp.servers_running, name)
+    end
+  end
+end
+
+---Start only the needed servers by current opened documents.
+function lsp.start_servers()
+  for _, doc in ipairs(core.docs) do
+    if doc.filename then
+      lsp.start_server(doc.filename, core.project_dir)
     end
   end
 end
@@ -752,8 +775,6 @@ function lsp.open_document(doc)
     core.error("[LSP] could not open: %s", tostring(doc.filename))
     return
   end
-
-  lsp.start_server(doc.filename, core.project_dir)
 
   local active_servers = lsp.get_active_servers(doc.filename, true)
 
@@ -1366,6 +1387,7 @@ function lsp.request_call_hierarchy(doc, line, col)
         function(server, response)
           if response.result and #response.result > 0 then
             -- TODO: Finish implement call hierarchy funcitonality
+            return
           end
         end
       )
@@ -1743,8 +1765,7 @@ core.add_thread(function()
         end
       end
 
-      -- less yielding for lowerfps setups
-      if config.fps <= 30 then
+      if not config.plugins.lsp.more_yielding then
         server:process_notifications()
         server:process_requests()
         server:process_responses()
@@ -1793,6 +1814,7 @@ function Doc:load(...)
       lintplus.init_doc(self.filename, self)
     end
     core.add_thread(function()
+      lsp.start_server(self.filename, core.project_dir)
       lsp.open_document(self)
     end)
   end
@@ -2148,6 +2170,19 @@ command.add("core.docview", {
       return
     end
     lsp.toggle_diagnostics()
+  end,
+
+  ["lsp:stop-servers"] = function()
+    lsp.stop_servers()
+  end,
+
+  ["lsp:start-servers"] = function()
+    lsp.start_servers()
+  end,
+
+  ["lsp:restart-servers"] = function()
+    lsp.stop_servers()
+    lsp.start_servers()
   end,
 })
 

@@ -9,7 +9,6 @@
 -- LSP Documentation:
 -- https://microsoft.github.io/language-server-protocol/specifications/specification-3-17
 
-local config = require "core.config"
 local json = require "plugins.lsp.json"
 local util = require "plugins.lsp.util"
 local Object = require "core.object"
@@ -39,9 +38,52 @@ local Object = require "core.object"
 ---@field public requests_per_second integer
 ---@field public requests_in_chunks boolean
 ---@field public proc process
----@field public capabilites table
+---@field public capabilities table
 ---@field public yield_on_reads boolean
+---@field public running boolean
 local Server = Object:extend()
+
+---LSP Server constructor options
+---@class lsp.server.options
+---@field name string
+---@field language string
+---@field file_patterns table<integer, string>
+---@field command table<integer, string>
+---@field settings table
+---@field init_options table
+---@field requests_per_second number
+---@field requests_in_chunks boolean
+---@field incremental_changes boolean
+---@field id_not_extension boolean
+Server.options = {
+  ---Name of the server
+  name = "",
+  ---Programming language identifier
+  language = "",
+  ---Patterns to match the language files
+  file_patterns = {},
+  ---Command to launch LSP server and optional arguments
+  command = {},
+  ---Optional table of settings to pass into the lsp
+  ---Note that also having a settings.json or settings.lua in
+  ---your workspace directory is supported
+  settings = {},
+  ---Optional table of initializationOptions for the LSP
+  init_options = {},
+  ---Set by default to 16 should only be modified if having issues with a server
+  requests_per_second = 16,
+  ---By default each request is written to the server stdin in chunks of
+  ---10KB, if this gives issues set to false to write everything at once.
+  requests_in_chunks = true,
+  ---Some servers like bash language server support incremental changes
+  ---which are more performant but don't advertise it, set to true to force
+  ---incremental changes even if server doesn't advertise them.
+  incremental_changes = false,
+  ---True to debug the lsp client when developing it
+  verbose = false,
+  ---
+  id_not_extension = false
+}
 
 ---Default timeout when sending a request to lsp server.
 ---@type integer Time in seconds
@@ -184,7 +226,7 @@ function Server:new(options)
       stderr = process.REDIRECT_PIPE
     }
   )
-  self.capabilites = nil
+  self.capabilities = nil
   self.yield_on_reads = false
   self.incremental_changes = options.incremental_changes or false
 end
@@ -195,13 +237,9 @@ end
 ---@param editor_name? string
 ---@param editor_version? string
 function Server:initialize(workspace, editor_name, editor_version)
-  local root_uri = "";
-  if PLATFORM ~= "Windows" then
-    root_uri = 'file://' .. workspace
-  else
-    root_uri = 'file:///' .. workspace:gsub('\\', '/')
-  end
+  local root_uri = util.touri(workspace);
 
+  self.running = false
   self.path = workspace or ""
   self.editor_name = editor_name or "unknown"
   self.editor_version = editor_version or "0.1"
@@ -1349,6 +1387,18 @@ function Server:on_message(method, params)
   end
 end
 
+---Kills the server process and deinitialize the server object state.
+function Server:stop()
+  self.initialized = false
+  self.proc:kill()
+
+  self.request_list = {}
+  self.response_list = {}
+  self.notification_list = {}
+  self.raw_list = {}
+  self.running = false
+end
+
 ---Shut downs the server is not running or amount of write fails has
 ---reached its maximum allowed.
 function Server:shutdown_if_needed()
@@ -1357,16 +1407,8 @@ function Server:shutdown_if_needed()
     or
     not self.proc:running()
   then
-    self.initialized = false
-    self.proc:kill()
-
-    self.request_list = {}
-    self.response_list = {}
-    self.notification_list = {}
-    self.raw_list = {}
-
+    self:stop()
     self:on_shutdown()
-
     return
   end
   self.write_fails = self.write_fails + 1
@@ -1377,7 +1419,7 @@ function Server:on_shutdown()
   self:log("The server was shutdown.")
 end
 
----Instructs the server to exit.
+---Sends a shutdown notification to lsp and then stop it.
 function Server:exit()
   self.initialized = false
 
@@ -1396,9 +1438,7 @@ function Server:exit()
   -- wait 1 second until it exits
   self.proc:wait(1000)
 
-  if self.proc:running() then
-    self.proc:kill()
-  end
+  self:stop()
 end
 
 
