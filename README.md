@@ -161,6 +161,11 @@ config.plugins.lsp.log_server_stderr = false
 ---Force verbosity off even if a server is configured with verbosity on
 ---@type boolean
 config.plugins.lsp.force_verbosity_off = false
+
+---Yield when reading from LSP which may give you better UI responsiveness
+---when receiving large responses, but will affect LSP performance.
+---@type boolean
+config.plugins.lsp.more_yielding = false
 ```
 
 ## TODO

@@ -51,6 +51,7 @@ end
 ---@field stop_unneeded_servers boolean
 ---@field log_server_stderr boolean
 ---@field force_verbosity_off boolean
+---@field more_yielding boolean
 config.plugins.lsp = {
   ---Set to a file path to log all json
   log_file = "",
@@ -70,7 +71,11 @@ config.plugins.lsp = {
   log_server_stderr = false,
 
   ---Force verbosity off even if a server is configured with verbosity on
-  force_verbosity_off = false
+  force_verbosity_off = false,
+
+  ---Yield when reading from LSP which may give you better UI responsiveness
+  ---when receiving large responses, but will affect LSP performance.
+  more_yielding = false
 }
 
 --
@@ -562,7 +567,9 @@ function lsp.start_server(filename, project_directory)
 
       if not lsp.servers_running[name] and command_exists then
         core.log("[LSP] starting " .. name)
+        ---@type lsp.server
         local client = Server(server)
+        client.yield_on_reads = config.plugins.lsp.more_yielding
 
         lsp.servers_running[name] = client
 

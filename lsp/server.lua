@@ -40,6 +40,7 @@ local Object = require "core.object"
 ---@field public requests_in_chunks boolean
 ---@field public proc process
 ---@field public capabilites table
+---@field public yield_on_reads boolean
 local Server = Object:extend()
 
 ---Default timeout when sending a request to lsp server.
@@ -184,6 +185,7 @@ function Server:new(options)
     }
   )
   self.capabilites = nil
+  self.yield_on_reads = false
   self.incremental_changes = options.incremental_changes or false
 end
 
@@ -959,7 +961,7 @@ function Server:read_responses(timeout)
   end
 
   timeout = timeout or Server.DEFAULT_TIMEOUT
-  local inside_coroutine = config.fps <= 30 and false or coroutine.running()
+  local inside_coroutine = self.yield_on_reads and coroutine.running() or false
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
@@ -1116,7 +1118,7 @@ end
 ---@return string|nil
 function Server:read_errors(timeout)
   timeout = timeout or Server.DEFAULT_TIMEOUT
-  local inside_coroutine = config.fps <= 30 and false or coroutine.running()
+  local inside_coroutine = self.yield_on_reads and coroutine.running() or false
 
   local max_time = os.time() + timeout
   if timeout == 0 then max_time = max_time + 1 end
