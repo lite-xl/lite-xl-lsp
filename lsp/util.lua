@@ -284,7 +284,7 @@ function util.strip_markdown(text)
       :gsub("%-%-(.-)%-%-", "%1")
       -- italic
       :gsub("%*(.-)%*", "%1")
-      :gsub("_(.-)_", "%1")
+      :gsub("%s_(.-)_%s", "%1")
       -- code
       :gsub("^%s*```(%w+)%s*\n", "")
       :gsub("^%s*```%s*\n", "")
@@ -301,7 +301,7 @@ function util.strip_markdown(text)
       -- Images
       :gsub("!%[(.-)%]%((.-)%)", "")
       -- links
-      :gsub("<(.-)>", "%1")
+      :gsub("%s<(.-)>%s", "%1")
       :gsub("%[(.-)%]%s*%[(.-)%]", "%1")
       :gsub("%[(.-)%]%((.-)%)", "%1: %2")
 
