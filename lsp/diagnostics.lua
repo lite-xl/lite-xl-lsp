@@ -2,6 +2,8 @@
 -- @copyright Jefferson Gonzalez
 -- @license MIT
 
+local core = require "core"
+
 local diagnostics = {}
 
 ---@class diagnostics.position
@@ -82,12 +84,34 @@ local function sort_helper(a, b)
   return a.severity < b.severity
 end
 
+---Helper to catch some trange occurances where nil is given as filename
+---@param filename string
+local function get_absolute_path(filename)
+  if not filename then
+    core.error(
+      "[LSP Diagnostics]: nil filename given",
+      tostring(filename)
+    )
+    return nil
+  end
+  local absolute_filename = system.absolute_path(filename)
+  if not absolute_filename then
+    core.error(
+      "[LSP Diagnostics]: error on absolute conversion of '%s'",
+      tostring(filename)
+    )
+    return filename
+  end
+  return absolute_filename
+end
+
 ---Get the diagnostics associated to a file.
 ---@param filename string
 ---@param severity? diagnostics.severity_code | integer
 ---@return diagnostics.message[] | nil
 function diagnostics.get(filename, severity)
-  filename = system.absolute_path(filename)
+  filename = get_absolute_path(filename)
+  if not filename then return nil end
   if not severity then return diagnostics.list[filename] end
   if not diagnostics.list[filename] then return nil end
 
@@ -102,19 +126,23 @@ end
 ---Adds a new list of diagnostics associated to a file replacing previous one.
 ---@param filename string
 ---@param messages diagnostics.message[]
+---@return boolean
 function diagnostics.add(filename, messages)
-  filename = system.absolute_path(filename)
+  filename = get_absolute_path(filename)
+  if not filename then return false end
   table.sort(messages, sort_helper)
   if not diagnostics.list[filename] then
     diagnostics.count = diagnostics.count + 1
   end
   diagnostics.list[filename] = messages
+  return true
 end
 
 ---Removes all diagnostics associated to a file.
 ---@param filename string
 function diagnostics.clear(filename)
-  filename = system.absolute_path(filename)
+  filename = get_absolute_path(filename)
+  if not filename then return end
   if diagnostics.list[filename] then
     diagnostics.list[filename] = nil
     diagnostics.count = diagnostics.count - 1
@@ -125,7 +153,8 @@ end
 ---@param filename string
 ---@param severity? diagnostics.severity_code | integer
 function diagnostics.get_messages_count(filename, severity)
-  filename = system.absolute_path(filename)
+  filename = get_absolute_path(filename)
+  if not filename then return 0 end
   if diagnostics.list[filename] then
     if not severity then return #diagnostics.list[filename] end
 

@@ -665,10 +665,10 @@ function lsp.start_server(filename, project_directory)
             end
 
             if params.diagnostics and #params.diagnostics > 0 then
-              diagnostics.add(filename, params.diagnostics)
+              local added = diagnostics.add(filename, params.diagnostics)
 
               if
-                config.plugins.lsp.show_diagnostics
+                added and config.plugins.lsp.show_diagnostics
                 and
                 lintplus and lintplus.add_message
               then
