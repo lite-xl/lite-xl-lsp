@@ -37,7 +37,7 @@ end
 local function add_lsp(o)
   return {
     setup = function(p)
-      local options = merge(p, o)
+      local options = merge(o, p)
       lsp.add_server(options)
     end
   }
