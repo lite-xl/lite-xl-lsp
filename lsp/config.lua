@@ -12,22 +12,26 @@
 local lsp = require "plugins.lsp"
 
 local function merge(a, b)
-  local output = {}
-  local stack = { a, output, b, output }
-  while #stack > 0 do
-    local target = table.remove(stack)
-    local src = table.remove(stack)
-    for key, value in pairs(src) do
-      if type(value) == "table" then
-        stack[#stack+1] = value
-        if type(target[key]) ~= "table" then target[key] = {} end
-        stack[#stack+1] = target[key]
+  local t = {}
+  if a then
+    for k, v in pairs(a) do
+      if type(v) == "table" then
+        t[k] = merge(t[k], v)
       else
-        target[key] = value
+        t[k] = v
       end
     end
   end
-  return output
+  if b then
+    for k, v in pairs(b) do
+      if type(v) == "table" then
+        t[k] = merge(t[k], v)
+      else
+        t[k] = v
+      end
+    end
+  end
+  return t
 end
 
 local function add_lsp(o)
