@@ -125,7 +125,7 @@ lspconfig.flow = add_lsp {
 }
 
 -- gopls
--- Status: Untested
+-- Status: Works
 -- Site: https://pkg.go.dev/golang.org/x/tools/gopls
 -- Installation: go get -u golang.org/x/tools/gopls
 lspconfig.gopls = add_lsp {
