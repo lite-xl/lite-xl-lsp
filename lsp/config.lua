@@ -326,6 +326,7 @@ lspconfig.sumneko_lua = add_lsp {
   name = "lua-language-server",
   language = "lua",
   file_patterns = {"%.lua$"},
+  command = { 'lua-language-server' },
   verbose = false,
   settings = {
     Lua = {
