@@ -60,6 +60,22 @@ lspconfig.bashls = add_lsp {
   verbose = false
 }
 
+-- ccls
+-- Status: Works
+-- Site: https://github.com/MaskRay/ccls/
+-- Installation: https://github.com/MaskRay/ccls/wiki
+lspconfig.ccls = add_lsp {
+  name = "ccls",
+  language = "c/cpp",
+  file_patterns = {
+    "%.c$", "%.h$", "%.inl$", "%.cpp$", "%.hpp$",
+    "%.cc$", "%.C$", "%.cxx$", "%.c++$", "%.hh$",
+    "%.H$", "%.hxx$", "%.h++$", "%.objc$", "%.objcpp$"
+  },
+  command = { "ccls" },
+  verbose = false
+}
+
 -- clangd
 -- Status: Works
 -- Site: https://clangd.llvm.org/
@@ -179,6 +195,20 @@ lspconfig.html = add_lsp {
   verbose = false
 }
 
+-- intelephense
+-- Status: Works
+-- Site: https://github.com/bmewburn/intelephense-docs
+-- Installation: npm -g install intelephense
+-- Note: Set your license and storage by passing the init_options as follows:
+-- init_options = { licenceKey = "...", storagePath = "/some/path"}
+lspconfig.intelephense = add_lsp {
+  name = "intelephense",
+  language = "php",
+  file_patterns = {"%.php$"},
+  command = { "intelephense", "--stdio" },
+  verbose = false
+}
+
 -- vscode-json-languageserver
 -- Status: Untested
 -- Site: https://www.npmjs.com/package/vscode-json-languageserver
@@ -191,30 +221,6 @@ lspconfig.jsonls = add_lsp {
   verbose = false
 }
 
--- sql-language-server
--- Status: Untested
--- Site: https://github.com/joe-re/sql-language-server
--- Installation: npm i -g sql-language-server
-lspconfig.sqlls = add_lsp {
-  name = "sql-language-server",
-  language = "sql",
-  file_patterns = { "%.sql$" },
-  command = { 'sql-language-server', 'up', '--method', 'stdio' },
-  verbose = false
-}
-
--- typescript-language-server
--- Status: Untested
--- Site: https://github.com/theia-ide/typescript-language-server
--- Installation: npm install -g typescript typescript-language-server
-lspconfig.tsserver = add_lsp {
-  name = "typescript-language-server",
-  language = "javascript",
-  file_patterns = { "%.js$", "%.cjs$", "%.mjs$" },
-  command = { 'typescript-language-server', '--stdio' },
-  verbose = false
-}
-
 -- kotlin-language-server
 -- Status: Untested
 -- Site: https://github.com/fwcd/kotlin-language-server
@@ -224,20 +230,6 @@ lspconfig.kotlin_language_server = add_lsp {
   language = "kotlin",
   file_patterns = { "%.kt$", "%.kts$", "%.ktm$" },
   command = { 'kotlin-language-server' },
-  verbose = false
-}
-
--- intelephense
--- Status: Works
--- Site: https://github.com/bmewburn/intelephense-docs
--- Installation: npm -g install intelephense
--- Note: Set your license and storage by passing the init_options as follows:
--- init_options = { licenceKey = "...", storagePath = "/some/path"}
-lspconfig.intelephense = add_lsp {
-  name = "intelephense",
-  language = "php",
-  file_patterns = {"%.php$"},
-  command = { "intelephense", "--stdio" },
   verbose = false
 }
 
@@ -282,18 +274,6 @@ lspconfig.pylsp = add_lsp {
   verbose = false
 }
 
--- Solargraph
--- Status: Untested
--- Site: https://github.com/castwide/solargraph
--- Installation: gem install solargraph
-lspconfig.solargraph = add_lsp {
-  name = "solargraph",
-  language = "ruby",
-  file_patterns = { "%.rb$" },
-  command = { 'solargraph', 'stdio' },
-  verbose = false
-}
-
 -- Rust Language Server
 -- Status: Works
 -- Site: https://github.com/rust-lang/rls
@@ -315,6 +295,30 @@ lspconfig.rust_analyzer = add_lsp {
   language = "rust",
   file_patterns = { "%.rs$" },
   command = { 'rust-analyzer' },
+  verbose = false
+}
+
+-- Solargraph
+-- Status: Untested
+-- Site: https://github.com/castwide/solargraph
+-- Installation: gem install solargraph
+lspconfig.solargraph = add_lsp {
+  name = "solargraph",
+  language = "ruby",
+  file_patterns = { "%.rb$" },
+  command = { 'solargraph', 'stdio' },
+  verbose = false
+}
+
+-- sql-language-server
+-- Status: Untested
+-- Site: https://github.com/joe-re/sql-language-server
+-- Installation: npm i -g sql-language-server
+lspconfig.sqlls = add_lsp {
+  name = "sql-language-server",
+  language = "sql",
+  file_patterns = { "%.sql$" },
+  command = { 'sql-language-server', 'up', '--method', 'stdio' },
   verbose = false
 }
 
@@ -372,6 +376,30 @@ lspconfig.sumneko_lua = add_lsp {
   }
 }
 
+-- typescript-language-server
+-- Status: Untested
+-- Site: https://github.com/theia-ide/typescript-language-server
+-- Installation: npm install -g typescript typescript-language-server
+lspconfig.tsserver = add_lsp {
+  name = "typescript-language-server",
+  language = "javascript",
+  file_patterns = { "%.js$", "%.cjs$", "%.mjs$" },
+  command = { 'typescript-language-server', '--stdio' },
+  verbose = false
+}
+
+-- vim-language-server
+-- Status: Untested
+-- Site: https://github.com/iamcco/vim-language-server
+-- Installation: npm install -g vim-language-server
+lspconfig.vimls = add_lsp {
+  name = "vim-language-server",
+  language = "vim",
+  file_patterns = { "%.vim$" },
+  command = { 'vim-language-server', '--stdio' },
+  verbose = false
+}
+
 -- vlang-vls
 -- Status: Initializes but doesn't responds to completion requests
 --         at least it helped improve lit-xl-lsp requests mechanism
@@ -385,18 +413,6 @@ lspconfig.vls = add_lsp {
   language = "v",
   file_patterns = { "%.v$" },
   command = { 'vlang-vls' },
-  verbose = false
-}
-
--- vim-language-server
--- Status: Untested
--- Site: https://github.com/iamcco/vim-language-server
--- Installation: npm install -g vim-language-server
-lspconfig.vimls = add_lsp {
-  name = "vim-language-server",
-  language = "vim",
-  file_patterns = { "%.vim$" },
-  command = { 'vim-language-server', '--stdio' },
   verbose = false
 }
 
