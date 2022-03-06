@@ -1,20 +1,17 @@
 # LSP Plugin for Lite XL editor
 
-Plugin that provides intellisense for Lite XL by leveraging the
-[LSP protocol](https://microsoft.github.io/language-server-protocol/specifications/specification-current/).
+Plugin that provides intellisense for Lite XL by leveraging the [LSP protocol]
 While still a work in progress it already implements all the most important
 features to make your life easier while coding with Lite XL. Using it
 requires at least __Lite XL v2.0.1__  which includes the new lua __process__
-functionality in order to communicate with lsp servers.
-Also  [lint+](https://github.com/liquidev/lintplus) is used to render
-diagnostic messages while you type so make sure to grab that too.
+functionality in order to communicate with lsp servers. Also [lint+] is used
+to render diagnostic messages while you type so make sure to grab that too.
 
 To test, clone this project, place the __lsp__ directory in your plugins
-directory, then override __autocomplete.lua__ plugin with the
-version on this repository which should later be merged into upstream.
-Finally you will need the [Widgets](https://github.com/jgmdev/lite-xl-widgets)
-small lib so make sure to also drop it into your lite-xl configs directory.
-The lite-xl configs directory should have:
+directory, then override __autocomplete.lua__ plugin with the version on this
+repository if using __Lite XL 2.0.5__ or earlier. Finally you will need
+the [Widgets] lib so make sure to also drop it into your lite-xl configs
+directory. The lite-xl configs directory should have:
 
 * lite-xl/widget/
 * lite-xl/plugins/lsp/
@@ -24,37 +21,59 @@ The lite-xl configs directory should have:
 
 Stuff that is currently implemented:
 
-* Code auto completion (__ctrl+space__)
-* Function signatures tooltip (__ctrl+shift+space__)
-* Current cursor symbol details tooltip (__alt+a__)
-* Goto definition (__alt+d__)
-* Goto implementation (__alt+shift+d__)
-* View/jump to current document symbols (__alt+s__)
-* Find workspace symbols (__alt+shift+s__)
-* View/jump to symbol references (__alt+f__)
-* View/jump to document diagnostic messages (__alt+e__)
-* Document format (__alt+shift+f__)
-* Optional diagnostics rendering while typing with
-  [LintPlus](https://github.com/liquidev/lintplus) (__alt+shift+e__ to toggle)
-* List all documents with diagnostics (__ctrl+alt+e__)
+* Code auto completion (**ctrl+space**)
+* Function signatures tooltip (**ctrl+shift+space**)
+* Current cursor symbol details tooltip (**alt+a**)
+* Goto definition (**alt+d**)
+* Goto implementation (**alt+shift+d**)
+* View/jump to current document symbols (**alt+s**)
+* Find workspace symbols (**alt+shift+s**)
+* View/jump to symbol references (**alt+f**)
+* View/jump to document diagnostic messages (**alt+e**)
+* Document format (**alt+shift+f**)
+* Optional diagnostics rendering while typing with [lint+]
+  (**alt+shift+e** to toggle)
+* List all documents with diagnostics (**ctrl+alt+e**)
 
 ## Setting a LSP Server
 
-To add an lsp server in your user init.lua file you need to require the lsp
-plugin and use the **add_server** function as shown below:
+There are two methods of configuring an LSP server, manually and
+semi-automatically using the pre-configured list of lsp servers:
+
+### Manually
+
+To add an lsp server manually in your user init.lua file you need to require
+the lsp plugin and use the **add_server** function as shown on following
+example:
 
 ```lua
 local lsp = require "plugins.lsp"
 
 lsp.add_server {
-  name = "name of server",
-  language = "main language",
-  file_patterns = {...},
-  command = { "lsp-command", "arguments" },
+  -- Name of server
+  name = "intelephense",
+  -- Main language
+  language = "PHP",
+  -- File types that are supported by this server
+  file_patterns = { "%.php$" },
+  -- LSP command and optional arguments
+  command = { "intelephense", "--stdio" },
+  -- Optional table of settings to pass into the lsp
   -- Note that also having a settings.json or settings.lua in
-  -- your workspace directory is supported
-  settings = {"Optional table of settings to pass into the lsp"},
-  init_options = {"Optional table of initializationOptions for the LSP"},
+  -- your workspace directory with a table of settings is supported.
+  settings = {
+    intelephense = {
+      files = {
+        exclude = {
+          "**/.git/**"
+        }
+      }
+    }
+  },
+  -- Optional table of initializationOptions for the LSP
+  init_options = {
+    storagePath = "/home/myuser/.cache/intelephense"
+  },
   -- Set by default to 16 should only be modified if having issues with a server
   requests_per_second = 16,
   -- By default each request is written to the server stdin in chunks of
@@ -69,22 +88,9 @@ lsp.add_server {
 }
 ```
 
-an example:
+### Semi-automatically
 
-```lua
-lsp.add_server {
-  name = "intelephense",
-  language = "php",
-  file_patterns = {"%.php$"},
-  command = { "intelephense", "--stdio" },
-  verbose = false
-}
-```
-
-### Using predefined list of servers
-
-Besides manually defining your lsp servers you can use the
-__[config.lua](https://github.com/jgmdev/lite-xl-lsp/blob/master/lsp/config.lua)__
+Besides manually defining your lsp servers you can use the __[config.lua]__
 file shipped with the lsp plugin which already contains a list of predefined
 servers (notice: not all of them have been tested to work). Require this file
 on your users **init.lua**, call `setup {}` on the desired lsp servers and
@@ -100,9 +106,8 @@ local lspconfig = require "plugins.lsp.config"
 -- like cmake or meson)
 lspconfig.clangd.setup()
 
--- Activate the lua-language-server, set the server command
--- (which needs to be set for this lsp server) and modify the
--- default settings in order to disable diagnostics.
+-- Activate the lua-language-server, set the server command and
+-- modify the default settings in order to disable diagnostics.
 lspconfig.sumneko_lua.setup {
   command = {
     "/path/to/lua-language-server/bin/Linux/lua-language-server",
@@ -228,3 +233,9 @@ Some images to easily visualize the progress :)
 
 ### Diagnostics rendering using Lint+
 ![Diagnostics](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/diagnostics01.png)
+
+
+[LSP protocol]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/
+[lint+]:        https://github.com/liquidev/lintplus
+[Widgets]:      https://github.com/jgmdev/lite-xl-widgets
+[config.lua]:   https://github.com/jgmdev/lite-xl-lsp/blob/master/lsp/config.lua
