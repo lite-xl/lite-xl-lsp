@@ -175,6 +175,7 @@ config.plugins.lsp.more_yielding = false
 
 ## TODO
 
+- [ ] Properly handle multiple opened project directories
 - [ ] Handle window/showMessage, window/showMessageRequest,
   $/progress, telemetry/event
 - [x] Be able to search workspace symbols 'workspace/symbol'
