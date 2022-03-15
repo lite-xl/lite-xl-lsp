@@ -169,7 +169,11 @@ local function get_symbol_lists(list, parent)
 end
 
 local function log(server, message, ...)
-  core.log("["..server.name.."] " .. message, ...)
+  if server.verbose then
+    core.log("["..server.name.."] " .. message, ...)
+  else
+    core.log_quiet("["..server.name.."] " .. message, ...)
+  end
 end
 
 ---Check if active view is a DocView and return it
