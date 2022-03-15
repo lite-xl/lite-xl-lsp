@@ -94,15 +94,7 @@ local function get_absolute_path(filename)
     )
     return nil
   end
-  local absolute_filename = system.absolute_path(filename)
-  if not absolute_filename then
-    core.error(
-      "[LSP Diagnostics]: error on absolute conversion of '%s'",
-      tostring(filename)
-    )
-    return filename
-  end
-  return absolute_filename
+  return core.project_absolute_path(filename)
 end
 
 ---Get the diagnostics associated to a file.

@@ -113,7 +113,7 @@ local diagnostic_kinds = { "error", "warning", "info", "hint" }
 local function get_buffer_position_params(doc, line, col)
   return {
     textDocument = {
-      uri = Util.touri(system.absolute_path(doc.filename)),
+      uri = Util.touri(core.project_absolute_path(doc.filename)),
     },
     position = {
       line = line - 1,
@@ -190,10 +190,13 @@ local function get_location_preview(location)
   local filename = core.normalize_to_project_dir(
     Util.tofilename(location.uri or location.targetUri)
   )
+  local abs_filename = core.project_absolute_path(filename)
 
-  local file = io.open(Util.tofilename(
-    location.uri or location.targetUri
-  ))
+  local file = io.open(abs_filename)
+
+  if not file then
+    return "", filename .. ":" .. tostring(line1) .. ":" .. tostring(col1)
+  end
 
   local preview = ""
 
@@ -221,6 +224,7 @@ local function get_location_preview(location)
     end
     line_count = line_count + 1
   end
+  file:close()
 
   local position = filename .. ":" .. tostring(line1) .. ":" .. tostring(col1)
 
@@ -517,6 +521,7 @@ function lsp.get_workspace_settings(server, workspace)
           local file = io.open(path .. "/settings.json", "r")
           local settings_json = file:read("*a")
           settings_new = Json.decode(settings_json)
+          file:close()
         end
 
         -- overwrite global settings by those specified in the server if any
@@ -633,30 +638,19 @@ function lsp.start_server(filename, project_directory)
           function(server, params)
             if core.log then
               log(server, "%s", params.message)
-              coroutine.yield(3)
             end
           end
         )
 
-        -- Display server messages on lite UI
+        -- Register/unregister diagnostic messages
         client:add_message_listener(
           "textDocument/publishDiagnostics",
           function(server, params)
-            local filename = Util.tofilename(params.uri)
+            local filename = core.normalize_to_project_dir(
+              Util.tofilename(params.uri)
+            )
 
-            local filename_rel = common.normalize_path(filename)
-            if not common.path_belongs_to(filename_rel, core.project_dir) then
-              if server.verbose then
-                log(
-                  server,
-                  "Diagnostics for non project file '%s' ignored",
-                  filename
-                )
-              end
-              return
-            end
-
-            if server.vebose then
+            if server.verbose then
               core.log_quiet(
                 "["..server.name.."] %d diagnostics for:  %s",
                 filename,
@@ -770,7 +764,7 @@ function lsp.open_document(doc)
   -- in some rare ocassions this function may return nil when the
   -- user closed lite-xl with files opened, removed the files from system
   -- and opens lite-xl again which loads the non existent files.
-  local doc_path = system.absolute_path(doc.filename)
+  local doc_path = core.project_absolute_path(doc.filename)
   if not doc_path then
     core.error("[LSP] could not open: %s", tostring(doc.filename))
     return
@@ -827,18 +821,18 @@ function lsp.open_document(doc)
             :gsub('\f', '\\f')
 
           server:push_raw(
-            '{'
-            .. '"jsonrpc": "2.0",'
-            .. '"method": "textDocument/didOpen",'
-            .. '"params": {'
-            .. '"textDocument": {'
-            .. '"uri": "'..Util.touri(doc_path)..'",'
-            .. '"languageId": "'..lsp.get_language_id(server, doc)..'",'
-            .. '"version": '..doc.clean_change_id..','
-            .. '"text": "'..text..'"'
-            .. '}'
-            .. '} '
-            .. '}',
+            '{\n'
+            .. '"jsonrpc": "2.0",\n'
+            .. '"method": "textDocument/didOpen",\n'
+            .. '"params": {\n'
+            .. '"textDocument": {\n'
+            .. '"uri": "'..Util.touri(doc_path)..'",\n'
+            .. '"languageId": "'..lsp.get_language_id(server, doc)..'",\n'
+            .. '"version": '..doc.clean_change_id..',\n'
+            .. '"text": "'..text..'"\n'
+            .. '}\n'
+            .. '}\n'
+            .. '}\n',
             function(server)
               doc.lsp_open = true
               log(server, "Big file '%s' ready for completion!", doc.filename)
@@ -884,23 +878,23 @@ function lsp.save_document(doc)
             :gsub('\f', '\\f')
 
           server:push_raw(
-            '{'
-            .. '"jsonrpc": "2.0",'
-            .. '"method": "textDocument/didSave",'
-            .. '"params": {'
-            .. '"textDocument": {'
-            .. '"uri": "'..Util.touri(system.absolute_path(doc.filename))..'"'
-            .. '},'
-            .. '"text": "'..text..'"'
-            .. '} '
-            .. '}'
+            '{\n'
+            .. '"jsonrpc": "2.0",\n'
+            .. '"method": "textDocument/didSave",\n'
+            .. '"params": {\n'
+            .. '"textDocument": {\n'
+            .. '"uri": "'..Util.touri(core.project_absolute_path(doc.filename))..'"\n'
+            .. '},\n'
+            .. '"text": "'..text..'"\n'
+            .. '}\n'
+            .. '}\n'
           )
         else
           server:push_notification(
             'textDocument/didSave',
             {
               textDocument = {
-                uri = Util.touri(system.absolute_path(doc.filename))
+                uri = Util.touri(core.project_absolute_path(doc.filename))
               }
             }
           )
@@ -929,7 +923,7 @@ function lsp.close_document(doc)
           'textDocument/didClose',
           {
             textDocument = {
-              uri = Util.touri(system.absolute_path(doc.filename)),
+              uri = Util.touri(core.project_absolute_path(doc.filename)),
               languageId = lsp.get_language_id(server, doc),
               version = doc.clean_change_id
             }
@@ -995,26 +989,26 @@ function lsp.update_document(doc)
           :gsub('\f', '\\f')
 
         server:push_raw(
-          '{'
-          .. '"jsonrpc": "2.0",'
-          .. '"method": "textDocument/didChange",'
-          .. '"params": {'
-          .. '"textDocument": {'
-          .. '"uri": "'..Util.touri(system.absolute_path(doc.filename))..'",'
-          .. '"version": '..doc.lsp_version
-          .. '},'
-          .. '"contentChanges": ['
-          .. '{"text": "'..text..'"}'
-          .. "]"
-          .. '} '
-          .. '}'
+          '{\n'
+          .. '"jsonrpc": "2.0",\n'
+          .. '"method": "textDocument/didChange",\n'
+          .. '"params": {\n'
+          .. '"textDocument": {\n'
+          .. '"uri": "'..Util.touri(core.project_absolute_path(doc.filename))..'",\n'
+          .. '"version": '..doc.lsp_version .. "\n"
+          .. '},\n'
+          .. '"contentChanges": [\n'
+          .. '{"text": "'..text..'"}\n'
+          .. "]\n"
+          .. '}\n'
+          .. '}\n'
         )
       else
         lsp.servers_running[name]:push_notification(
           'textDocument/didChange',
           {
             textDocument = {
-              uri = Util.touri(system.absolute_path(doc.filename)),
+              uri = Util.touri(core.project_absolute_path(doc.filename)),
               version = doc.lsp_version,
             },
             contentChanges = doc.lsp_changes
@@ -1038,7 +1032,7 @@ function lsp.toggle_diagnostics()
   else
     local av = get_active_view()
     if av and av.doc and av.doc.filename then
-      local filename = system.absolute_path(av.doc.filename)
+      local filename = core.project_absolute_path(av.doc.filename)
       local diagnostic_messages = diagnostics.get(filename)
       if diagnostic_messages then
         for _, diagnostic in pairs(diagnostic_messages) do
@@ -1184,6 +1178,9 @@ function lsp.request_completion(doc, line, col, forced)
                 symbol.documentation.kind == "markdown"
               then
                 desc = Util.strip_markdown(desc)
+                if symbol_count % 10 == 0 then
+                  coroutine.yield()
+                end
               end
             elseif symbol.documentation then
               desc = desc .. "\n" .. symbol.documentation
@@ -1209,9 +1206,6 @@ function lsp.request_completion(doc, line, col, forced)
               symbols.items[label].onhover = autocomplete_onhover
             end
 
-            if (symbol_count % 10) == 0 then
-              coroutine.yield()
-            end
             symbol_count = symbol_count + 1
           end
 
@@ -1461,7 +1455,7 @@ function lsp.request_workspace_symbol(doc, symbol)
           if response.result and #response.result > 0 then
             for index, result in ipairs(response.result) do
               rs:add_result(result)
-              if index % 20 == 0 then
+              if index % 100 == 0 then
                 coroutine.yield()
                 rs.list:resize_to_parent()
               end
@@ -1493,7 +1487,7 @@ function lsp.request_document_symbols(doc)
         'textDocument/documentSymbol',
         {
           textDocument = {
-            uri = Util.touri(system.absolute_path(doc.filename)),
+            uri = Util.touri(core.project_absolute_path(doc.filename)),
           }
         },
         function(server, response)
@@ -1556,7 +1550,7 @@ function lsp.request_document_format(doc)
         'textDocument/formatting',
         {
           textDocument = {
-            uri = Util.touri(system.absolute_path(doc.filename)),
+            uri = Util.touri(core.project_absolute_path(doc.filename)),
           },
           options = {
             tabSize = config.indent_size,
@@ -1592,7 +1586,7 @@ function lsp.request_document_format(doc)
 end
 
 function lsp.view_document_diagnostics(doc)
-  local diagnostic_messages = diagnostics.get(system.absolute_path(doc.filename))
+  local diagnostic_messages = diagnostics.get(core.project_absolute_path(doc.filename))
   if not diagnostic_messages or #diagnostic_messages <= 0 then
     core.log("[LSP] %s", "No diagnostic messages found.")
     return
@@ -1662,7 +1656,7 @@ function lsp.view_all_diagnostics()
       local res = common.fuzzy_match(captions, text, true)
       for i, name in ipairs(res) do
         local diagnostics_count = diagnostics.get_messages_count(
-          system.absolute_path(name)
+          core.project_absolute_path(name)
         )
         res[i] = {
           text = name,
@@ -1757,9 +1751,12 @@ core.add_thread(function()
         end)
         coroutine.resume(raw_send)
         while coroutine.status(raw_send) ~= "dead" do
+          -- while sending raw request we only read from lsp to not
+          -- conflict with the written raw data so remember no calls
+          -- here to: server:process_client_responses()
+          -- or server:process_notifications()
           server:process_errors(config.plugins.lsp.log_server_stderr)
           server:process_responses()
-          server:process_client_responses()
           coroutine.yield(0)
           coroutine.resume(raw_send)
         end
@@ -1965,7 +1962,7 @@ end
 
 local function status_view_items(self)
   local av = get_active_view()
-  local filename = system.absolute_path(av.doc.filename)
+  local filename = core.project_absolute_path(av.doc.filename)
   local diagnostic_messages = diagnostics.get(filename)
 
   if diagnostic_messages and #diagnostic_messages > 0 then
@@ -1984,7 +1981,7 @@ if StatusView["add_item"] then
     function()
       local av = get_active_view()
       if av and av.doc and av.doc.filename then
-        local filename = system.absolute_path(av.doc.filename)
+        local filename = core.project_absolute_path(av.doc.filename)
         local diagnostic_messages = diagnostics.get(filename)
         if diagnostic_messages and #diagnostic_messages > 0 then
           return true
