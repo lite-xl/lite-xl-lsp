@@ -71,7 +71,7 @@ Server.options = {
   ---Optional table of initializationOptions for the LSP
   init_options = {},
   ---Set by default to 16 should only be modified if having issues with a server
-  requests_per_second = 16,
+  requests_per_second = 32,
   ---By default each request is written to the server stdin in chunks of
   ---10KB, if this gives issues set to false to write everything at once.
   requests_in_chunks = true,
