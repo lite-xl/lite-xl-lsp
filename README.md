@@ -3,19 +3,26 @@
 Plugin that provides intellisense for Lite XL by leveraging the [LSP protocol]
 While still a work in progress it already implements all the most important
 features to make your life easier while coding with Lite XL. Using it
-requires at least __Lite XL v2.0.1__  which includes the new lua __process__
-functionality in order to communicate with lsp servers. Also [lint+] is used
-to render diagnostic messages while you type so make sure to grab that too.
+requires __Lite XL v2.1+__  (for __Lite XL v2.0.1__ to __Lite XL v2.0.5__
+check out the __0.1__ branch). Also [lint+] is optionally used to render
+diagnostic messages while you type so make sure to grab that too.
 
-To test, clone this project, place the __lsp__ directory in your plugins
-directory, then override __autocomplete.lua__ plugin with the version on this
-repository if using __Lite XL 2.0.5__ or earlier. Finally you will need
-the [Widgets] lib so make sure to also drop it into your lite-xl configs
-directory. The lite-xl configs directory should have:
+To use, clone this project into the __lsp__ directory in your plugins
+folder. Finally you will need the [Widgets] lib so make sure to also drop
+it into your lite-xl configs directory. For example:
 
-* lite-xl/widget/
-* lite-xl/plugins/lsp/
-* lite-xl/plugins/autocomplete.lua
+```sh
+cd ~/.config/lite-xl/
+git clone https://github.com/lite-xl/lite-xl-lsp plugins/lsp
+git clone https://github.com/lite-xl/lite-xl-widgets widget
+git clone https://github.com/liquidev/lintplus plugins/lintplus
+```
+
+The lite-xl configs directory should have:
+
+* ~/.config/lite-xl/widget/
+* ~/.config/lite-xl/plugins/lsp/
+* ~/.config/lite-xl/plugins/lintplus/
 
 ## Features
 
@@ -209,34 +216,34 @@ the new autocomplete item description
 Some images to easily visualize the progress :)
 
 ### Completion
-![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion01.png)
+![Completion](screenshots/completion01.png)
 
-![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion02.png)
+![Completion](screenshots/completion02.png)
 
-![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion03.png)
+![Completion](screenshots/completion03.png)
 
-![Completion](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/completion04.png)
+![Completion](screenshots/completion04.png)
 
 ### Symbol hover
-![Hover](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/hover01.png)
+![Hover](screenshots/hover01.png)
 
-![Hover](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/hover02.png)
+![Hover](screenshots/hover02.png)
 
 ### Function signatures
-![Signature](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/signatures01.png)
+![Signature](screenshots/signatures01.png)
 
 ### Document symbols
-![Doc Symbols](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/docsym01.png)
-![Doc Symbols](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/docsym02.png)
+![Doc Symbols](screenshots/docsym01.png)
+![Doc Symbols](screenshots/docsym02.png)
 
 ### Goto definition
-![Goto Definition](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/gotodef01.png)
+![Goto Definition](screenshots/gotodef01.png)
 
 ### Diagnostics rendering using Lint+
-![Diagnostics](https://raw.githubusercontent.com/jgmdev/lite-xl-lsp/master/screenshots/diagnostics01.png)
+![Diagnostics](screenshots/diagnostics01.png)
 
 
 [LSP protocol]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/
 [lint+]:        https://github.com/liquidev/lintplus
-[Widgets]:      https://github.com/jgmdev/lite-xl-widgets
-[config.lua]:   https://github.com/jgmdev/lite-xl-lsp/blob/master/lsp/config.lua
+[Widgets]:      https://github.com/lite-xl/lite-xl-widgets
+[config.lua]:   https://github.com/lite-xl/lite-xl-lsp/blob/master/lsp/config.lua
