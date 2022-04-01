@@ -1,8 +1,8 @@
 --
 -- A list of servers.
 --
--- Can be used by doing a 'require "plugins.lsp.serverlist"'
--- on your user init.lua
+-- Can be used by doing a 'local lspconfig = require "plugins.lsp.config"'
+-- on your user init.lua, for more details check the README.md
 --
 -- Servers taken from:
 -- https://github.com/prabirshrestha/vim-lsp/wiki/Servers
@@ -419,7 +419,7 @@ lspconfig.vls = add_lsp {
 -- yaml-language-server
 -- Status: Untested
 -- Site: https://github.com/redhat-developer/yaml-language-server
--- Installation: Install rust on your system
+-- Installation: See official website for instructions
 lspconfig.yamlls = add_lsp {
   name = "yaml-language-server",
   language = "yaml",
