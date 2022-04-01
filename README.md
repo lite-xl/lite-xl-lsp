@@ -246,4 +246,4 @@ Some images to easily visualize the progress :)
 [LSP protocol]: https://microsoft.github.io/language-server-protocol/specifications/specification-current/
 [lint+]:        https://github.com/liquidev/lintplus
 [Widgets]:      https://github.com/lite-xl/lite-xl-widgets
-[config.lua]:   https://github.com/lite-xl/lite-xl-lsp/blob/master/lsp/config.lua
+[config.lua]:   config.lua
