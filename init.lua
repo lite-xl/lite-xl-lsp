@@ -769,7 +769,8 @@ function lsp.open_document(doc)
   -- user closed lite-xl with files opened, removed the files from system
   -- and opens lite-xl again which loads the non existent files.
   local doc_path = core.project_absolute_path(doc.filename)
-  if not doc_path then
+  local file_info = system.get_file_info(doc_path)
+  if not file_info then
     core.error("[LSP] could not open: %s", tostring(doc.filename))
     return
   end
@@ -799,7 +800,6 @@ function lsp.open_document(doc)
           )
         )
       then
-        local file_info = system.get_file_info(doc_path)
         if file_info.size / 1024 <= 50 then
           -- file size is in range so push the notification as usual.
           server:push_notification(
