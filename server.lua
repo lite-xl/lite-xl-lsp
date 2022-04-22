@@ -575,11 +575,11 @@ end
 ---Sends one of the queued client requests.
 function Server:process_requests()
   local remove_request = nil
-  for id, request in pairs(self.request_list) do
+  for index, request in ipairs(self.request_list) do
     if request.timestamp < os.time() then
       -- only process when initialized or the initialize request
       -- which should be the first one.
-      if not self.initialized and id ~= 1 then
+      if not self.initialized and request.id ~= 1 then
         return nil
       end
 
@@ -612,27 +612,27 @@ function Server:process_requests()
 
       if written and written > 0 then
         local time = 1
-        if id == 1 then
+        if request.id == 1 then
           time = 10 -- give initialize enough time to respond
         end
-        self.request_list[id].timestamp = os.time() + time
+        request.timestamp = os.time() + time
 
         self.write_fails = 0
 
         -- if request has been sent more than 2 times remove them
-        self.request_list[id].times_sent = self.request_list[id].times_sent + 1
+        request.times_sent = request.times_sent + 1
         if
-          self.request_list[id].times_sent > 1
+          request.times_sent > 1
           and
           request.id ~= 1 -- Initialize request may take some time
         then
-          remove_request = id
+          remove_request = index
           break
         else
           return request
         end
       else
-        self.request_list[id].timestamp = os.time() + 1
+        request.timestamp = os.time() + 1
         self:shutdown_if_needed()
         return nil
       end
@@ -640,7 +640,7 @@ function Server:process_requests()
   end
 
   if remove_request then
-    self.request_list[remove_request] = nil
+    table.remove(self.request_list, remove_request)
     if self.verbose then
       self:log("Request '%s' expired without response", remove_request)
     end
@@ -686,7 +686,8 @@ end
 function Server:process_client_responses()
   if not self:is_initialized() then return end
 
-  for index, response in pairs(self.response_list) do
+  ::send_responses::
+  for index, response in ipairs(self.response_list) do
     local message = {
       jsonrpc = '2.0',
       id = response.id
@@ -717,7 +718,9 @@ function Server:process_client_responses()
 
     if written and written > 0 then
       self.write_fails = 0
-      self.response_list[index] = nil
+      table.remove(self.response_list, index)
+      -- restart loop after removing from table to prevent issues
+      goto send_responses
     else
       self:shutdown_if_needed()
       return
@@ -923,14 +926,14 @@ function Server:push_request(method, params, callback)
   self.current_request = self.current_request + 1
 
   -- Store the request for later processing on responses_loop
-  self.request_list[self.current_request] = {
+  table.insert(self.request_list, {
     id = self.current_request,
     method = method,
     params = params,
     callback = callback or nil,
     timestamp = 0,
     times_sent = 0
-  }
+  })
 end
 
 ---Queue a client response to a server request which can be an error
@@ -982,11 +985,13 @@ end
 ---@param id integer
 ---@return table
 function Server:pop_request(id)
-  local request = self.request_list[id]
-  if request then
-    self.request_list[id] = nil
+  for index, request in ipairs(self.request_list) do
+    if request.id == id then
+      table.remove(self.request_list, index)
+      return request
+    end
   end
-  return request
+  return nil
 end
 
 ---Try to fetch a server rsponses, notifications or requests
