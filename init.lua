@@ -78,6 +78,9 @@ config.plugins.lsp = {
   more_yielding = false
 }
 
+-- register config options on settings gui if available
+require "plugins.lsp.settingsgui"
+
 --
 -- Main plugin functionality
 --
