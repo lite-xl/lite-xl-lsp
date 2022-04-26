@@ -313,7 +313,9 @@ function util.strip_markdown(text)
     local new_spaces = new_line:match("^%g+")
 
     if prev_spaces and new_spaces then
-      local new_lines = prev_endings:gsub("[ \t\r]+", "")
+      local new_lines = prev_endings ~= nil
+        and prev_endings:gsub("[ \t\r]+", "") or ""
+
       if #new_lines == 1 then
         is_paragraph = true
         clean_text = clean_text:gsub("[%s\n]+$", "")
