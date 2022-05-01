@@ -62,6 +62,7 @@ diagnostics.related_information = {}
 
 ---A diagnostic message.
 ---@class diagnostics.message
+---@field filename string
 ---@field range diagnostics.position
 ---@field severity diagnostics.severity_code | integer
 ---@field code integer | string
@@ -72,7 +73,13 @@ diagnostics.related_information = {}
 ---@field relatedInformation diagnostics.related_information
 diagnostics.message = {}
 
----@type table<string, diagnostics.message>
+---A diagnostic item.
+---@class diagnostics.item
+---@field filename string
+---@field messages diagnostics.message[]
+diagnostics.message = {}
+
+---@type table<integer, diagnostics.item>
 diagnostics.list = {}
 
 ---@type integer
@@ -97,6 +104,20 @@ local function get_absolute_path(filename)
   return core.project_absolute_path(filename)
 end
 
+---Get the position of diagnostics associated to a file.
+---@param filename string
+---@return integer | nil
+function diagnostics.get_index(filename)
+  filename = get_absolute_path(filename)
+  if not filename then return nil end
+  for index, diagnostic in ipairs(diagnostics.list) do
+    if diagnostic.filename == filename then
+      return index
+    end
+  end
+  return nil
+end
+
 ---Get the diagnostics associated to a file.
 ---@param filename string
 ---@param severity? diagnostics.severity_code | integer
@@ -104,15 +125,19 @@ end
 function diagnostics.get(filename, severity)
   filename = get_absolute_path(filename)
   if not filename then return nil end
-  if not severity then return diagnostics.list[filename] end
-  if not diagnostics.list[filename] then return nil end
+  for _, diagnostic in ipairs(diagnostics.list) do
+    if diagnostic.filename == filename then
+      if not severity then return diagnostic.messages end
 
-  local results = {}
-  for _, message in ipairs(diagnostics.list[filename]) do
-    if message.severity == severity then table.insert(results, message) end
+      local results = {}
+      for _, message in ipairs(diagnostic.messages) do
+        if message.severity == severity then table.insert(results, message) end
+      end
+
+      return #results > 0 and results or nil
+    end
   end
-
-  return #results > 0 and results or nil
+  return nil
 end
 
 ---Adds a new list of diagnostics associated to a file replacing previous one.
@@ -120,23 +145,32 @@ end
 ---@param messages diagnostics.message[]
 ---@return boolean
 function diagnostics.add(filename, messages)
+  local index = diagnostics.get_index(filename)
+
   filename = get_absolute_path(filename)
   if not filename then return false end
+
   table.sort(messages, sort_helper)
-  if not diagnostics.list[filename] then
+
+  if not index then
     diagnostics.count = diagnostics.count + 1
+    table.insert(diagnostics.list, {
+      filename = filename, messages = messages
+    })
+  else
+    diagnostics.list[index].messages = messages
   end
-  diagnostics.list[filename] = messages
+
   return true
 end
 
 ---Removes all diagnostics associated to a file.
 ---@param filename string
 function diagnostics.clear(filename)
-  filename = get_absolute_path(filename)
-  if not filename then return end
-  if diagnostics.list[filename] then
-    diagnostics.list[filename] = nil
+  local index = diagnostics.get_index(filename)
+
+  if index then
+    table.remove(diagnostics.list, index)
     diagnostics.count = diagnostics.count - 1
   end
 end
@@ -145,19 +179,18 @@ end
 ---@param filename string
 ---@param severity? diagnostics.severity_code | integer
 function diagnostics.get_messages_count(filename, severity)
-  filename = get_absolute_path(filename)
-  if not filename then return 0 end
-  if diagnostics.list[filename] then
-    if not severity then return #diagnostics.list[filename] end
+  local index = diagnostics.get_index(filename)
 
-    local count = 0
-    for _, message in ipairs(diagnostics.list[filename]) do
-      if message.severity == severity then count = count + 1 end
-    end
-    return count
+  if not index then return 0 end
+
+  if not severity then return #diagnostics.list[index].messages end
+
+  local count = 0
+  for _, message in ipairs(diagnostics.list[index].messages) do
+    if message.severity == severity then count = count + 1 end
   end
 
-  return 0
+  return count
 end
 
 

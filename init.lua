@@ -339,6 +339,9 @@ local function autocomplete_onhover(index, item)
           item.desc = item.desc:gsub("[%s\n]+$", "")
             :gsub("^[%s\n]+", "")
             :gsub("\n\n\n+", "\n\n")
+
+          core.root_view:draw()
+
           if server.verbose then
             server:log(
               "Resolve response: %s", Util.jsonprettify(Json.encode(symbol))
@@ -483,10 +486,10 @@ local cached_workspace_settings = {}
 local cached_workspace_settings_timestamp = 0
 
 ---Get table of configuration settings in the following way:
----1. Scan the USERDIR for settings.lua or settings.json (in that order)
+---1. Scan the USERDIR for .lite_lsp.lua or .lite_lsp.json (in that order)
 ---2. Merge server.settings
----4. Scan workspace if set also for settings.lua/json and merge them or
----3. Scan server.path also for settings.lua/json and merge them
+---4. Scan workspace if set also for .lite_lsp.lua/json and merge them or
+---3. Scan server.path also for .lite_lsp.lua/json and merge them
 ---Note: settings are cached for 5 seconds for faster retrieval
 ---      on repetitive calls to this function.
 ---@param server lsp.server
@@ -519,13 +522,13 @@ function lsp.get_workspace_settings(server, workspace)
       if path then
         local settings_new = nil
         path = path:gsub("\\+$", ""):gsub("/+$", "")
-        if Util.file_exists(path .. "/settings.lua") then
-          local settings_lua = require(path .. "/settings.lua")
+        if Util.file_exists(path .. "/.lite_lsp.lua") then
+          local settings_lua = dofile(path .. "/.lite_lsp.lua")
           if type(settings_lua) == "table" then
             settings_new = settings_lua
           end
-        elseif Util.file_exists(path .. "/settings.json") then
-          local file = io.open(path .. "/settings.json", "r")
+        elseif Util.file_exists(path .. "/.lite_lsp.json") then
+          local file = io.open(path .. "/.lite_lsp.json", "r")
           local settings_json = file:read("*a")
           settings_new = Json.decode(settings_json)
           file:close()
@@ -1095,7 +1098,7 @@ function lsp.request_completion(doc, line, col, forced)
         and
         not forced
       then
-        core.redraw = true
+        core.root_view:draw()
         return false
       end
 
@@ -1224,6 +1227,7 @@ function lsp.request_completion(doc, line, col, forced)
           else
             autocomplete.complete(symbols)
           end
+          core.root_view:draw()
         end
       )
     end
@@ -1275,6 +1279,7 @@ function lsp.request_signature(doc, line, col, forced, fallback)
             end
             autocomplete.close()
             listbox.show_text(text:gsub("[%s\n]+$", ""))
+            core.root_view:draw()
           elseif fallback then
             fallback(doc, line, col)
           end
@@ -1643,8 +1648,11 @@ function lsp.view_all_diagnostics()
   end
 
   local captions = {}
-  for name, _ in pairs(diagnostics.list) do
-    table.insert(captions, core.normalize_to_project_dir(name))
+  for _, diagnostic in ipairs(diagnostics.list) do
+    table.insert(
+      captions,
+      core.normalize_to_project_dir(diagnostic.filename)
+    )
   end
 
   core.command_view:enter("Filter Files",
@@ -1764,7 +1772,7 @@ core.add_thread(function()
           -- or server:process_notifications()
           server:process_errors(config.plugins.lsp.log_server_stderr)
           server:process_responses()
-          coroutine.yield(0)
+          coroutine.yield()
           coroutine.resume(raw_send)
         end
       end
@@ -1790,7 +1798,9 @@ core.add_thread(function()
     end
 
     if servers_running then
-      coroutine.yield(0.01)
+      local wait = 0.01
+      if config.plugins.lsp.more_yielding then wait = 0 end
+      coroutine.yield(wait)
     else
       coroutine.yield(2)
     end
