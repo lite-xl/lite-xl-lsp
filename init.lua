@@ -1,4 +1,4 @@
--- mod-version:2 -- lite-xl 2.00
+--- mod-version:3 --lite-xl 2.1
 --
 -- LSP client for lite-xl
 -- @copyright Jefferson Gonzalez
