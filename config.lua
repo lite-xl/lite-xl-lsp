@@ -233,6 +233,17 @@ lspconfig.kotlin_language_server = add_lsp {
   verbose = false
 }
 
+lspconfig.nimlsp = add_lsp {
+  name = "nimlsp",
+  language = "Nim",
+  file_patterns = { "%.nim$" },
+  command = { "nimlsp" },
+  requests_per_second = 25,
+  requests_in_chunks = true,
+  incremental_changes = false,
+  verbose = false
+}
+
 -- ocaml-lsp
 -- Status: Reported working on https://github.com/jgmdev/lite-xl-lsp/issues/17
 -- Site: https://github.com/ocaml/ocaml-lsp
