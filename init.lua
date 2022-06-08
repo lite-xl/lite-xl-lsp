@@ -1348,14 +1348,14 @@ function lsp.request_references(doc, line, col)
         function(server, response)
           if response.result and #response.result > 0 then
             local references, reference_names = get_references_lists(response.result)
-            core.command_view:enter("Filter References",
-              function(text, item)
+            core.command_view:enter("Filter References", {
+              submit = function(text, item)
                 if item then
                   local reference = references[item.name]
                     lsp.goto_location(reference)
                 end
               end,
-              function(text)
+              suggest = function(text)
                 local res = common.fuzzy_match(reference_names, text)
                 for i, name in ipairs(res) do
                   local reference_info = Util.split(name, "||")
@@ -1367,7 +1367,7 @@ function lsp.request_references(doc, line, col)
                 end
                 return res
               end
-            )
+            })
           else
             log(server, "No references found.")
           end
@@ -1505,8 +1505,8 @@ function lsp.request_document_symbols(doc)
         function(server, response)
           if response.result and response.result and #response.result > 0 then
             local symbols, symbol_names = get_symbol_lists(response.result)
-            core.command_view:enter("Find Symbol",
-              function(text, item)
+            core.command_view:enter("Find Symbol", {
+              submit = function(text, item)
                 if item then
                   local symbol = symbols[item.name]
                   -- The lsp may return a location object with range
@@ -1521,7 +1521,7 @@ function lsp.request_document_symbols(doc)
                   end
                 end
               end,
-              function(text)
+              suggest = function(text)
                 local res = common.fuzzy_match(symbol_names, text)
                 for i, name in ipairs(res) do
                   res[i] = {
@@ -1532,7 +1532,7 @@ function lsp.request_document_symbols(doc)
                 end
                 return res
               end
-            )
+            })
           end
         end
       )
@@ -1616,15 +1616,15 @@ function lsp.view_document_diagnostics(doc)
     indexes[label] = index
   end
 
-  core.command_view:enter("Filter Diagnostics",
-    function(text, item)
+  core.command_view:enter("Filter Diagnostics", {
+    submit = function(text, item)
       if item then
         local diagnostic = diagnostic_messages[item.index]
         local line1, col1 = Util.toselection(diagnostic.range)
         doc:set_selection(line1, col1, line1, col1)
       end
     end,
-    function(text)
+    suggest = function(text)
       local res = common.fuzzy_match(captions, text)
       for i, name in ipairs(res) do
         local diagnostic = diagnostic_messages[indexes[name]]
@@ -1638,7 +1638,7 @@ function lsp.view_document_diagnostics(doc)
       end
       return res
     end
-  )
+  })
 end
 
 function lsp.view_all_diagnostics()
@@ -1655,8 +1655,8 @@ function lsp.view_all_diagnostics()
     )
   end
 
-  core.command_view:enter("Filter Files",
-    function(text, item)
+  core.command_view:enter("Filter Files", {
+    submit = function(text, item)
       if item then
         core.root_view:open_doc(
           core.open_doc(
@@ -1667,7 +1667,7 @@ function lsp.view_all_diagnostics()
         )
       end
     end,
-    function(text)
+    suggest = function(text)
       local res = common.fuzzy_match(captions, text, true)
       for i, name in ipairs(res) do
         local diagnostics_count = diagnostics.get_messages_count(
@@ -1680,7 +1680,7 @@ function lsp.view_all_diagnostics()
       end
       return res
     end
-  )
+  })
 end
 
 --- Jumps to the definition or implementation of the symbol where the cursor
@@ -2144,10 +2144,12 @@ command.add("core.docview", {
     end
     local line1, col1, line2 = doc:get_selection()
     if #symbol > 0 and line1 == line2 then
-      core.command_view:set_text(symbol)
-      core.command_view:enter("New Symbol Name", function(new_name)
-        lsp.request_symbol_rename(doc, line1, col1, new_name)
-      end, nil)
+      core.command_view:enter("New Symbol Name", {
+        text = symbol,
+        submit = function(new_name)
+          lsp.request_symbol_rename(doc, line1, col1, new_name)
+        end
+      })
     else
       core.log("Please select a symbol on the document to rename.")
     end
@@ -2162,10 +2164,12 @@ command.add("core.docview", {
     else
       return
     end
-    core.command_view:set_text(symbol)
-    core.command_view:enter("Find Workspace Symbol", function(query)
-      lsp.request_workspace_symbol(doc, query)
-    end, nil)
+    core.command_view:enter("Find Workspace Symbol", {
+      text = symbol,
+      submit = function(query)
+        lsp.request_workspace_symbol(doc, query)
+      end
+    })
   end,
 
   ["lsp:find-references"] = function()
