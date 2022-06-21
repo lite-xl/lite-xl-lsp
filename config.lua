@@ -378,7 +378,7 @@ lspconfig.sumneko_lua = add_lsp {
       },
       workspace = {
         library = {
-          [DATADIR] = true
+          DATADIR
         },
         maxPreload = 2000,
         preloadFileSize = 1000
