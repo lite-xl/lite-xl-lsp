@@ -1994,8 +1994,8 @@ local function status_view_items(self)
 end
 
 if StatusView["add_item"] then
-  core.status_view:add_item(
-    function()
+  core.status_view:add_item({
+    predicate = function()
       local av = get_active_view()
       if av and av.doc and av.doc.filename then
         local filename = core.project_absolute_path(av.doc.filename)
@@ -2006,13 +2006,14 @@ if StatusView["add_item"] then
       end
       return false
     end,
-    "lsp:diagnostics",
-    StatusView.Item.RIGHT,
-    status_view_items,
-    "lsp:view-document-diagnostics",
-    1,
-    "LSP Diagnostics"
-  ).separator = core.status_view.separator2
+    name = "lsp:diagnostics",
+    alignment = StatusView.Item.RIGHT,
+    get_item = status_view_items,
+    command = "lsp:view-document-diagnostics",
+    position = 1,
+    tooltip = "LSP Diagnostics",
+    separator = core.status_view.separator2
+  })
 else
   function StatusView:get_items()
     local left, right = status_view_get_items(self)
