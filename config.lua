@@ -397,7 +397,7 @@ lspconfig.sumneko_lua = add_lsp {
 lspconfig.tsserver = add_lsp {
   name = "typescript-language-server",
   language = "javascript",
-  file_patterns = { "%.js$", "%.cjs$", "%.mjs$" },
+  file_patterns = { "%.jsx?$", "%.cjs$", "%.mjs$", "%.tsx?$" },
   command = { 'typescript-language-server', '--stdio' },
   verbose = false
 }
