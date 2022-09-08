@@ -116,6 +116,18 @@ lspconfig.cssls = add_lsp {
   verbose = false
 }
 
+-- dartls
+-- Status: Untested
+-- Site: https://github.com/dart-lang/sdk
+-- Installation: Provided in dart sdk
+lspconfig.dartls = add_lsp {
+  name = "dart",
+  language = "dart",
+  file_patterns = { "%.dart$" },
+  command = { "dart", "language-server", "--protocol=lsp" },
+  verbose = false
+}
+
 -- Dockerfile
 -- Status: Untested
 -- Site: https://github.com/rcjsuen/dockerfile-language-server-nodejs
