@@ -28,6 +28,7 @@ local autocomplete = require "plugins.autocomplete"
 
 local Json = require "plugins.lsp.json"
 local Server = require "plugins.lsp.server"
+local Timer = require "plugins.lsp.timer"
 local Util = require "plugins.lsp.util"
 local SymbolResults = require "plugins.lsp.symbolresults"
 local listbox = require "plugins.lsp.listbox"
@@ -853,6 +854,27 @@ function lsp.open_document(doc)
         end
       else
         doc.lsp_open = true
+      end
+
+      ---@type lsp.timer
+      doc.lsp_changes_timer = Timer(100, true)
+      doc.lsp_changes_timer.on_timer = function()
+        local line1, col1, line2, col2 = doc:get_selection()
+
+        -- Send update to lsp servers
+        lsp.update_document(doc)
+
+        if line1 == line2 and col1 == col2 then
+          -- First try to display a function signatures and if not possible
+          -- do normal code autocomplete
+          lsp.request_signature(
+            doc,
+            line1,
+            col1,
+            false,
+            lsp.request_completion
+          )
+        end
       end
     end
   end
@@ -1812,12 +1834,9 @@ end)
 --
 local doc_load = Doc.load
 local doc_save = Doc.save
-local doc_undo = Doc.undo
-local doc_redo = Doc.redo
 local doc_on_close = Doc.on_close
 local doc_raw_insert = Doc.raw_insert
 local doc_raw_remove = Doc.raw_remove
-local root_view_on_text_input = RootView.on_text_input
 local status_view_get_items = StatusView.get_items
 
 function Doc:load(...)
@@ -1853,32 +1872,6 @@ function Doc:save(...)
     end)
   end
   return res
-end
-
-function Doc:undo(...)
-  doc_undo(self, ...)
-
-  -- skip new files
-  if not self.filename then return end
-
-  local av = get_active_view()
-  if av and av.doc then
-    -- Send update to lsp servers
-    lsp.update_document(av.doc)
-  end
-end
-
-function Doc:redo(...)
-  doc_redo(self, ...)
-
-  -- skip new files
-  if not self.filename then return end
-
-  local av = get_active_view()
-  if av then
-    -- Send update to lsp servers
-    lsp.update_document(av.doc)
-  end
 end
 
 function Doc:on_close()
@@ -1941,6 +1934,11 @@ function Doc:raw_insert(line, col, text, undo_stack, time)
   if not self.filename then return end
 
   add_change(self, text, line, col, line, col)
+
+  if self.lsp_open then
+    self.lsp_changes_timer:reset()
+    self.lsp_changes_timer:start()
+  end
 end
 
 function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
@@ -1950,30 +1948,10 @@ function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
   if not self.filename then return end
 
   add_change(self, "", line1, col1, line2, col2)
-end
 
-function RootView:on_text_input(...)
-  root_view_on_text_input(self, ...)
-
-  local av = get_active_view()
-
-  if av and av.doc and av.doc.filename then
-    local line1, col1, line2, col2 = av.doc:get_selection()
-
-    -- Send update to lsp servers
-    lsp.update_document(av.doc)
-
-    if line1 == line2 and col1 == col2 then
-      -- First try to display a function signatures and if not possible
-      -- do normal code autocomplete
-      lsp.request_signature(
-        av.doc,
-        line1,
-        col1,
-        false,
-        lsp.request_completion
-      )
-    end
+  if self.lsp_open then
+    self.lsp_changes_timer:reset()
+    self.lsp_changes_timer:start()
   end
 end
 
