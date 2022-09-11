@@ -52,7 +52,7 @@ function Timer:stop()
   end
 end
 
----Reset the timer countdown for execution.
+---Resets the timer countdown for execution.
 function Timer:reset()
   if self.started then
     self.last_run = system.get_time()
@@ -65,13 +65,13 @@ function Timer:running()
   return self.started
 end
 
----Appropriately set time timer interval by converting milliseconds to seconds.
+---Appropriately set the timer interval by converting milliseconds to seconds.
 ---@param interval integer The interval in milliseconds
 function Timer:set_interval(interval)
   self.interval = interval / 1000
 end
 
----To be overwritten by instantiated timer objects
+---To be overwritten by the instantiated timer objects
 function Timer:on_timer() end
 
 
