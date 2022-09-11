@@ -21,7 +21,6 @@ local style = require "core.style"
 local Doc = require "core.doc"
 local translate = require "core.doc.translate"
 local keymap = require "core.keymap"
-local RootView = require "core.rootview"
 local DocView = require "core.docview"
 local StatusView = require "core.statusview"
 local autocomplete = require "plugins.autocomplete"
@@ -111,7 +110,7 @@ local diagnostic_kinds = { "error", "warning", "info", "hint" }
 --
 
 ---Generate an lsp location object
----@param doc Doc
+---@param doc core.doc
 ---@param line integer
 ---@param col integer
 local function get_buffer_position_params(doc, line, col)
@@ -129,7 +128,7 @@ end
 ---Recursive function to generate a list of symbols ready
 ---to use for the lsp.request_document_symbols() action.
 ---@param list table<integer, table>
----@param parent string
+---@param parent? string
 local function get_symbol_lists(list, parent)
   local symbols = {}
   local symbol_names = {}
@@ -181,7 +180,7 @@ local function log(server, message, ...)
 end
 
 ---Check if active view is a DocView and return it
----@return DocView|nil
+---@return core.docview|nil
 local function get_active_view()
   if getmetatable(core.active_view) == DocView then
     return core.active_view
@@ -255,7 +254,7 @@ local function get_references_lists(locations)
 end
 
 ---Apply an lsp textEdit to a document if possible.
----@param doc Doc
+---@param doc core.doc
 ---@param text_edit table
 ---@return boolean True on success
 local function apply_edit(doc, text_edit)
@@ -530,9 +529,11 @@ function lsp.get_workspace_settings(server, workspace)
           end
         elseif Util.file_exists(path .. "/.lite_lsp.json") then
           local file = io.open(path .. "/.lite_lsp.json", "r")
-          local settings_json = file:read("*a")
-          settings_new = Json.decode(settings_json)
-          file:close()
+          if file then
+            local settings_json = file:read("*a")
+            settings_new = Json.decode(settings_json)
+            file:close()
+          end
         end
 
         -- overwrite global settings by those specified in the server if any
@@ -867,6 +868,7 @@ function lsp.open_document(doc)
 end
 
 --- Send notification to applicable LSP servers that a document was saved
+---@param doc core.doc
 function lsp.save_document(doc)
   if not doc.lsp_open then return end
 
@@ -923,6 +925,7 @@ function lsp.save_document(doc)
 end
 
 --- Send notification to applicable LSP servers that a document was closed
+---@param doc core.doc
 function lsp.close_document(doc)
   if not doc.lsp_open then return end
 
@@ -953,6 +956,7 @@ function lsp.close_document(doc)
 end
 
 --- Helper for lsp.update_document
+---@param doc core.doc
 local function request_signature_completion(doc)
   local line1, col1, line2, col2 = doc:get_selection()
 
@@ -971,7 +975,7 @@ end
 
 ---Send document updates to applicable running LSP servers.
 ---@param doc core.doc
----@param request_completion boolean
+---@param request_completion? boolean
 function lsp.update_document(doc, request_completion)
   if not doc.lsp_open or not doc.lsp_changes or #doc.lsp_changes <= 0 then
     return
@@ -1447,7 +1451,7 @@ function lsp.request_call_hierarchy(doc, line, col)
 end
 
 ---Sends a request to applicable LSP servers to rename a symbol.
----@param doc Doc
+---@param doc core.doc
 ---@param line integer
 ---@param col integer
 ---@param new_name string
@@ -1486,7 +1490,7 @@ function lsp.request_symbol_rename(doc, line, col, new_name)
 end
 
 ---Sends a request to applicable LSP servers to search for symbol on workspace.
----@param doc Doc
+---@param doc core.doc
 ---@param symbol string
 function lsp.request_workspace_symbol(doc, symbol)
   if not doc.lsp_open then return end

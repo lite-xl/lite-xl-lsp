@@ -866,7 +866,7 @@ local notifications_whitelist = {
 ---Queue a new notification but ignores new ones if the hit rate was reached.
 ---@param method string
 ---@param params table
----@param callback lsp.server.notificationcb
+---@param callback? lsp.server.notificationcb
 function Server:push_notification(method, params, callback)
   if
     method ~= "textDocument/didOpen"
@@ -968,7 +968,7 @@ end
 ---Send raw json strings to server in cases where the json encoder
 ---would be too slow to convert a lua table into a json representation.
 ---@param data string
----@param callback lsp.server.callback
+---@param callback? lsp.server.callback
 function Server:push_raw(data, callback)
   if self.verbose then
     self:log("Adding raw request")
