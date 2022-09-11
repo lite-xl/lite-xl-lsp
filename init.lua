@@ -859,22 +859,8 @@ function lsp.open_document(doc)
       ---@type lsp.timer
       doc.lsp_changes_timer = Timer(100, true)
       doc.lsp_changes_timer.on_timer = function()
-        local line1, col1, line2, col2 = doc:get_selection()
-
         -- Send update to lsp servers
-        lsp.update_document(doc)
-
-        if line1 == line2 and col1 == col2 then
-          -- First try to display a function signatures and if not possible
-          -- do normal code autocomplete
-          lsp.request_signature(
-            doc,
-            line1,
-            col1,
-            false,
-            lsp.request_completion
-          )
-        end
+        lsp.update_document(doc, true)
       end
     end
   end
@@ -966,8 +952,27 @@ function lsp.close_document(doc)
   end
 end
 
---- Send document updates to applicable running LSP servers.
-function lsp.update_document(doc)
+--- Helper for lsp.update_document
+local function request_signature_completion(doc)
+  local line1, col1, line2, col2 = doc:get_selection()
+
+  if line1 == line2 and col1 == col2 then
+    -- First try to display a function signatures and if not possible
+    -- do normal code autocomplete
+    lsp.request_signature(
+      doc,
+      line1,
+      col1,
+      false,
+      lsp.request_completion
+    )
+  end
+end
+
+---Send document updates to applicable running LSP servers.
+---@param doc core.doc
+---@param request_completion boolean
+function lsp.update_document(doc, request_completion)
   if not doc.lsp_open or not doc.lsp_changes or #doc.lsp_changes <= 0 then
     return
   end
@@ -1007,6 +1012,11 @@ function lsp.update_document(doc)
         sync_kind = server.capabilities.textDocumentSync
       end
 
+      local completion_callback = nil
+      if request_completion then
+        completion_callback = function() request_signature_completion(doc) end
+      end
+
       if
         sync_kind == Server.text_document_sync_kind.Full
         and
@@ -1033,7 +1043,8 @@ function lsp.update_document(doc)
           .. '{"text": "'..text..'"}\n'
           .. "]\n"
           .. '}\n'
-          .. '}\n'
+          .. '}\n',
+          completion_callback
         )
       else
         lsp.servers_running[name]:push_notification(
@@ -1044,7 +1055,8 @@ function lsp.update_document(doc)
               version = doc.lsp_version,
             },
             contentChanges = doc.lsp_changes
-          }
+          },
+          completion_callback
         )
       end
       doc.lsp_changes = {}
