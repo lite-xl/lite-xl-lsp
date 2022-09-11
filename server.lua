@@ -967,7 +967,7 @@ end
 
 ---Send raw json strings to server in cases where the json encoder
 ---would be too slow to convert a lua table into a json representation.
----@param data table
+---@param data string
 ---@param callback lsp.server.callback
 function Server:push_raw(data, callback)
   if self.verbose then
