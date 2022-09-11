@@ -1274,6 +1274,7 @@ function lsp.request_signature(doc, line, col, forced, fallback)
   if not doc.lsp_open then return end
 
   local char = doc:get_char(line, col-1)
+  local prev_char = doc:get_char(line, col-2) -- to support ', '
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
     if
@@ -1287,8 +1288,15 @@ function lsp.request_signature(doc, line, col, forced, fallback)
           and
           #server.capabilities.signatureHelpProvider.triggerCharacters > 0
           and
-          Util.intable(
-            char, server.capabilities.signatureHelpProvider.triggerCharacters
+          (
+            Util.intable(
+              char, server.capabilities.signatureHelpProvider.triggerCharacters
+            )
+            or
+            Util.intable(
+              prev_char,
+              server.capabilities.signatureHelpProvider.triggerCharacters
+            )
           )
         )
       )
