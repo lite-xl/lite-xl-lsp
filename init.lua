@@ -1,4 +1,4 @@
---- mod-version:3 --lite-xl 2.1
+--- mod-version:3
 --
 -- LSP client for lite-xl
 -- @copyright Jefferson Gonzalez
@@ -181,9 +181,10 @@ end
 
 ---Check if active view is a DocView and return it
 ---@return core.docview|nil
-local function get_active_view()
-  if getmetatable(core.active_view) == DocView then
-    return core.active_view
+local function get_active_docview()
+  local av = core.active_view
+  if getmetatable(av) == DocView and av.doc and av.doc.filename then
+    return av
   end
   return nil
 end
@@ -362,29 +363,31 @@ end
 local function autocomplete_onselect(index, item)
   local completion = item.data.completion_item
   if completion.textEdit then
-    local av = get_active_view()
-    local edit_applied = apply_edit(av.doc, completion.textEdit)
-    if edit_applied then
-      lsp.update_document(av.doc)
-      -- Retrigger code completion if last char is a trigger
-      -- this is useful for example with clangd when autocompleting
-      -- a #include, if user types < a list of paths will appear
-      -- when selecting a path that ends with / as <AL/ the
-      -- autocompletion will be retriggered to show a list of
-      -- header files that belong to that directory.
-      lsp.in_trigger = false
-      local line, col = av.doc:get_selection()
-      local char = av.doc:get_char(line, col-1)
-      if char:match("%p") then
-        lsp.request_completion(
-          av.doc,
-          line,
-          col,
-          true
-        )
+    local dv = get_active_docview()
+    if dv then
+      local edit_applied = apply_edit(dv.doc, completion.textEdit)
+      if edit_applied then
+        lsp.update_document(dv.doc)
+        -- Retrigger code completion if last char is a trigger
+        -- this is useful for example with clangd when autocompleting
+        -- a #include, if user types < a list of paths will appear
+        -- when selecting a path that ends with / as <AL/ the
+        -- autocompletion will be retriggered to show a list of
+        -- header files that belong to that directory.
+        lsp.in_trigger = false
+        local line, col = dv.doc:get_selection()
+        local char = dv.doc:get_char(line, col-1)
+        if char:match("%p") then
+          lsp.request_completion(
+            dv.doc,
+            line,
+            col,
+            true
+          )
+        end
       end
+      return edit_applied
     end
-    return edit_applied
   end
   return false
 end
@@ -1078,9 +1081,9 @@ function lsp.toggle_diagnostics()
     end
     core.log("[LSP] Diagnostics disabled")
   else
-    local av = get_active_view()
-    if av and av.doc and av.doc.filename then
-      local filename = core.project_absolute_path(av.doc.filename)
+    local dv = get_active_docview()
+    if dv then
+      local filename = core.project_absolute_path(dv.doc.filename)
       local diagnostic_messages = diagnostics.get(filename)
       if diagnostic_messages then
         for _, diagnostic in pairs(diagnostic_messages) do
@@ -1861,7 +1864,6 @@ local doc_save = Doc.save
 local doc_on_close = Doc.on_close
 local doc_raw_insert = Doc.raw_insert
 local doc_raw_remove = Doc.raw_remove
-local status_view_get_items = StatusView.get_items
 
 function Doc:load(...)
   local res = doc_load(self, ...)
@@ -1979,172 +1981,111 @@ function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
   end
 end
 
-local function status_view_items(self)
-  local av = get_active_view()
-  local filename = core.project_absolute_path(av.doc.filename)
-  local diagnostic_messages = diagnostics.get(filename)
-
-  if diagnostic_messages and #diagnostic_messages > 0 then
-    return {
-      style.syntax["string"],
-      style.icon_font, "!",
-      style.font, " " .. tostring(#diagnostic_messages)
-    }
-  end
-
-  return {}
-end
-
-if StatusView["add_item"] then
-  core.status_view:add_item({
-    predicate = function()
-      local av = get_active_view()
-      if av and av.doc and av.doc.filename then
-        local filename = core.project_absolute_path(av.doc.filename)
-        local diagnostic_messages = diagnostics.get(filename)
-        if diagnostic_messages and #diagnostic_messages > 0 then
-          return true
-        end
-      end
-      return false
-    end,
-    name = "lsp:diagnostics",
-    alignment = StatusView.Item.RIGHT,
-    get_item = status_view_items,
-    command = "lsp:view-document-diagnostics",
-    position = 1,
-    tooltip = "LSP Diagnostics",
-    separator = core.status_view.separator2
-  })
-else
-  function StatusView:get_items()
-    local left, right = status_view_get_items(self)
-
-    local av = get_active_view()
-    if av and av.doc and av.doc.filename then
-      local items = status_view_items(self)
-      table.insert(items, style.dim)
-      table.insert(items, self.separator2)
-      for i, item in ipairs(items) do
-        table.insert(right, i, item)
+--
+-- Add status view item to show document diagnostics count
+--
+core.status_view:add_item({
+  predicate = function()
+    local dv = get_active_docview()
+    if dv then
+      local filename = core.project_absolute_path(dv.doc.filename)
+      local diagnostic_messages = diagnostics.get(filename)
+      if diagnostic_messages and #diagnostic_messages > 0 then
+        return true
       end
     end
-    return left, right
-  end
-end
+    return false
+  end,
+  name = "lsp:diagnostics",
+  alignment = StatusView.Item.RIGHT,
+  get_item = function()
+    local dv = get_active_docview()
+    if dv then
+      local filename = core.project_absolute_path(dv.doc.filename)
+      local diagnostic_messages = diagnostics.get(filename)
+
+      if diagnostic_messages and #diagnostic_messages > 0 then
+        return {
+          style.syntax["string"],
+          style.icon_font, "!",
+          style.font, " " .. tostring(#diagnostic_messages)
+        }
+      end
+    end
+
+    return {}
+  end,
+  command = "lsp:view-document-diagnostics",
+  position = 1,
+  tooltip = "LSP Diagnostics",
+  separator = core.status_view.separator2
+})
 
 --
 -- Commands
 --
-command.add("core.docview", {
-  ["lsp:complete"] = function()
-    local av = core.active_view
-    if av and av.doc and av.doc.filename then
-      local doc = core.active_view.doc
-      local line1, col1, line2, col2 = doc:get_selection()
-      if line1 == line2 and col1 == col2 then
-        lsp.request_completion(doc, line1, col1, true)
-      end
+command.add(
+  function()
+    local dv = get_active_docview()
+    return dv ~= nil and dv.doc.lsp_open, dv and dv.doc or nil
+  end, {
+
+  ["lsp:complete"] = function(doc)
+    local line1, col1, line2, col2 = doc:get_selection()
+    if line1 == line2 and col1 == col2 then
+      lsp.request_completion(doc, line1, col1, true)
     end
   end,
 
-  ["lsp:goto-definition"] = function()
-    local av = core.active_view
-    if av and av.doc and av.doc.filename then
-      local doc = core.active_view.doc
-      local line1, col1, line2 = doc:get_selection()
-      if line1 == line2 then
-        lsp.goto_symbol(doc, line1, col1)
-      end
+  ["lsp:goto-definition"] = function(doc)
+    local line1, col1, line2 = doc:get_selection()
+    if line1 == line2 then
+      lsp.goto_symbol(doc, line1, col1)
     end
   end,
 
-  ["lsp:goto-implementation"] = function()
-    local av = core.active_view
-    if av and av.doc and av.doc.filename then
-      local doc = core.active_view.doc
-      local line1, col1, line2 = doc:get_selection()
-      if line1 == line2 then
-        lsp.goto_symbol(doc, line1, col1, true)
-      end
+  ["lsp:goto-implementation"] = function(doc)
+    local line1, col1, line2 = doc:get_selection()
+    if line1 == line2 then
+      lsp.goto_symbol(doc, line1, col1, true)
     end
   end,
 
-  ["lsp:show-signature"] = function()
-    local av = core.active_view
-    if av and av.doc and av.doc.filename then
-      local doc = core.active_view.doc
-      local line1, col1, line2, col2 = doc:get_selection()
-      if line1 == line2 and col1 == col2 then
-        lsp.request_signature(doc, line1, col1, true)
-      end
+  ["lsp:show-signature"] = function(doc)
+    local line1, col1, line2, col2 = doc:get_selection()
+    if line1 == line2 and col1 == col2 then
+      lsp.request_signature(doc, line1, col1, true)
     end
   end,
 
-  ["lsp:show-symbol-info"] = function()
-    local av = core.active_view
-    if av and av.doc and av.doc.filename then
-      local doc = core.active_view.doc
-      local line1, col1, line2 = doc:get_selection()
-      if line1 == line2 then
-        lsp.request_hover(doc, line1, col1)
-      end
+  ["lsp:show-symbol-info"] = function(doc)
+    local line1, col1, line2 = doc:get_selection()
+    if line1 == line2 then
+      lsp.request_hover(doc, line1, col1)
     end
   end,
 
-  ["lsp:view-call-hierarchy"] = function()
-    local av = core.active_view
-    if av and av.doc and av.doc.filename then
-      local doc = core.active_view.doc
-      local line1, col1, line2 = doc:get_selection()
-      if line1 == line2 then
-        lsp.request_call_hierarchy(doc, line1, col1)
-      end
+  ["lsp:view-call-hierarchy"] = function(doc)
+    local line1, col1, line2 = doc:get_selection()
+    if line1 == line2 then
+      lsp.request_call_hierarchy(doc, line1, col1)
     end
   end,
 
-  ["lsp:view-document-symbols"] = function()
-    if core.active_view and core.active_view.doc then
-      local doc = core.active_view.doc
-      if doc and doc.filename then
-        lsp.request_document_symbols(doc)
-      end
-    end
+  ["lsp:view-document-symbols"] = function(doc)
+    lsp.request_document_symbols(doc)
   end,
 
-  ["lsp:format-document"] = function()
-    if core.active_view and core.active_view.doc then
-      local doc = core.active_view.doc
-      if doc and doc.filename then
-        lsp.request_document_format(doc)
-      end
-    end
+  ["lsp:format-document"] = function(doc)
+    lsp.request_document_format(doc)
   end,
 
-  ["lsp:view-document-diagnostics"] = function()
-    if core.active_view and core.active_view.doc then
-      local doc = core.active_view.doc
-      if doc and doc.filename then
-        lsp.view_document_diagnostics(doc)
-      end
-    end
+  ["lsp:view-document-diagnostics"] = function(doc)
+    lsp.view_document_diagnostics(doc)
   end,
 
-  ["lsp:view-all-diagnostics"] = function()
-    if core.active_view and core.active_view.doc then
-        lsp.view_all_diagnostics()
-    end
-  end,
-
-  ["lsp:rename-symbol"] = function()
-    local doc = nil
-    local symbol = ""
-    if core.active_view and core.active_view.doc then
-      doc = core.active_view.doc
-      symbol = core.active_view.doc:get_text(core.active_view.doc:get_selection())
-    else
-      return
-    end
+  ["lsp:rename-symbol"] = function(doc)
+    local symbol = doc:get_text(doc:get_selection())
     local line1, col1, line2 = doc:get_selection()
     if #symbol > 0 and line1 == line2 then
       core.command_view:enter("New Symbol Name", {
@@ -2158,31 +2099,29 @@ command.add("core.docview", {
     end
   end,
 
-  ["lsp:find-workspace-symbol"] = function()
-    local doc = nil
-    local symbol = ""
-    if core.active_view and core.active_view.doc then
-      doc = core.active_view.doc
-      symbol = core.active_view.doc:get_text(core.active_view.doc:get_selection())
-    else
-      return
+  ["lsp:find-references"] = function(doc)
+    local line1, col1, line2 = doc:get_selection()
+    if line1 == line2 then
+      lsp.request_references(doc, line1, col1)
     end
+  end
+})
+
+command.add(nil, {
+  ["lsp:view-all-diagnostics"] = function()
+    lsp.view_all_diagnostics()
+  end,
+
+  ["lsp:find-workspace-symbol"] = function()
+    local dv = get_active_docview()
+    local doc = dv and dv.doc or nil
+    local symbol = doc and doc:get_text(doc:get_selection()) or ""
     core.command_view:enter("Find Workspace Symbol", {
       text = symbol,
       submit = function(query)
         lsp.request_workspace_symbol(doc, query)
       end
     })
-  end,
-
-  ["lsp:find-references"] = function()
-    local doc = core.active_view.doc
-    if doc then
-      local line1, col1, line2 = doc:get_selection()
-      if line1 == line2 then
-        lsp.request_references(doc, line1, col1)
-      end
-    end
   end,
 
   ["lsp:toggle-diagnostics"] = function()
@@ -2204,7 +2143,7 @@ command.add("core.docview", {
   ["lsp:restart-servers"] = function()
     lsp.stop_servers()
     lsp.start_servers()
-  end,
+  end
 })
 
 --
@@ -2231,14 +2170,9 @@ keymap.add {
 -- Register context menu items
 --
 local function lsp_predicate(_, _, also_in_symbol)
-  if
-    get_active_view()
-    and
-    core.active_view.doc
-    and
-    core.active_view.doc.filename
-  then
-    local doc = core.active_view.doc
+  local dv = get_active_docview()
+  if dv then
+    local doc = dv.doc
 
     if #lsp.get_active_servers(doc.filename, true) < 1 then
       return false
@@ -2265,8 +2199,8 @@ local function lsp_predicate_symbols()
   return lsp_predicate(nil, nil, true)
 end
 
-local found, menu = pcall(require, "plugins.contextmenu")
-if found then
+local menu_found, menu = pcall(require, "plugins.contextmenu")
+if menu_found then
   menu:register(lsp_predicate_symbols, {
     menu.DIVIDER,
     { text = "Show Symbol Info",       command = "lsp:show-symbol-info" },
@@ -2283,5 +2217,6 @@ if found then
     { text = "Format Document",        command = "lsp:format-document" },
   })
 end
+
 
 return lsp
