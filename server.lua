@@ -14,7 +14,7 @@ local util = require "plugins.lsp.util"
 local Object = require "core.object"
 
 ---LSP Server communication library.
----@class lsp.server
+---@class lsp.server : core.object
 ---@field public name string
 ---@field public language string
 ---@field public file_patterns table
