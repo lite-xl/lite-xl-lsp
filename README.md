@@ -196,7 +196,7 @@ config.plugins.lsp.more_yielding = false
   - [ ] Support for pre-selected item
   - [ ] Be able to use a custom sorting field.
 - [x] Add hover support for function arguments
-  - [ ] Add custom tooltip that accents active parameter and signature
+  - [x] Add custom tooltip that accents active parameter and signature
 - [x] Figure out how to get an autocompletion item full documentation with
 'completionItem/resolve' or any other in order to better populate
 the new autocomplete item description

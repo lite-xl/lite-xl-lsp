@@ -67,9 +67,14 @@ local function get_suggestions_rect(active_view)
 
   local max_width = 0
   for _, item in ipairs(settings.shown_items) do
-    local w = font:get_width(item.text)
-    if item.info then
-      w = w + style.font:get_width(item.info) + style.padding.x
+    local w = 0
+    if item.on_draw then
+      w = item.on_draw(item, 0, 0, true)
+    else
+      w = font:get_width(item.text)
+      if item.info then
+        w = w + style.font:get_width(item.info) + style.padding.x
+      end
     end
     max_width = math.max(max_width, w)
   end
@@ -95,11 +100,20 @@ local function get_suggestions_rect(active_view)
     height = max_items * (text_height + padding_y) + padding_y
   end
 
-  return
-    x - padding_x,
-    y - padding_y,
-    max_width + padding_x * 2,
-    height
+  local width = max_width + padding_x * 2
+
+  x = x - padding_x
+  y = y - padding_y
+
+  local win_w = system.get_window_size()
+  if width > (win_w - x) then
+    x = x - (width - (win_w - x))
+    if x < 0 then
+      x = 0
+    end
+  end
+
+  return x, y, width, height
 end
 
 local function draw_listbox(av)
@@ -155,22 +169,26 @@ local function draw_listbox(av)
 
     local item = settings.shown_items[i]
 
-    local color = (i == settings.selected_item_idx and settings.is_list) and
-      style.accent or style.text
-
-    common.draw_text(
-      font, color, item.text, "left",
-      rx + padding_x, y, rw, line_height
-    )
-
-    if item.info then
-      color = (i == settings.selected_item_idx and settings.is_list) and
-        style.text or style.dim
+    if item.on_draw then
+      item.on_draw(item, rx + padding_x, y)
+    else
+      local color = (i == settings.selected_item_idx and settings.is_list) and
+        style.accent or style.text
 
       common.draw_text(
-        style.font, color, item.info, "right",
-        rx, y, rw - padding_x, line_height
+        font, color, item.text, "left",
+        rx + padding_x, y, rw, line_height
       )
+
+      if item.info then
+        color = (i == settings.selected_item_idx and settings.is_list) and
+          style.text or style.dim
+
+        common.draw_text(
+          style.font, color, item.info, "right",
+          rx, y, rw - padding_x, line_height
+        )
+      end
     end
     y = y + line_height
   end
@@ -199,11 +217,13 @@ end
 -- Public functions
 --
 function listbox.add(elements)
-  local items = {}
-  for _, element in pairs(elements) do
-    table.insert(items, setmetatable(element, mt))
+  if type(elements) == "table" and #elements > 0 then
+    local items = {}
+    for _, element in pairs(elements) do
+      table.insert(items, setmetatable(element, mt))
+    end
+    settings.items = items
   end
-  settings.items = items
 end
 
 function listbox.clear()
@@ -216,10 +236,22 @@ function listbox.append(element)
   table.insert(settings.items, setmetatable(element, mt))
 end
 
-function listbox.show_text(text)
-  local active_view = get_active_view()
-  settings.last_line, settings.last_col = active_view.doc:get_selection()
+function listbox.hide()
+  settings.selected_item_idx = 1
+  settings.shown_items = {}
+end
 
+function listbox.show(is_list)
+  local av = get_active_view()
+  settings.last_line, settings.last_col = av.doc:get_selection()
+
+  if settings.items and #settings.items > 0 then
+    settings.is_list = is_list
+    settings.shown_items = settings.items
+  end
+end
+
+function listbox.show_text(text)
   if text and type("text") == "string" then
     local items = {}
     for result in string.gmatch(text.."\n", "(.-)\n") do
@@ -228,33 +260,119 @@ function listbox.show_text(text)
     listbox.add(items)
   end
 
-  if settings.items and #settings.items > 0 then
-    settings.is_list = false
-    settings.shown_items = settings.items
-  end
+  listbox.show()
 end
 
 function listbox.show_list(items, callback)
-  local active_view = get_active_view()
-  settings.last_line, settings.last_col = active_view.doc:get_selection()
-
-  if items and #items > 0 then
-    listbox.add(items)
-  end
+  listbox.add(items)
 
   if callback then
     settings.callback = callback
   end
 
-  if settings.items and #settings.items > 0 then
-    settings.is_list = true
-    settings.shown_items = settings.items
-  end
+  listbox.show(true)
 end
 
-function listbox.hide()
-  settings.selected_item_idx = 1
-  settings.shown_items = {}
+function listbox.show_signatures(signatures)
+  local active_parameter = nil
+  local active_signature = nil
+
+  if signatures.activeParameter then
+    active_parameter = signatures.activeParameter + 1
+  end
+
+  if signatures.activeSignature then
+    active_signature = signatures.activeSignature + 1
+  end
+
+  local signatures_count = #signatures.signatures
+
+  local items = {}
+  for index, signature in ipairs(signatures.signatures) do
+    table.insert(items, {
+      text = signature.label,
+      signature = signature,
+      on_draw = function(item, x, y, calc_only)
+        local width = 0
+        local height = style.font:get_height()
+
+        if item.signature.parameters then
+          if signatures_count > 1 then
+            if index == active_signature then
+              width = style.font:get_width("> ")
+            else
+              width = style.font:get_width("> ")
+              x = x + style.font:get_width("> ")
+            end
+          end
+
+          width = width
+            + style.font:get_width("(")
+            + style.font:get_width(")")
+
+          if not calc_only then
+            if signatures_count > 1 and index == active_signature then
+              x = renderer.draw_text(style.font, "> ", x, y, style.caret)
+            end
+            x = renderer.draw_text(style.font, "(", x, y, style.text)
+          end
+
+          local params_count = #item.signature.parameters
+          for pindex, param in ipairs(item.signature.parameters) do
+            local label = ""
+            if type(param.label) == "table" then
+              label = signature.label:sub(param.label[1]+1, param.label[2])
+            else
+              label = param.label
+            end
+            if label and pindex ~= params_count then
+              label = label .. ", "
+            end
+            width = width + style.font:get_width(label)
+            if not calc_only then
+              local color = style.text
+              if
+                (
+                  signature.activeParameter
+                  and
+                  (signature.activeParameter + 1) == pindex
+                )
+                or
+                (index == active_signature and active_parameter == pindex)
+              then
+                color = style.accent
+              end
+              x = renderer.draw_text(
+                style.font,
+                label,
+                x, y,
+                color
+              )
+            end
+          end
+
+          if not calc_only then
+            renderer.draw_text(style.font, ")", x, y, style.text)
+          end
+        else
+          width = style.font:get_width(item.signature.label)
+          if not calc_only then
+            renderer.draw_text(
+              style.font,
+              item.signature.label,
+              x, y,
+              style.text
+            )
+          end
+        end
+        return width, width > 0 and height or 0
+      end
+    })
+  end
+
+  listbox.add(items)
+
+  listbox.show()
 end
 
 function listbox.toggle_above(enable)

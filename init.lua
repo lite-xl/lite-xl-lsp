@@ -23,6 +23,7 @@ local translate = require "core.doc.translate"
 local keymap = require "core.keymap"
 local DocView = require "core.docview"
 local StatusView = require "core.statusview"
+local RootView = require "core.rootview"
 local autocomplete = require "plugins.autocomplete"
 
 local Json = require "plugins.lsp.json"
@@ -100,6 +101,11 @@ lsp.servers_running = {}
 ---and return wrong results (eg: lua-language-server)
 ---@type boolean
 lsp.in_trigger = false
+
+---Flag that indicates if the user typed something on the editor to try and
+---call autocomplete only when neccesary.
+---@type boolean
+lsp.user_typed = false
 
 ---Used to set proper diagnostic type on lintplus
 ---@type table<integer, string>
@@ -864,7 +870,8 @@ function lsp.open_document(doc)
       doc.lsp_changes_timer = Timer(100, true)
       doc.lsp_changes_timer.on_timer = function()
         -- Send update to lsp servers
-        lsp.update_document(doc, true)
+        lsp.update_document(doc, lsp.user_typed)
+        lsp.user_typed = false
       end
     end
   end
@@ -1319,15 +1326,8 @@ function lsp.request_signature(doc, line, col, forced, fallback)
             and
             #response.result.signatures > 0
           then
-            local active_parameter = response.result.activeParameter or 0
-            local active_signature = response.result.activeSignature or 0
-            local signatures = response.result.signatures
-            local text = ""
-            for index, signature in pairs(signatures) do
-              text = text .. signature.label .. "\n"
-            end
             autocomplete.close()
-            listbox.show_text(text:gsub("[%s\n]+$", ""))
+            listbox.show_signatures(response.result)
             core.root_view:draw()
           elseif fallback then
             fallback(doc, line, col)
@@ -1864,6 +1864,7 @@ local doc_save = Doc.save
 local doc_on_close = Doc.on_close
 local doc_raw_insert = Doc.raw_insert
 local doc_raw_remove = Doc.raw_remove
+local root_view_on_text_input = RootView.on_text_input
 
 function Doc:load(...)
   local res = doc_load(self, ...)
@@ -1978,6 +1979,20 @@ function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
   if self.lsp_open then
     self.lsp_changes_timer:reset()
     self.lsp_changes_timer:start()
+  end
+end
+
+function RootView:on_text_input(...)
+  root_view_on_text_input(self, ...)
+
+  local av = get_active_docview()
+
+  if av then
+    local line1, col1, line2, col2 = av.doc:get_selection()
+
+    if line1 == line2 and col1 == col2 then
+      lsp.user_typed = true
+    end
   end
 end
 
