@@ -3,6 +3,7 @@
 -- @license MIT
 
 local core = require "core"
+local util = require "plugins.lsp.util"
 
 local diagnostics = {}
 
@@ -85,6 +86,25 @@ diagnostics.list = {}
 ---@type integer
 diagnostics.count = 0
 
+-- Try to load lintplus plugin if available for diagnostics rendering
+local lintplus_found, lintplus = pcall(require, "plugins.lintplus")
+local lintplus_kinds = { "error", "warning", "info", "hint" }
+
+---@class diagnostic.timer
+---@field typed boolean
+---@field routine integer
+
+---List of linplus coroutines to delay messages population
+---@type table<string,diagnostic.timer>
+local lintplus_delays = {}
+
+---Used to set proper diagnostic type on lintplus
+---@type table<integer, string>
+diagnostics.lintplus_kinds = lintplus_kinds
+
+---@type boolean
+diagnostics.lintplus_found = lintplus_found
+
 ---@param a diagnostics.message
 ---@param b diagnostics.message
 local function sort_helper(a, b)
@@ -92,7 +112,8 @@ local function sort_helper(a, b)
 end
 
 ---Helper to catch some trange occurances where nil is given as filename
----@param filename string
+---@param filename string|nil
+---@return string | nil
 local function get_absolute_path(filename)
   if not filename then
     core.error(
@@ -191,6 +212,84 @@ function diagnostics.get_messages_count(filename, severity)
   end
 
   return count
+end
+
+---@param doc core.doc
+function diagnostics.lintplus_init_doc(doc)
+  if lintplus_found then
+    lintplus.init_doc(doc.filename, doc)
+  end
+end
+
+---Remove registered diagnostics from lintplus for the given file or for
+---all files if no filename is given.
+---@param filename? string
+function diagnostics.lintplus_clear_messages(filename)
+  if lintplus_found then
+    if filename then
+      lintplus.clear_messages(filename)
+    else
+      for fname, _ in pairs(lintplus.messages) do
+        lintplus.clear_messages(fname)
+      end
+    end
+  end
+end
+
+function diagnostics.lintplus_populate(filename)
+  if lintplus_found then
+    diagnostics.lintplus_clear_messages(filename)
+
+    if not filename then
+      for _, diagnostic in ipairs(diagnostics.list) do
+        local fname = core.normalize_to_project_dir(diagnostic.filename)
+        for _, message in pairs(diagnostic.messages) do
+          local line, col = util.toselection(message.range)
+          local text = message.message
+          local kind = lintplus_kinds[message.severity]
+
+          lintplus.add_message(fname, line, col, kind, text)
+        end
+      end
+    else
+      local messages = diagnostics.get(filename)
+      if messages then
+        for _, message in pairs(messages) do
+          local line, col = util.toselection(message.range)
+          local text = message.message
+          local kind = lintplus_kinds[message.severity]
+
+          lintplus.add_message(
+            core.normalize_to_project_dir(filename),
+            line, col, kind, text
+          )
+        end
+      end
+    end
+  end
+end
+
+function diagnostics.lintplus_populate_delayed(filename, user_typed)
+  if lintplus_found then
+    if not lintplus_delays[filename] then
+      lintplus_delays[filename] = {
+        typed = user_typed,
+        routine = core.add_thread(function()
+          local prev_time = system.get_time()
+          while (prev_time + 1) > system.get_time() do
+            if lintplus_delays[filename].typed then
+              prev_time = system.get_time()
+            end
+            coroutine.yield(0)
+          end
+          diagnostics.lintplus_populate(filename)
+          lintplus_delays[filename] = nil
+        end)
+      }
+    else
+      lintplus_delays[filename].typed = user_typed
+    end
+  end
 end
 
 

@@ -18,27 +18,21 @@ local common = require "core.common"
 local config = require "core.config"
 local command = require "core.command"
 local style = require "core.style"
-local Doc = require "core.doc"
 local translate = require "core.doc.translate"
 local keymap = require "core.keymap"
+local Doc = require "core.doc"
 local DocView = require "core.docview"
 local StatusView = require "core.statusview"
 local RootView = require "core.rootview"
 local autocomplete = require "plugins.autocomplete"
 
-local Json = require "plugins.lsp.json"
-local Server = require "plugins.lsp.server"
-local Timer = require "plugins.lsp.timer"
-local Util = require "plugins.lsp.util"
-local SymbolResults = require "plugins.lsp.symbolresults"
+local json = require "plugins.lsp.json"
+local util = require "plugins.lsp.util"
 local listbox = require "plugins.lsp.listbox"
 local diagnostics = require "plugins.lsp.diagnostics"
-
--- Try to load lintplus plugin if available for diagnostics rendering
-local lintplus = nil
-if pcall(require, "plugins.lintplus") then
-  lintplus = require "plugins.lintplus"
-end
+local Server = require "plugins.lsp.server"
+local Timer = require "plugins.lsp.timer"
+local SymbolResults = require "plugins.lsp.symbolresults"
 
 --
 -- Plugin settings
@@ -107,10 +101,6 @@ lsp.in_trigger = false
 ---@type boolean
 lsp.user_typed = false
 
----Used to set proper diagnostic type on lintplus
----@type table<integer, string>
-local diagnostic_kinds = { "error", "warning", "info", "hint" }
-
 --
 -- Private functions
 --
@@ -122,7 +112,7 @@ local diagnostic_kinds = { "error", "warning", "info", "hint" }
 local function get_buffer_position_params(doc, line, col)
   return {
     textDocument = {
-      uri = Util.touri(core.project_absolute_path(doc.filename)),
+      uri = util.touri(core.project_absolute_path(doc.filename)),
     },
     position = {
       line = line - 1,
@@ -198,11 +188,11 @@ end
 ---Generates a code preview of a location
 ---@param location table
 local function get_location_preview(location)
-  local line1, col1 = Util.toselection(
+  local line1, col1 = util.toselection(
     location.range or location.targetRange
   )
   local filename = core.normalize_to_project_dir(
-    Util.tofilename(location.uri or location.targetUri)
+    util.tofilename(location.uri or location.targetUri)
   )
   local abs_filename = core.project_absolute_path(filename)
 
@@ -277,7 +267,7 @@ local function apply_edit(doc, text_edit)
 
   if not range then return false end
 
-  local line1, col1, line2, col2 = Util.toselection(range)
+  local line1, col1, line2, col2 = util.toselection(range)
   local text = text_edit.newText
   local current_text = ""
 
@@ -306,7 +296,7 @@ local function autocomplete_onhover(index, item)
 
   if item.data.server.verbose then
     item.data.server:log(
-      "Resolve item: %s", Util.jsonprettify(Json.encode(completion_item))
+      "Resolve item: %s", util.jsonprettify(json.encode(completion_item))
     )
   end
 
@@ -337,7 +327,7 @@ local function autocomplete_onhover(index, item)
                 and
                 symbol.documentation.kind == "markdown"
               then
-                item.desc = Util.strip_markdown(item.desc)
+                item.desc = util.strip_markdown(item.desc)
               end
             else
               item.desc = item.desc .. symbol.documentation
@@ -351,7 +341,7 @@ local function autocomplete_onhover(index, item)
 
           if server.verbose then
             server:log(
-              "Resolve response: %s", Util.jsonprettify(Json.encode(symbol))
+              "Resolve response: %s", util.jsonprettify(json.encode(symbol))
             )
           end
         elseif server.verbose then
@@ -408,7 +398,7 @@ function lsp.get_language_id(server, doc)
   if server.id_not_extension then
     return server.language
   end
-  return Util.file_extension(doc.filename)
+  return util.file_extension(doc.filename)
 end
 
 ---Open a document location returned by LSP
@@ -417,11 +407,11 @@ function lsp.goto_location(location)
   core.root_view:open_doc(
     core.open_doc(
       common.home_expand(
-        Util.tofilename(location.uri or location.targetUri)
+        util.tofilename(location.uri or location.targetUri)
       )
     )
   )
-  local line1, col1 = Util.toselection(
+  local line1, col1 = util.toselection(
     location.range or location.targetRange
   )
   core.active_view.doc:set_selection(line1, col1, line1, col1)
@@ -531,16 +521,16 @@ function lsp.get_workspace_settings(server, workspace)
       if path then
         local settings_new = nil
         path = path:gsub("\\+$", ""):gsub("/+$", "")
-        if Util.file_exists(path .. "/.lite_lsp.lua") then
+        if util.file_exists(path .. "/.lite_lsp.lua") then
           local settings_lua = dofile(path .. "/.lite_lsp.lua")
           if type(settings_lua) == "table" then
             settings_new = settings_lua
           end
-        elseif Util.file_exists(path .. "/.lite_lsp.json") then
+        elseif util.file_exists(path .. "/.lite_lsp.json") then
           local file = io.open(path .. "/.lite_lsp.json", "r")
           if file then
             local settings_json = file:read("*a")
-            settings_new = Json.decode(settings_json)
+            settings_new = json.decode(settings_json)
             file:close()
           end
         end
@@ -548,7 +538,7 @@ function lsp.get_workspace_settings(server, workspace)
         -- overwrite global settings by those specified in the server if any
         if position == 1 and server.settings then
           if settings_new then
-            Util.table_merge(settings_new, server.settings)
+            util.table_merge(settings_new, server.settings)
           else
             settings_new = server.settings
           end
@@ -556,7 +546,7 @@ function lsp.get_workspace_settings(server, workspace)
 
         -- overwrite previous settings with new ones
         if settings_new then
-          Util.table_merge(settings, settings_new)
+          util.table_merge(settings, settings_new)
         end
       end
 
@@ -587,7 +577,7 @@ function lsp.start_server(filename, project_directory)
       end
 
       local command_exists = false
-      if Util.command_exists(server.command[1]) then
+      if util.command_exists(server.command[1]) then
         command_exists = true
       else
         table.insert(servers_not_found, name)
@@ -615,7 +605,7 @@ function lsp.start_server(filename, project_directory)
             "[LSP]: %s was shutdown, revise your configuration",
             self.name
           )
-          lsp.servers_running = Util.table_remove_key(
+          lsp.servers_running = util.table_remove_key(
             lsp.servers_running,
             self.name
           )
@@ -632,13 +622,13 @@ function lsp.start_server(filename, project_directory)
               local value = nil
               -- No workspace was specified so we return from default settings
               if not item.scopeUri then
-                value = Util.table_get_field(settings_default, item.section)
+                value = util.table_get_field(settings_default, item.section)
               -- A workspace was specified so we return from that workspace
               else
                 local settings_workspace = lsp.get_workspace_settings(
-                  server, Util.tofilename(item.scopeUri)
+                  server, util.tofilename(item.scopeUri)
                 )
-                value = Util.table_get_field(settings_workspace, item.section)
+                value = util.table_get_field(settings_workspace, item.section)
               end
 
               if not value then
@@ -647,7 +637,7 @@ function lsp.start_server(filename, project_directory)
                 server:log("Asking for '%s' config", item.section)
               end
 
-              table.insert(settings_list, value or Json.null)
+              table.insert(settings_list, value or json.null)
             end
             server:push_response(request.method, request.id, settings_list)
           end
@@ -668,7 +658,7 @@ function lsp.start_server(filename, project_directory)
           "textDocument/publishDiagnostics",
           function(server, params)
             local filename = core.normalize_to_project_dir(
-              Util.tofilename(params.uri)
+              util.tofilename(params.uri)
             )
 
             if server.verbose then
@@ -685,27 +675,15 @@ function lsp.start_server(filename, project_directory)
               if
                 added and config.plugins.lsp.show_diagnostics
                 and
-                lintplus and lintplus.add_message
+                diagnostics.lintplus_found
               then
-                lintplus.clear_messages(filename)
-
-                for _, diagnostic in pairs(params.diagnostics) do
-                  local line, col = Util.toselection(diagnostic.range)
-                  local message = diagnostic.message
-                  local kind = diagnostic_kinds[diagnostic.severity]
-
-                  lintplus.add_message(filename, line, col, kind, message)
-                end
+                -- we delay rendering of diagnostics for 2 seconds because it
+                -- to prevent the constant reporting of errors while typing.
+                diagnostics.lintplus_populate_delayed(filename, lsp.user_typed)
               end
             else
               diagnostics.clear(filename)
-              if
-                config.plugins.lsp.show_diagnostics
-                and
-                lintplus and lintplus.add_message
-              then
-                lintplus.clear_messages(filename)
-              end
+              diagnostics.lintplus_clear_messages(filename)
             end
           end
         )
@@ -718,7 +696,7 @@ function lsp.start_server(filename, project_directory)
             log(server, "Initialized")
           end
           local settings = lsp.get_workspace_settings(server)
-          if not Util.table_empty(settings) then
+          if not util.table_empty(settings) then
             server:push_request(
               "workspace/didChangeConfiguration",
               {settings = settings},
@@ -726,7 +704,7 @@ function lsp.start_server(filename, project_directory)
                 if server.verbose then
                   server:log(
                     "'workspace/didChangeConfiguration' response:\n%s",
-                    Util.jsonprettify(Json.encode(response))
+                    util.jsonprettify(json.encode(response))
                   )
                 end
               end
@@ -766,7 +744,7 @@ function lsp.stop_servers()
     if lsp.servers_running[name] then
        lsp.servers_running[name]:exit()
        core.log("[LSP] stopped %s", name)
-       lsp.servers_running = Util.table_remove_key(lsp.servers_running, name)
+       lsp.servers_running = util.table_remove_key(lsp.servers_running, name)
     end
   end
 end
@@ -823,7 +801,7 @@ function lsp.open_document(doc)
             'textDocument/didOpen',
             {
               textDocument = {
-                uri = Util.touri(doc_path),
+                uri = util.touri(doc_path),
                 languageId = lsp.get_language_id(server, doc),
                 version = doc.clean_change_id,
                 text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
@@ -847,7 +825,7 @@ function lsp.open_document(doc)
             .. '"method": "textDocument/didOpen",\n'
             .. '"params": {\n'
             .. '"textDocument": {\n'
-            .. '"uri": "'..Util.touri(doc_path)..'",\n'
+            .. '"uri": "'..util.touri(doc_path)..'",\n'
             .. '"languageId": "'..lsp.get_language_id(server, doc)..'",\n'
             .. '"version": '..doc.clean_change_id..',\n'
             .. '"text": "'..text..'"\n'
@@ -913,7 +891,7 @@ function lsp.save_document(doc)
             .. '"method": "textDocument/didSave",\n'
             .. '"params": {\n'
             .. '"textDocument": {\n'
-            .. '"uri": "'..Util.touri(core.project_absolute_path(doc.filename))..'"\n'
+            .. '"uri": "'..util.touri(core.project_absolute_path(doc.filename))..'"\n'
             .. '},\n'
             .. '"text": "'..text..'"\n'
             .. '}\n'
@@ -924,7 +902,7 @@ function lsp.save_document(doc)
             'textDocument/didSave',
             {
               textDocument = {
-                uri = Util.touri(core.project_absolute_path(doc.filename))
+                uri = util.touri(core.project_absolute_path(doc.filename))
               }
             }
           )
@@ -954,7 +932,7 @@ function lsp.close_document(doc)
           'textDocument/didClose',
           {
             textDocument = {
-              uri = Util.touri(core.project_absolute_path(doc.filename)),
+              uri = util.touri(core.project_absolute_path(doc.filename)),
               languageId = lsp.get_language_id(server, doc),
               version = doc.clean_change_id
             }
@@ -1050,7 +1028,7 @@ function lsp.update_document(doc, request_completion)
           .. '"method": "textDocument/didChange",\n'
           .. '"params": {\n'
           .. '"textDocument": {\n'
-          .. '"uri": "'..Util.touri(core.project_absolute_path(doc.filename))..'",\n'
+          .. '"uri": "'..util.touri(core.project_absolute_path(doc.filename))..'",\n'
           .. '"version": '..doc.lsp_version .. "\n"
           .. '},\n'
           .. '"contentChanges": [\n'
@@ -1065,7 +1043,7 @@ function lsp.update_document(doc, request_completion)
           'textDocument/didChange',
           {
             textDocument = {
-              uri = Util.touri(core.project_absolute_path(doc.filename)),
+              uri = util.touri(core.project_absolute_path(doc.filename)),
               version = doc.lsp_version,
             },
             contentChanges = doc.lsp_changes
@@ -1082,26 +1060,11 @@ end
 function lsp.toggle_diagnostics()
   config.plugins.lsp.show_diagnostics = not config.plugins.lsp.show_diagnostics
 
-  if not config.plugins.lsp.show_diagnostics and lintplus then
-    for name, message in pairs(lintplus.messages) do
-      lintplus.clear_messages(name)
-    end
+  if not config.plugins.lsp.show_diagnostics then
+    diagnostics.lintplus_clear_messages()
     core.log("[LSP] Diagnostics disabled")
   else
-    local dv = get_active_docview()
-    if dv then
-      local filename = core.project_absolute_path(dv.doc.filename)
-      local diagnostic_messages = diagnostics.get(filename)
-      if diagnostic_messages then
-        for _, diagnostic in pairs(diagnostic_messages) do
-          local line, col = Util.toselection(diagnostic.range)
-          local message = diagnostic.message
-          local kind = diagnostic_kinds[diagnostic.severity]
-
-          lintplus.add_message(filename, line, col, kind, message)
-        end
-      end
-    end
+    diagnostics.lintplus_populate()
     core.log("[LSP] Diagnostics enabled")
   end
 end
@@ -1130,7 +1093,7 @@ function lsp.request_completion(doc, line, col, forced)
         and
         char:match("%p")
         and
-        Util.intable(char, capabilities.completionProvider.triggerCharacters)
+        util.intable(char, capabilities.completionProvider.triggerCharacters)
       then
         request.context = {
           triggerKind = Server.completion_trigger_Kind.TriggerCharacter,
@@ -1235,7 +1198,7 @@ function lsp.request_completion(doc, line, col, forced)
                 and
                 symbol.documentation.kind == "markdown"
               then
-                desc = Util.strip_markdown(desc)
+                desc = util.strip_markdown(desc)
                 if symbol_count % 10 == 0 then
                   coroutine.yield()
                 end
@@ -1303,11 +1266,11 @@ function lsp.request_signature(doc, line, col, forced, fallback)
           #server.capabilities.signatureHelpProvider.triggerCharacters > 0
           and
           (
-            Util.intable(
+            util.intable(
               char, server.capabilities.signatureHelpProvider.triggerCharacters
             )
             or
-            Util.intable(
+            util.intable(
               prev_char,
               server.capabilities.signatureHelpProvider.triggerCharacters
             )
@@ -1407,7 +1370,7 @@ function lsp.request_references(doc, line, col)
               suggest = function(text)
                 local res = common.fuzzy_match(reference_names, text)
                 for i, name in ipairs(res) do
-                  local reference_info = Util.split(name, "||")
+                  local reference_info = util.split(name, "||")
                   res[i] = {
                     text = reference_info[1],
                     info = reference_info[2],
@@ -1478,7 +1441,8 @@ function lsp.request_symbol_rename(doc, line, col, new_name)
               -- TODO: Finish implement textDocument/rename
             end
           end
-          core.log("%s", Json.prettify(Json.encode(response)))
+
+          core.log("%s", json.prettify(json.encode(response)))
         end
       )
       return
@@ -1548,7 +1512,7 @@ function lsp.request_document_symbols(doc)
         'textDocument/documentSymbol',
         {
           textDocument = {
-            uri = Util.touri(core.project_absolute_path(doc.filename)),
+            uri = util.touri(core.project_absolute_path(doc.filename)),
           }
         },
         function(server, response)
@@ -1563,7 +1527,7 @@ function lsp.request_document_symbols(doc)
                   -- the symbol it self.
                   symbol = symbol.location and symbol.location or symbol
                   if not symbol.uri then
-                    local line1, col1 = Util.toselection(symbol.range)
+                    local line1, col1 = util.toselection(symbol.range)
                     doc:set_selection(line1, col1, line1, col1)
                   else
                     lsp.goto_location(symbol)
@@ -1574,7 +1538,7 @@ function lsp.request_document_symbols(doc)
                 local res = common.fuzzy_match(symbol_names, text)
                 for i, name in ipairs(res) do
                   res[i] = {
-                    text = Util.split(name, "||")[1],
+                    text = util.split(name, "||")[1],
                     info = Server.get_symbol_kind(symbols[name].kind),
                     name = name
                   }
@@ -1611,7 +1575,7 @@ function lsp.request_document_format(doc)
         'textDocument/formatting',
         {
           textDocument = {
-            uri = Util.touri(core.project_absolute_path(doc.filename)),
+            uri = util.touri(core.project_absolute_path(doc.filename)),
           },
           options = {
             tabSize = config.indent_size,
@@ -1657,7 +1621,7 @@ function lsp.view_document_diagnostics(doc)
 
   local indexes, captions = {}, {}
   for index, diagnostic in pairs(diagnostic_messages) do
-    local line1, col1 = Util.toselection(diagnostic.range)
+    local line1, col1 = util.toselection(diagnostic.range)
     local label = diagnostic_labels[diagnostic.severity]
       .. ": " .. diagnostic.message .. " "
       .. tostring(line1) .. ":" .. tostring(col1)
@@ -1669,7 +1633,7 @@ function lsp.view_document_diagnostics(doc)
     submit = function(text, item)
       if item then
         local diagnostic = diagnostic_messages[item.index]
-        local line1, col1 = Util.toselection(diagnostic.range)
+        local line1, col1 = util.toselection(diagnostic.range)
         doc:set_selection(line1, col1, line1, col1)
       end
     end,
@@ -1677,9 +1641,9 @@ function lsp.view_document_diagnostics(doc)
       local res = common.fuzzy_match(captions, text)
       for i, name in ipairs(res) do
         local diagnostic = diagnostic_messages[indexes[name]]
-        local line1, col1 = Util.toselection(diagnostic.range)
+        local line1, col1 = util.toselection(diagnostic.range)
         res[i] = {
-          text = diagnostic_kinds[diagnostic.severity]
+          text = diagnostics.lintplus_kinds[diagnostic.severity]
             .. ": " .. diagnostic.message,
           info = tostring(line1) .. ":" .. tostring(col1),
           index = indexes[name]
@@ -1870,9 +1834,7 @@ function Doc:load(...)
   local res = doc_load(self, ...)
   -- skip new files
   if self.filename then
-    if lintplus then
-      lintplus.init_doc(self.filename, self)
-    end
+    diagnostics.lintplus_init_doc(self)
     core.add_thread(function()
       lsp.start_server(self.filename, core.project_dir)
       lsp.open_document(self)
@@ -1886,9 +1848,7 @@ function Doc:save(...)
   local res = doc_save(self, ...)
   if old_filename ~= self.filename then
     -- seems to be a new document so we send open notification
-    if lintplus then
-      lintplus.init_doc(self.filename, self)
-    end
+    diagnostics.lintplus_init_doc(self)
     core.add_thread(function()
       lsp.open_document(self)
     end)
@@ -1929,7 +1889,7 @@ function Doc:on_close()
     if not doc_found then
       server:exit()
       core.log("[LSP] stopped %s", name)
-      lsp.servers_running = Util.table_remove_key(lsp.servers_running, name)
+      lsp.servers_running = util.table_remove_key(lsp.servers_running, name)
     end
   end
 end
@@ -2140,7 +2100,7 @@ command.add(nil, {
   end,
 
   ["lsp:toggle-diagnostics"] = function()
-    if type(lintplus) == "nil" then
+    if not diagnostics.lintplus_found then
       core.error("[LSP] Please install lintplus for diagnostics rendering.")
       return
     end
