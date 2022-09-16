@@ -6,9 +6,10 @@ if settings_loaded then
     {
       {
         label = "Log File",
-        description = "Absolute path to a file for logging all json.",
+        description = "Absolute path to a '.log' file for logging all json.",
         path = "log_file",
-        type = settings.type.STRING
+        type = settings.type.FILE,
+        filters = {"%.log$"}
       },
       {
         label = "Prettify JSON",
