@@ -677,8 +677,8 @@ function lsp.start_server(filename, project_directory)
                 and
                 diagnostics.lintplus_found
               then
-                -- we delay rendering of diagnostics for 2 seconds because it
-                -- to prevent the constant reporting of errors while typing.
+                -- we delay rendering of diagnostics for 2 seconds to prevent
+                -- the constant reporting of errors while typing.
                 diagnostics.lintplus_populate_delayed(filename, lsp.user_typed)
               end
             else
