@@ -1,0 +1,18 @@
+{
+  "plugins": [
+    {
+      "name": "lsp",
+      "description": "Provides intellisense by leveraging the LSP protocol.",
+      "version": "0.2",
+      "mod_version": "3",
+      "dependencies": {
+        "widget": { "version": ">=0.1" },
+        "lintplus": { "version": ">=0.2", "optional": true },
+        "settings": { "version": ">=1.0", "optional": true }
+      },
+      "tags": [
+        "language server protocol"
+      ]
+    }
+  ]
+}
