@@ -283,6 +283,20 @@ lspconfig.pyls = add_lsp {
   verbose = false
 }
 
+-- svelte-language-server
+-- Status: Works
+-- Site: https://github.com/sveltejs/language-tools/tree/master/packages/language-server
+-- Installation: npm install -g svelte-language-server
+-- Note: Also don't forget to install any additional optional dependencies
+-- for additional features (see official site for details).
+lspconfig.sveltels = add_lsp {
+  name = "sveltels",
+  language = "svelte",
+  file_patterns = { "%.svelte$" },
+  command = { 'svelteserver', '--stdio' },
+  verbose = false
+}
+
 -- python-lsp-server
 -- Status: Works
 -- Site: https://github.com/python-lsp/python-lsp-server
