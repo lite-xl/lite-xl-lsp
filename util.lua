@@ -153,13 +153,19 @@ end
 ---@param command string
 ---@return boolean
 function util.command_exists(command)
+  local command_win = nil
+
   if PLATFORM == "Windows" then
-    if not command:find(".exe", 1, true) then
-      command = command .. ".exe"
+    if not command:find("%.exe$") then
+      command_win = command .. ".exe"
     end
   end
 
-  if util.file_exists(command) then
+  if
+    util.file_exists(command)
+    or
+    (command_win and util.file_exists(command_win))
+  then
     return true
   end
 
@@ -172,7 +178,10 @@ function util.command_exists(command)
   end
 
   for _, path in pairs(path_list) do
-    if util.file_exists(path:gsub("[/\\]$", "") .. PATHSEP .. command) then
+    local path_fix = path:gsub("[/\\]$", "") .. PATHSEP
+    if util.file_exists(path_fix .. command) then
+      return true
+    elseif command_win and util.file_exists(path_fix .. command_win) then
       return true
     end
   end
