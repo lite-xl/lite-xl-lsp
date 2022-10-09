@@ -177,6 +177,17 @@ function util.command_exists(command)
     path_list = util.split(os.getenv("PATH"), ";")
   end
 
+  -- Automatic support for brew, macports, etc...
+  if PLATFORM == "Mac OS X" then
+    if
+      system.get_file_info("/usr/local/bin")
+      and
+      not string.find(os.getenv("PATH"), "/usr/local/bin", 1, true)
+    then
+      table.insert(path_list, 1, "/usr/local/bin")
+    end
+  end
+
   for _, path in pairs(path_list) do
     local path_fix = path:gsub("[/\\]$", "") .. PATHSEP
     if util.file_exists(path_fix .. command) then
