@@ -169,12 +169,13 @@ function util.command_exists(command)
     return true
   end
 
+  local env_path = os.getenv("PATH")
   local path_list = {}
 
   if PLATFORM ~= "Windows" then
-    path_list = util.split(os.getenv("PATH"), ":")
+    path_list = util.split(env_path, ":")
   else
-    path_list = util.split(os.getenv("PATH"), ";")
+    path_list = util.split(env_path, ";")
   end
 
   -- Automatic support for brew, macports, etc...
@@ -182,7 +183,7 @@ function util.command_exists(command)
     if
       system.get_file_info("/usr/local/bin")
       and
-      not string.find(os.getenv("PATH"), "/usr/local/bin", 1, true)
+      not string.find(env_path, "/usr/local/bin", 1, true)
     then
       table.insert(path_list, 1, "/usr/local/bin")
     end
