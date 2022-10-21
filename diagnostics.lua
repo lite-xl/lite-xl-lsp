@@ -235,7 +235,7 @@ function diagnostics.lintplus_clear_messages(filename)
       end
     end
     if lintplus_delays[filename] then
-      lintplus_delays[filename] = nil
+      lintplus_delays[filename]:stop()
     end
   end
 end
