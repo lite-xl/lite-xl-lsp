@@ -896,7 +896,7 @@ function lsp.open_document(doc)
       end
 
       ---@type lsp.timer
-      doc.lsp_changes_timer = Timer(100, true)
+      doc.lsp_changes_timer = Timer(50, true)
       doc.lsp_changes_timer.on_timer = function()
         -- Send update to lsp servers
         lsp.update_document(doc, lsp.user_typed)
