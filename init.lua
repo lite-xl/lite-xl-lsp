@@ -72,6 +72,11 @@ config.plugins.lsp = common.merge({
   ---when receiving large responses, but will affect LSP performance.
   more_yielding = false,
 
+  ---Enable previous behaviour of delaying sending document updates on
+  ---fast typing or redoing/undoing which seems problematic so disable it
+  ---by default and not document this flag.
+  delay_push_changes = false,
+
   config_spec = {
     name = "Language Server Protocol",
     {
@@ -1974,8 +1979,13 @@ function Doc:raw_insert(line, col, text, undo_stack, time)
   add_change(self, text, line, col, line, col)
 
   if self.lsp_open then
-    self.lsp_changes_timer:reset()
-    self.lsp_changes_timer:start()
+    if config.plugins.lsp.delay_push_changes then
+      self.lsp_changes_timer:reset()
+      self.lsp_changes_timer:start()
+    else
+      lsp.update_document(self, lsp.user_typed)
+      lsp.user_typed = false
+    end
   end
 end
 
@@ -1988,8 +1998,13 @@ function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
   add_change(self, "", line1, col1, line2, col2)
 
   if self.lsp_open then
-    self.lsp_changes_timer:reset()
-    self.lsp_changes_timer:start()
+    if config.plugins.lsp.delay_push_changes then
+      self.lsp_changes_timer:reset()
+      self.lsp_changes_timer:start()
+    else
+      lsp.update_document(self, lsp.user_typed)
+      lsp.user_typed = false
+    end
   end
 end
 
