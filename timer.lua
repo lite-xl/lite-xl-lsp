@@ -35,6 +35,7 @@ function Timer:start()
     while true do
       this:reset()
       while (this.last_run + this.interval) > system.get_time() do
+        if not this.started then return end
         coroutine.yield()
       end
       this:on_timer()
@@ -46,10 +47,7 @@ end
 
 ---Stops a running timer.
 function Timer:stop()
-  if self.started then
-    self.started = false
-    core.threads[self.key] = nil
-  end
+  self.started = false
 end
 
 ---Resets the timer countdown for execution.
