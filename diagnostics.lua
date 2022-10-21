@@ -5,6 +5,7 @@
 local core = require "core"
 local config = require "core.config"
 local util = require "plugins.lsp.util"
+local Timer = require "plugins.lsp.timer"
 
 local diagnostics = {}
 
@@ -94,12 +95,8 @@ if config.plugins.lintplus ~= false then
 end
 local lintplus_kinds = { "error", "warning", "info", "hint" }
 
----@class diagnostic.timer
----@field typed boolean
----@field routine integer
-
 ---List of linplus coroutines to delay messages population
----@type table<string,diagnostic.timer>
+---@type table<string,lsp.timer>
 local lintplus_delays = {}
 
 ---Used to set proper diagnostic type on lintplus
@@ -237,6 +234,9 @@ function diagnostics.lintplus_clear_messages(filename)
         lintplus.clear_messages(fname)
       end
     end
+    if lintplus_delays[filename] then
+      lintplus_delays[filename] = nil
+    end
   end
 end
 
@@ -275,23 +275,16 @@ end
 
 function diagnostics.lintplus_populate_delayed(filename, user_typed)
   if lintplus_found then
+    diagnostics.lintplus_clear_messages(filename)
     if not lintplus_delays[filename] then
-      lintplus_delays[filename] = {
-        typed = user_typed,
-        routine = core.add_thread(function()
-          local prev_time = system.get_time()
-          while (prev_time + 1) > system.get_time() do
-            if lintplus_delays[filename].typed then
-              prev_time = system.get_time()
-            end
-            coroutine.yield(0)
-          end
-          diagnostics.lintplus_populate(filename)
-          lintplus_delays[filename] = nil
-        end)
-      }
-    else
-      lintplus_delays[filename].typed = user_typed
+      lintplus_delays[filename] = Timer(1000, true)
+      lintplus_delays[filename].on_timer = function()
+        diagnostics.lintplus_populate(filename)
+      end
+      lintplus_delays[filename]:start()
+    elseif user_typed then
+      lintplus_delays[filename]:reset()
+      lintplus_delays[filename]:start()
     end
   end
 end
