@@ -124,7 +124,7 @@ local function encode_string(val)
     and
     string.sub(val, 1, number_flag_len) == json.number_flag
   then
-    local num = string.gsub(val, json.number_flag, "")
+    local num = string.sub(val, number_flag_len+1)
     return num
   end
   return '"' .. val:gsub('[%z\1-\31\\"]', escape_char) .. '"'
@@ -438,7 +438,7 @@ end
 --- Implemented some json prettifier but not a parser so
 --- don't expect it to give you parsing errors :D
 --- @param text string The json string
---- @param indent_width integer The amount of spaces per indentation
+--- @param indent_width? integer The amount of spaces per indentation
 --- @return string
 function json.prettify(text, indent_width)
   if type(text) ~= "string" then
