@@ -47,7 +47,7 @@ local SymbolResults = require "plugins.lsp.symbolresults"
 ---@field log_server_stderr boolean
 ---@field force_verbosity_off boolean
 ---@field more_yielding boolean
-config.plugins.lsp = {
+config.plugins.lsp = common.merge({
   ---Set to a file path to log all json
   log_file = "",
 
@@ -70,11 +70,62 @@ config.plugins.lsp = {
 
   ---Yield when reading from LSP which may give you better UI responsiveness
   ---when receiving large responses, but will affect LSP performance.
-  more_yielding = false
-}
+  more_yielding = false,
 
--- register config options on settings gui if available
-require "plugins.lsp.settingsgui"
+  config_spec = {
+    name = "Language Server Protocol",
+    {
+      label = "Log File",
+      description = "Absolute path to a '.log' file for logging all json.",
+      path = "log_file",
+      type = "FILE",
+      filters = {"%.log$"}
+    },
+    {
+      label = "Prettify JSON",
+      description = "Prettify json for more readability but impacts performance.",
+      path = "prettify_json",
+      type = "TOGGLE",
+      default = false
+    },
+    {
+      label = "Diagnostics",
+      description = "Show diagnostic messages with lint+.",
+      path = "show_diagnostics",
+      type = "TOGGLE",
+      default = false
+    },
+    {
+      label = "Stop Servers",
+      description = "Stop servers that aren't needed by any of the open files.",
+      path = "stop_unneeded_servers",
+      type = "TOGGLE",
+      default = true
+    },
+    {
+      label = "Log Standard Error",
+      description = "Send a server stderr output to lite log.",
+      path = "log_server_stderr",
+      type = "TOGGLE",
+      default = false
+    },
+    {
+      label = "Force Verbosity Off",
+      description = "Turn verbosity off even if a server is configured with verbosity on.",
+      path = "force_verbosity_off",
+      type = "TOGGLE",
+      default = false
+    },
+    {
+      label = "More Yielding",
+      description = "Yield when reading from LSP which may give you better UI responsiveness.",
+      path = "more_yielding",
+      type = "TOGGLE",
+      default = false
+    }
+  }
+}, config.plugins.lsp)
+
 
 --
 -- Main plugin functionality

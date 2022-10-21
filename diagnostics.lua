@@ -3,6 +3,7 @@
 -- @license MIT
 
 local core = require "core"
+local config = require "core.config"
 local util = require "plugins.lsp.util"
 
 local diagnostics = {}
@@ -87,7 +88,10 @@ diagnostics.list = {}
 diagnostics.count = 0
 
 -- Try to load lintplus plugin if available for diagnostics rendering
-local lintplus_found, lintplus = pcall(require, "plugins.lintplus")
+local lintplus_found, lintplus = nil, nil
+if config.plugins.lintplus ~= false then
+  lintplus_found, lintplus = pcall(require, "plugins.lintplus")
+end
 local lintplus_kinds = { "error", "warning", "info", "hint" }
 
 ---@class diagnostic.timer
