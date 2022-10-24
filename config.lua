@@ -47,10 +47,10 @@ end
 local lspconfig = {}
 
 -- bash-language-server
--- Status: Works but performs really badly
---         set 'requests_per_second' to 2-4 if too slow
+-- Status: Works
 -- Site: https://github.com/bash-lsp/bash-language-server
 -- Installation: npm i -g bash-language-server
+-- Note: also install `shellcheck` for linting
 lspconfig.bashls = add_lsp {
   name = "bash-language-server",
   language = "shell",
