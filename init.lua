@@ -154,8 +154,8 @@ lsp.in_trigger = false
 
 ---Flag that indicates if the user typed something on the editor to try and
 ---call autocomplete only when neccesary.
----@type boolean
-lsp.user_typed = false
+---@type integer
+lsp.user_typed = 0
 
 --
 -- Private functions
@@ -359,10 +359,9 @@ local function autocomplete_onhover(index, item)
   -- Only send resolve request if data field (which should contain
   -- the item id) is available.
   if completion_item.data then
-    item.data.server:push_request(
-      'completionItem/resolve',
-      completion_item,
-      function(server, response)
+    item.data.server:push_request('completionItem/resolve', {
+      params = completion_item,
+      callback = function(server, response)
         if response.result then
           local symbol = response.result
           if symbol.detail and #item.desc <= 0 then
@@ -404,7 +403,7 @@ local function autocomplete_onhover(index, item)
           server:log("Resolve returned empty response")
         end
       end
-    )
+    })
   end
 end
 
@@ -657,14 +656,27 @@ function lsp.start_server(filename, project_directory)
         end
 
         function client:on_shutdown()
+          local sname = self.name
           core.log(
             "[LSP]: %s was shutdown, revise your configuration",
-            self.name
+            sname
           )
+          local last_shutdown = lsp.servers_running[sname].last_shutdown
+            or system.get_time()
           lsp.servers_running = util.table_remove_key(
             lsp.servers_running,
-            self.name
+            sname
           )
+          if system.get_time() - last_shutdown <= 5 then
+            lsp.start_servers()
+            if lsp.servers_running[sname] then
+              lsp.servers_running[sname].last_shutdown = system.get_time()
+              core.log(
+                "[LSP]: %s automatically restarted",
+                sname
+              )
+            end
+          end
         end
 
         -- Respond to workspace/configuration request
@@ -735,7 +747,7 @@ function lsp.start_server(filename, project_directory)
               then
                 -- we delay rendering of diagnostics for 2 seconds to prevent
                 -- the constant reporting of errors while typing.
-                diagnostics.lintplus_populate_delayed(filename, lsp.user_typed)
+                diagnostics.lintplus_populate_delayed(filename, lsp.user_typed > 0)
               end
             else
               diagnostics.clear(filename)
@@ -753,10 +765,9 @@ function lsp.start_server(filename, project_directory)
           end
           local settings = lsp.get_workspace_settings(server)
           if not util.table_empty(settings) then
-            server:push_request(
-              "workspace/didChangeConfiguration",
-              {settings = settings},
-              function(server, response)
+            server:push_request("workspace/didChangeConfiguration", {
+              params = {settings = settings},
+              callback = function(server, response)
                 if server.verbose then
                   server:log(
                     "'workspace/didChangeConfiguration' response:\n%s",
@@ -764,7 +775,7 @@ function lsp.start_server(filename, project_directory)
                   )
                 end
               end
-            )
+            })
           end
 
           -- Send open document request if needed
@@ -853,9 +864,8 @@ function lsp.open_document(doc)
       then
         if file_info.size / 1024 <= 50 then
           -- file size is in range so push the notification as usual.
-          server:push_notification(
-            'textDocument/didOpen',
-            {
+          server:push_notification('textDocument/didOpen', {
+            params = {
               textDocument = {
                 uri = util.touri(doc_path),
                 languageId = lsp.get_language_id(server, doc),
@@ -863,8 +873,8 @@ function lsp.open_document(doc)
                 text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
               }
             },
-            function() doc.lsp_open = true end
-          )
+            callback = function() doc.lsp_open = true end
+          })
         else
           -- big files too slow for json encoder, also sending a huge file
           -- without yielding would stall the ui, and some lsp servers have
@@ -875,8 +885,8 @@ function lsp.open_document(doc)
             :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
             :gsub('\f', '\\f')
 
-          server:push_raw(
-            '{\n'
+          server:push_raw("textDocument/didOpen", {
+            raw_data = '{\n'
             .. '"jsonrpc": "2.0",\n'
             .. '"method": "textDocument/didOpen",\n'
             .. '"params": {\n'
@@ -888,11 +898,11 @@ function lsp.open_document(doc)
             .. '}\n'
             .. '}\n'
             .. '}\n',
-            function(server)
+            callback = function(server)
               doc.lsp_open = true
               log(server, "Big file '%s' ready for completion!", doc.filename)
             end
-          )
+          })
 
           log(server, "Processing big file '%s'...", doc.filename)
         end
@@ -904,8 +914,8 @@ function lsp.open_document(doc)
       doc.lsp_changes_timer = Timer(50, true)
       doc.lsp_changes_timer.on_timer = function()
         -- Send update to lsp servers
-        lsp.update_document(doc, lsp.user_typed)
-        lsp.user_typed = false
+        lsp.update_document(doc, lsp.user_typed > 0)
+        if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
       end
     end
   end
@@ -941,8 +951,8 @@ function lsp.save_document(doc)
             :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
             :gsub('\f', '\\f')
 
-          server:push_raw(
-            '{\n'
+          server:push_raw("textDocument/didSave", {
+            raw_data = '{\n'
             .. '"jsonrpc": "2.0",\n'
             .. '"method": "textDocument/didSave",\n'
             .. '"params": {\n'
@@ -952,16 +962,15 @@ function lsp.save_document(doc)
             .. '"text": "'..text..'"\n'
             .. '}\n'
             .. '}\n'
-          )
+          })
         else
-          server:push_notification(
-            'textDocument/didSave',
-            {
+          server:push_notification('textDocument/didSave', {
+            params = {
               textDocument = {
                 uri = util.touri(core.project_absolute_path(doc.filename))
               }
             }
-          )
+          })
         end
       end
     end
@@ -984,16 +993,15 @@ function lsp.close_document(doc)
         and
         server.capabilities.textDocumentSync.openClose
       then
-        server:push_notification(
-          'textDocument/didClose',
-          {
+        server:push_notification('textDocument/didClose', {
+          params = {
             textDocument = {
               uri = util.touri(core.project_absolute_path(doc.filename)),
               languageId = lsp.get_language_id(server, doc),
               version = doc.clean_change_id
             }
           }
-        )
+        })
       end
     end
   end
@@ -1078,8 +1086,9 @@ function lsp.update_document(doc, request_completion)
           :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
           :gsub('\f', '\\f')
 
-        server:push_raw(
-          '{\n'
+        server:push_raw("textDocument/didChange", {
+          overwrite = true,
+          raw_data = '{\n'
           .. '"jsonrpc": "2.0",\n'
           .. '"method": "textDocument/didChange",\n'
           .. '"params": {\n'
@@ -1092,22 +1101,27 @@ function lsp.update_document(doc, request_completion)
           .. "]\n"
           .. '}\n'
           .. '}\n',
-          completion_callback
-        )
+          callback = completion_callback
+        })
+        doc.lsp_changes = {}
       else
-        lsp.servers_running[name]:push_notification(
-          'textDocument/didChange',
-          {
+        lsp.servers_running[name]:push_notification('textDocument/didChange', {
+          overwrite = true,
+          params = {
             textDocument = {
               uri = util.touri(core.project_absolute_path(doc.filename)),
               version = doc.lsp_version,
             },
             contentChanges = doc.lsp_changes
           },
-          completion_callback
-        )
+          callback = function()
+            doc.lsp_changes = {}
+            if completion_callback then
+              completion_callback()
+            end
+          end
+        })
       end
-      doc.lsp_changes = {}
     end
   end
 end
@@ -1165,14 +1179,21 @@ function lsp.request_completion(doc, line, col, forced)
         and
         not forced
       then
-        core.root_view:draw()
         return false
       end
 
-      server:push_request(
-        'textDocument/completion',
-        request,
-        function(server, response)
+      server:push_request('textDocument/completion', {
+        params = request,
+        overwrite = true,
+        callback = function(server, response)
+          if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
+
+          -- don't autocomplete if caret position changed
+          local cline, cchar = doc:get_selection()
+          if cline ~= line or cchar ~= col then
+            return
+          end
+
           if server.verbose then
             server:log(
               "Completion response received."
@@ -1294,9 +1315,11 @@ function lsp.request_completion(doc, line, col, forced)
           else
             autocomplete.complete(symbols)
           end
-          core.root_view:draw()
+        end,
+        overwritten_callback = function()
+          if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
         end
-      )
+      })
     end
   end
 end
@@ -1334,10 +1357,16 @@ function lsp.request_signature(doc, line, col, forced, fallback)
         )
       )
     then
-      server:push_request(
-        'textDocument/signatureHelp',
-        get_buffer_position_params(doc, line, col),
-        function(server, response)
+      server:push_request('textDocument/signatureHelp', {
+        params = get_buffer_position_params(doc, line, col),
+        overwrite = true,
+        callback = function(server, response)
+          -- don't show signature if caret position changed
+          local cline, cchar = doc:get_selection()
+          if cline ~= line or cchar ~= col then
+            return
+          end
+
           if
             response.result
             and
@@ -1347,12 +1376,15 @@ function lsp.request_signature(doc, line, col, forced, fallback)
           then
             autocomplete.close()
             listbox.show_signatures(response.result)
-            core.root_view:draw()
+            if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
           elseif fallback then
             fallback(doc, line, col)
           end
+        end,
+        overwritten_callback = function()
+          if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
         end
-      )
+      })
       break
     elseif fallback then
       fallback(doc, line, col)
@@ -1368,10 +1400,9 @@ function lsp.request_hover(doc, line, col)
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
     if server.capabilities.hoverProvider then
-      server:push_request(
-        'textDocument/hover',
-        get_buffer_position_params(doc, line, col),
-        function(server, response)
+      server:push_request('textDocument/hover', {
+        params = get_buffer_position_params(doc, line, col),
+        callback = function(server, response)
           if response.result and response.result.contents then
             local content = response.result.contents
             local text = ""
@@ -1395,7 +1426,7 @@ function lsp.request_hover(doc, line, col)
             end
           end
         end
-      )
+      })
       break
     end
   end
@@ -1410,10 +1441,9 @@ function lsp.request_references(doc, line, col)
     if server.capabilities.hoverProvider then
       local request_params = get_buffer_position_params(doc, line, col)
       request_params.context = {includeDeclaration = true}
-      server:push_request(
-        'textDocument/references',
-        request_params,
-        function(server, response)
+      server:push_request('textDocument/references', {
+        params = request_params,
+        callback = function(server, response)
           if response.result and #response.result > 0 then
             local references, reference_names = get_references_lists(response.result)
             core.command_view:enter("Filter References", {
@@ -1440,7 +1470,7 @@ function lsp.request_references(doc, line, col)
             log(server, "No references found.")
           end
         end
-      )
+      })
       break
     end
     break
@@ -1455,16 +1485,15 @@ function lsp.request_call_hierarchy(doc, line, col)
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
     if server.capabilities.callHierarchyProvider then
-      server:push_request(
-        'textDocument/prepareCallHierarchy',
-        get_buffer_position_params(doc, line, col),
-        function(server, response)
+      server:push_request('textDocument/prepareCallHierarchy', {
+        params = get_buffer_position_params(doc, line, col),
+        callback = function(server, response)
           if response.result and #response.result > 0 then
-            -- TODO: Finish implement call hierarchy funcitonality
+            -- TODO: Finish implement call hierarchy functionality
             return
           end
         end
-      )
+      })
       return
     end
   end
@@ -1487,10 +1516,9 @@ function lsp.request_symbol_rename(doc, line, col, new_name)
     if server.capabilities.renameProvider then
       local request_params = get_buffer_position_params(doc, line, col)
       request_params.newName = new_name
-      server:push_request(
-        'textDocument/rename',
-        request_params,
-        function(server, response)
+      server:push_request('textDocument/rename', {
+        params = request_params,
+        callback = function(server, response)
           if response.result and #response.result.changes then
             for file_uri, changes in pairs(response.result.changes) do
               core.log(file_uri .. " " .. #changes)
@@ -1500,7 +1528,7 @@ function lsp.request_symbol_rename(doc, line, col, new_name)
 
           core.log("%s", json.prettify(json.encode(response)))
         end
-      )
+      })
       return
     end
   end
@@ -1523,16 +1551,15 @@ function lsp.request_workspace_symbol(doc, symbol)
     if server.capabilities.workspaceSymbolProvider then
       local rs = SymbolResults(symbol)
       core.root_view:get_active_node_default():add_view(rs)
-      server:push_request(
-        'workspace/symbol',
-        {
+      server:push_request('workspace/symbol', {
+        params = {
           query = symbol,
           -- TODO: implement status notifications but seems not supported
           -- by tested lsp servers so far.
           -- workDoneToken = "some-identifier",
           -- partialResultToken = "some-other-identifier"
         },
-        function(server, response)
+        callback = function(server, response)
           if response.result and #response.result > 0 then
             for index, result in ipairs(response.result) do
               rs:add_result(result)
@@ -1545,7 +1572,7 @@ function lsp.request_workspace_symbol(doc, symbol)
           end
           rs:stop_searching()
         end
-      )
+      })
       break
     end
     break
@@ -1564,14 +1591,13 @@ function lsp.request_document_symbols(doc)
     local server = lsp.servers_running[name]
     if server.capabilities.documentSymbolProvider then
       log(server, "Retrieving document symbols...")
-      server:push_request(
-        'textDocument/documentSymbol',
-        {
+      server:push_request('textDocument/documentSymbol', {
+        params = {
           textDocument = {
             uri = util.touri(core.project_absolute_path(doc.filename)),
           }
         },
-        function(server, response)
+        callback = function(server, response)
           if response.result and response.result and #response.result > 0 then
             local symbols, symbol_names = get_symbol_lists(response.result)
             core.command_view:enter("Find Symbol", {
@@ -1604,7 +1630,7 @@ function lsp.request_document_symbols(doc)
             })
           end
         end
-      )
+      })
       symbols_retrieved = true
       break
     end
@@ -1627,9 +1653,8 @@ function lsp.request_document_format(doc)
     servers_found = true
     local server = lsp.servers_running[name]
     if server.capabilities.documentFormattingProvider then
-      server:push_request(
-        'textDocument/formatting',
-        {
+      server:push_request('textDocument/formatting', {
+        params = {
           textDocument = {
             uri = util.touri(core.project_absolute_path(doc.filename)),
           },
@@ -1641,7 +1666,7 @@ function lsp.request_document_format(doc)
             trimFinalNewlines = true
           }
         },
-        function(server, response)
+        callback = function(server, response)
           if response.error and response.error.message then
             log(server, "Error formatting: " .. response.error.message)
           elseif response.result and #response.result > 0 then
@@ -1653,7 +1678,7 @@ function lsp.request_document_format(doc)
             log(server, "Formatting not required")
           end
         end
-      )
+      })
       format_executed = true
       break
     end
@@ -1784,10 +1809,9 @@ function lsp.goto_symbol(doc, line, col, implementation)
     -- Send document updates first
     lsp.update_document(doc)
 
-    server:push_request(
-      "textDocument/" .. method,
-      get_buffer_position_params(doc, line, col),
-      function(server, response)
+    server:push_request("textDocument/" .. method, {
+      params = get_buffer_position_params(doc, line, col),
+      callback = function(server, response)
         local location = response.result
 
         if not location or not location.uri and #location == 0 then
@@ -1815,7 +1839,7 @@ function lsp.goto_symbol(doc, line, col, implementation)
           lsp.goto_location(location)
         end
       end
-    )
+    })
   end
 end
 
@@ -1983,8 +2007,7 @@ function Doc:raw_insert(line, col, text, undo_stack, time)
       self.lsp_changes_timer:reset()
       self.lsp_changes_timer:start()
     else
-      lsp.update_document(self, lsp.user_typed)
-      lsp.user_typed = false
+      lsp.update_document(self, lsp.user_typed > 0)
     end
   end
 end
@@ -2002,14 +2025,13 @@ function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
       self.lsp_changes_timer:reset()
       self.lsp_changes_timer:start()
     else
-      lsp.update_document(self, lsp.user_typed)
-      lsp.user_typed = false
+      lsp.update_document(self, lsp.user_typed > 0)
     end
   end
 end
 
-function RootView:on_text_input(...)
-  root_view_on_text_input(self, ...)
+function RootView:on_text_input(text)
+  root_view_on_text_input(self, text)
 
   local av = get_active_docview()
 
@@ -2017,7 +2039,7 @@ function RootView:on_text_input(...)
     local line1, col1, line2, col2 = av.doc:get_selection()
 
     if line1 == line2 and col1 == col2 then
-      lsp.user_typed = true
+      lsp.user_typed = lsp.user_typed + 1
     end
   end
 end

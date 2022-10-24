@@ -13,6 +13,23 @@ local json = require "plugins.lsp.json"
 local util = require "plugins.lsp.util"
 local Object = require "core.object"
 
+---@alias lsp.server.callback fun(server: lsp.server, ...)
+---@alias lsp.server.notificationcb fun(server: lsp.server, params: table)
+---@alias lsp.server.responsecb fun(server: lsp.server, response: table, request: lsp.server.request)
+
+---@class lsp.server.request
+---@field id integer
+---@field method string
+---@field data table|nil
+---@field params table
+---@field callback lsp.server.responsecb | nil
+---@field overwritten boolean
+---@field overwritten_callback lsp.server.responsecb | nil
+---@field sending boolean
+---@field raw_data string
+---@field timestamp number
+---@field times_sent integer
+
 ---LSP Server communication library.
 ---@class lsp.server : core.object
 ---@field public name string
@@ -24,10 +41,10 @@ local Object = require "core.object"
 ---@field public event_listeners table
 ---@field public message_listeners table
 ---@field public request_listeners table
----@field public request_list table
+---@field public request_list lsp.server.request[]
 ---@field public response_list table
----@field public notification_list table
----@field public raw_list table
+---@field public notification_list lsp.server.request[]
+---@field public raw_list lsp.server.request[]
 ---@field public command table
 ---@field public write_fails integer
 ---@field public write_fails_before_shutdown integer
@@ -89,10 +106,6 @@ Server.options = {
 ---@type integer Time in seconds
 Server.DEFAULT_TIMEOUT = 10
 
----@alias lsp.server.callback function(server: lsp.server, ...):void
----@alias lsp.server.notificationcb function(server: lsp.server, params: table):void
----@alias lsp.server.responsecb function(server: lsp.server, response: table):void
-
 ---LSP Docs: /#errorCodes
 Server.error_code = {
   ParseError                      = -32700,
@@ -149,6 +162,14 @@ Server.symbol_kind = {
   'Constant', 'String', 'Number', 'Boolean', 'Array', 'Object', 'Key',
   'Null', 'EnumMember', 'Struct', 'Event', 'Operator', 'TypeParameter'
 }
+
+---@class lsp.server.requestoptions
+---@field params table<string,any>
+---@field data table @Optional data appended to request.
+---@field callback lsp.server.responsecb @Default callback executed when a response is received.
+---@field overwrite boolean @Substitute same previous request with new one if not sent.
+---@field overwritten_callback lsp.server.responsecb @Executed in place of original response callback if the request should have been overwritten but was already sent.
+---@field raw_data string @Request body used when sending a raw request.
 
 ---Get a completion kind label from its id or empty string if not found.
 ---@param id integer
@@ -214,6 +235,7 @@ function Server:new(options)
   -- indexing the workspace source code or other heavy tasks.
   self.write_fails_before_shutdown = 60
   self.verbose = options.verbose or false
+  self.last_restart = system.get_time()
   self.initialized = false
   self.initialized_warmup = 0
   self.hitrate_list = {}
@@ -244,9 +266,8 @@ function Server:initialize(workspace, editor_name, editor_version)
   self.editor_name = editor_name or "unknown"
   self.editor_version = editor_version or "0.1"
 
-  self:push_request(
-    'initialize',
-    {
+  self:push_request('initialize', {
+    params = {
       processId = system["get_process_id"] and system.get_process_id() or nil,
       clientInfo = {
         name = editor_name or "unknown",
@@ -387,7 +408,7 @@ function Server:initialize(workspace, editor_name, editor_version)
         -- experimental = nil
       }
     },
-    function(server, response)
+    callback = function(server, response)
       if server.verbose then
         server:log(
           "Processing initialization response:\n%s",
@@ -414,7 +435,7 @@ function Server:initialize(workspace, editor_name, editor_version)
         server:send_event_signal("initialized", server, result)
       end
     end
-  )
+  })
 end
 
 function Server:is_initialized()
@@ -455,7 +476,7 @@ end
 
 ---Send a message to the server that doesn't needs a response.
 ---@param method string
----@param params table
+---@param params? table
 function Server:notify(method, params)
   local message = {
     jsonrpc = '2.0',
@@ -762,15 +783,15 @@ function Server:process_raw()
     return
   end
 
-  local position = 0
+  local sent = false
   for index, raw in ipairs(self.raw_list) do
-    position = index
+    raw.sending = true
     local written = 0
     -- first send the header
     while written <= 0 do
       written = self.proc:write(string.format(
         'Content-Length: %d\r\n\r\n',
-        #raw.data + 2 -- last \r\n
+        #raw.raw_data + 2 -- last \r\n
       ))
     end
 
@@ -780,21 +801,21 @@ function Server:process_raw()
 
     -- send content in chunks
     local chunks = 10 * 1024
-    raw.data = raw.data .. "\r\n"
+    raw.raw_data = raw.raw_data .. "\r\n"
 
-    while #raw.data > 0 do
+    while #raw.raw_data > 0 do
       local wrote = 0
 
-      if #raw.data > chunks then
+      if #raw.raw_data > chunks then
         while wrote <= 0 do
-          wrote = self.proc:write(raw.data:sub(1, chunks))
+          wrote = self.proc:write(raw.raw_data:sub(1, chunks))
         end
-        raw.data = raw.data:sub(chunks+1)
+        raw.raw_data = raw.raw_data:sub(chunks+1)
       else
         while wrote <= 0 do
-          wrote = self.proc:write(raw.data)
+          wrote = self.proc:write(raw.raw_data)
         end
-        raw.data = ""
+        raw.raw_data = ""
       end
 
       self.write_fails = 0
@@ -807,16 +828,14 @@ function Server:process_raw()
     end
 
     if raw.callback then
-      raw.callback(self)
+      raw.callback(self, raw)
     end
 
+    table.remove(self.raw_list, index)
+    sent = true
     break
   end
-
-  if position > 0 then
-    table.remove(self.raw_list, position)
-    collectgarbage("collect")
-  end
+  if sent then collectgarbage("collect") end
 end
 
 ---Help controls the amount of requests sent to the lsp server per second
@@ -865,9 +884,24 @@ local notifications_whitelist = {
 
 ---Queue a new notification but ignores new ones if the hit rate was reached.
 ---@param method string
----@param params table
----@param callback? lsp.server.notificationcb
-function Server:push_notification(method, params, callback)
+---@param options lsp.server.requestoptions
+function Server:push_notification(method, options)
+  assert(options.params, "please provide the parameters for the notification")
+
+  if options.overwrite then
+    for _, notification in ipairs(self.notification_list) do
+      if notification.method == method then
+        if self.verbose then
+          self:log("Overwriting notification %s", tostring(method))
+        end
+        notification.params = options.params
+        notification.callback = options.callback or nil
+        notification.data = options.data or nil
+        return
+      end
+    end
+  end
+
   if
     method ~= "textDocument/didOpen"
     and
@@ -882,15 +916,16 @@ function Server:push_notification(method, params, callback)
     self:log(
       "Pushing notification '%s':\n%s",
       method,
-      util.jsonprettify(json.encode(params))
+      util.jsonprettify(json.encode(options.params))
     )
   end
 
   -- Store the notification for later processing on responses_loop
   table.insert(self.notification_list, {
     method = method,
-    params = params,
-    callback = callback or nil
+    params = options.params,
+    callback = options.callback or nil,
+    data = options.data or nil
   })
 end
 
@@ -901,11 +936,33 @@ local requests_whitelist = {
 
 ---Queue a new request but ignores new ones if the hit rate was reached.
 ---@param method string
----@param params table
----@param callback lsp.server.responsecb
-function Server:push_request(method, params, callback)
+---@param options lsp.server.requestoptions
+function Server:push_request(method, options)
   if not self:is_initialized() and method ~= "initialize" then
     return
+  end
+
+  assert(options.params, "please provide the parameters for the request")
+
+  if options.overwrite then
+    for _, request in ipairs(self.request_list) do
+      if request.method == method then
+        if request.times_sent > 0 then
+          request.overwritten = true
+          break
+        else
+          request.params = options.params
+          request.callback = options.callback or nil
+          request.overwritten_callback = options.overwritten_callback or nil
+          request.data = options.data or nil
+          request.timestamp = 0
+          if self.verbose then
+            self:log("Overwriting request %s", tostring(method))
+          end
+          return
+        end
+      end
+    end
   end
 
   if
@@ -929,8 +986,10 @@ function Server:push_request(method, params, callback)
   table.insert(self.request_list, {
     id = self.current_request,
     method = method,
-    params = params,
-    callback = callback or nil,
+    params = options.params,
+    callback = options.callback or nil,
+    overwritten_callback = options.overwritten_callback or nil,
+    data = options.data or nil,
     timestamp = 0,
     times_sent = 0
   })
@@ -967,23 +1026,44 @@ end
 
 ---Send raw json strings to server in cases where the json encoder
 ---would be too slow to convert a lua table into a json representation.
----@param data string
----@param callback? lsp.server.callback
-function Server:push_raw(data, callback)
+---@param name string A name to identify the request when overwriting.
+---@param options lsp.server.requestoptions
+function Server:push_raw(name, options)
+  assert(options.raw_data, "please provide the raw_data for request")
+
+  if options.overwrite then
+    for _, request in ipairs(self.raw_list) do
+      if request.method == name then
+        if not request.sending then
+          request.raw_data = options.raw_data
+          request.callback = options.callback or nil
+          request.data = options.data or nil
+          if self.verbose then
+            self:log("Overwriting raw request %s", tostring(name))
+          end
+          return
+        end
+        break
+      end
+    end
+  end
+
   if self.verbose then
-    self:log("Adding raw request")
+    self:log("Adding raw request %s", name)
   end
 
   -- Store the request for later processing on responses_loop
   table.insert(self.raw_list, {
-    data = data,
-    callback = callback or nil
+    method = name,
+    raw_data = options.raw_data,
+    callback = options.callback or nil,
+    data = options.data or nil
   })
 end
 
 ---Retrieve a request and removes it from the internal requests list
 ---@param id integer
----@return table
+---@return lsp.server.request | nil
 function Server:pop_request(id)
   for index, request in ipairs(self.request_list) do
     if request.id == id then
@@ -1195,7 +1275,7 @@ end
 
 ---Try to send a request to a server in a specific amount of time.
 ---@param data table Table or string with the json request
----@param timeout integer Time in seconds, set to 0 to not wait for write
+---@param timeout? integer Time in seconds, set to 0 to not wait for write
 ---@return integer|boolean Amount of characters written or false if failed
 function Server:write_request(data, timeout)
   if not self.proc:running() then
@@ -1276,16 +1356,21 @@ end
 ---@param response table
 function Server:send_response_signal(response)
   local request = self:pop_request(response.id)
-  if request and request.callback then
-    request.callback(self, response)
-  else
-    self:on_response(response)
+  if request then
+    if not request.overwritten and request.callback then
+      request.callback(self, response, request)
+    elseif request.overwritten and request.overwritten_callback then
+      request.overwritten_callback(self, response, request)
+    end
+    return
   end
+  self:on_response(response, request)
 end
 
 ---Called for each response that doesn't has a signal handler.
 ---@param response table
-function Server:on_response(response)
+---@param request lsp.server.request
+function Server:on_response(response, request)
   if self.verbose then
     self:log(
       "Recieved response '%s' with result:\n%s",
@@ -1408,7 +1493,7 @@ end
 ---reached its maximum allowed.
 function Server:shutdown_if_needed()
   if
-    self.write_fails >=  self.write_fails_before_shutdown
+    self.write_fails >= self.write_fails_before_shutdown
     or
     not self.proc:running()
   then
