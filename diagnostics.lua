@@ -285,6 +285,8 @@ function diagnostics.lintplus_populate_delayed(filename, user_typed)
     elseif user_typed then
       lintplus_delays[filename]:reset()
       lintplus_delays[filename]:start()
+    else
+      diagnostics.lintplus_populate(filename)
     end
   end
 end
