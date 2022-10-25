@@ -312,7 +312,7 @@ function Server:initialize(workspace, editor_name, editor_version)
           },
           hover = {
             -- dynamicRegistration = false, -- not supported
-            contentFormat = {'plaintext'}
+            contentFormat = {'markdown', 'plaintext'}
           },
           signatureHelp = {
             -- dynamicRegistration = false, -- not supported
