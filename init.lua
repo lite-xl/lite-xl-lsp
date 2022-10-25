@@ -182,10 +182,12 @@ lsp.in_trigger = false
 lsp.user_typed = 0
 
 ---Used on the hover timer to display hover info
----@field doc core.doc
+---@class lsp.hover_position
+---@field doc core.doc | nil
 ---@field line integer
 ---@field col integer
-lsp.hover_position = {doc = nil, line = 0, col = 0}
+---@field triggered boolean
+lsp.hover_position = {doc = nil, line = 0, col = 0, triggered = false}
 
 --
 -- Private functions
@@ -2144,6 +2146,7 @@ function RootView:on_mouse_moved(x, y, dx, dy)
       then
         listbox.hide()
 
+        lsp.hover_position.triggered = true
         lsp.hover_position.doc = doc
         lsp.hover_position.line = line1
         lsp.hover_position.col = col1
@@ -2156,7 +2159,10 @@ function RootView:on_mouse_moved(x, y, dx, dy)
         end
       end
     else
-      listbox.hide()
+      if lsp.hover_position.triggered then
+        listbox.hide()
+        lsp.hover_position.triggered = false
+      end
       doc.lsp_hover_timer:stop()
     end
   end
