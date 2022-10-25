@@ -13,14 +13,37 @@ local keymap = require "core.keymap"
 local RootView = require "core.rootview"
 local DocView = require "core.docview"
 
+---@alias lsp.listbox.callback fun(doc: core.doc, item: table)
+
+---@class lsp.listbox.position
+---@field line integer
+---@field col integer
+
+---@class lsp.listbox
 local listbox = {}
 
+---@class lsp.settings
+---@field items table
+---@field shown_items table
+---@field selected_item_idx integer
+---@field show_items_count boolean
+---@field max_height integer
+---@field line integer | nil
+---@field col integer | nil
+---@field last_line integer | nil
+---@field last_col integer | nil
+---@field callback lsp.listbox.callback
+---@field is_list boolean
+---@field has_fuzzy_search boolean
+---@field above_text boolean
 local settings = {
   items = {},
   shown_items = {},
   selected_item_idx = 1,
   show_items_count = false,
   max_height = 6,
+  line = nil,
+  col = nil,
   last_line = nil,
   last_col = nil,
   callback = nil,
@@ -45,7 +68,12 @@ local function get_suggestions_rect(active_view)
     return 0, 0, 0, 0
   end
 
-  local line, col = active_view.doc:get_selection()
+  local line, col
+  if settings.line then
+    line, col = settings.line, settings.col
+  else
+    line, col = active_view.doc:get_selection()
+  end
 
   local x, y = active_view:get_line_screen_position(line)
   x = x + active_view:get_col_x_offset(line, col)
@@ -213,6 +241,18 @@ local function draw_listbox(av)
   end
 end
 
+---Set the document position where the listbox will be draw.
+---@param position? lsp.listbox.position
+local function set_position(position)
+  if type(position) == "table" then
+    settings.line = position.line
+    settings.col = position.col
+  else
+    settings.line = nil
+    settings.col = nil
+  end
+end
+
 --
 -- Public functions
 --
@@ -230,6 +270,8 @@ function listbox.clear()
   settings.items = {}
   settings.selected_item_idx = 1
   settings.shown_items = {}
+  settings.line = nil
+  settings.col = nil
 end
 
 function listbox.append(element)
@@ -241,17 +283,24 @@ function listbox.hide()
   settings.shown_items = {}
 end
 
-function listbox.show(is_list)
-  local av = get_active_view()
-  settings.last_line, settings.last_col = av.doc:get_selection()
+---@param is_list? boolean
+---@param position? lsp.listbox.position
+function listbox.show(is_list, position)
+  set_position(position)
 
-  if settings.items and #settings.items > 0 then
-    settings.is_list = is_list
-    settings.shown_items = settings.items
+  local active_view = get_active_view()
+  if active_view then
+    settings.last_line, settings.last_col = active_view.doc:get_selection()
+    if settings.items and #settings.items > 0 then
+      settings.is_list = is_list or false
+      settings.shown_items = settings.items
+    end
   end
 end
 
-function listbox.show_text(text)
+---@param text string
+---@param position? lsp.listbox.position
+function listbox.show_text(text, position)
   if text and type("text") == "string" then
     local items = {}
     for result in string.gmatch(text.."\n", "(.-)\n") do
@@ -260,20 +309,25 @@ function listbox.show_text(text)
     listbox.add(items)
   end
 
-  listbox.show()
+  listbox.show(false, position)
 end
 
-function listbox.show_list(items, callback)
+---@param items table
+---@param callback lsp.listbox.callback
+---@param position? lsp.listbox.position
+function listbox.show_list(items, callback, position)
   listbox.add(items)
 
   if callback then
     settings.callback = callback
   end
 
-  listbox.show(true)
+  listbox.show(true, position)
 end
 
-function listbox.show_signatures(signatures)
+---@param signatures table
+---@param position? lsp.listbox.position
+function listbox.show_signatures(signatures, position)
   local active_parameter = nil
   local active_signature = nil
 
@@ -372,7 +426,7 @@ function listbox.show_signatures(signatures)
 
   listbox.add(items)
 
-  listbox.show()
+  listbox.show(false, position)
 end
 
 function listbox.toggle_above(enable)
