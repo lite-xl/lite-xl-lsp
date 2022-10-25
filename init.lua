@@ -1453,16 +1453,19 @@ function lsp.request_hover(doc, line, col, in_tab)
         callback = function(server, response)
           if response.result and response.result.contents then
             local content = response.result.contents
+            local kind = nil
             local text = ""
             if type(content) == "table" then
               if content.value then
                 text = content.value
+                if content.kind then kind = content.kind end
               else
                 for _, element in pairs(content) do
                   if type(element) == "string" then
                     text = text .. element
                   elseif type(element) == "table" and element.value then
                     text = text .. element.value
+                    if not kind and element.kind then kind = element.kind end
                   end
                 end
               end
@@ -1470,9 +1473,11 @@ function lsp.request_hover(doc, line, col, in_tab)
               text = content
             end
             if text and #text > 0 then
+              text = text:gsub("^[\n%s]+", ""):gsub("[\n%s]+$", "")
               if not in_tab then
+                if kind == "markdown" then text = util.strip_markdown(text) end
                 listbox.show_text(
-                  text:gsub("^[\n%s]+", ""):gsub("[\n%s]+$", ""),
+                  text,
                   { line = line, col = col }
                 )
               else
