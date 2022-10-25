@@ -113,6 +113,7 @@ lspconfig.cssls = add_lsp {
   language = "css",
   file_patterns = {"%.css$", "%.less$", "%.sass$"},
   command = { "css-languageserver", "--stdio" },
+  fake_snippets = true,
   verbose = false
 }
 

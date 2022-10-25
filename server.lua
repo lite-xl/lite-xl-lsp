@@ -230,6 +230,7 @@ function Server:new(options)
   self.raw_list = {}
   self.command = options.command
   self.write_fails = 0
+  self.fake_snippets = options.fake_snippets or false
   -- TODO: We may need to lower this but tests so far show that some servers
   -- may actually fail to write many of the request sent to it if it is
   -- indexing the workspace source code or other heavy tasks.
@@ -295,7 +296,7 @@ function Server:initialize(workspace, editor_name, editor_version)
             -- dynamicRegistration = false, -- not supported
             completionItem = {
               -- Snippets are required by css-languageserver
-              snippetSupport = false, -- ${1:foo} format not supported
+              snippetSupport = self.fake_snippets, -- ${1:foo} format not supported
               -- commitCharactersSupport = true,
               documentationFormat = {'plaintext'},
               -- deprecatedSupport = false, -- simple autocompletion list
