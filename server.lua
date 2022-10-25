@@ -15,7 +15,7 @@ local Object = require "core.object"
 
 ---@alias lsp.server.callback fun(server: lsp.server, ...)
 ---@alias lsp.server.notificationcb fun(server: lsp.server, params: table)
----@alias lsp.server.responsecb fun(server: lsp.server, response: table, request: lsp.server.request)
+---@alias lsp.server.responsecb fun(server: lsp.server, response: table, request?: lsp.server.request)
 
 ---@class lsp.server.request
 ---@field id integer
@@ -37,7 +37,7 @@ local Object = require "core.object"
 ---@field public file_patterns table
 ---@field public current_request integer
 ---@field public init_options table
----@field public settings table
+---@field public settings table | nil
 ---@field public event_listeners table
 ---@field public message_listeners table
 ---@field public request_listeners table
@@ -54,7 +54,7 @@ local Object = require "core.object"
 ---@field public hitrate_list table
 ---@field public requests_per_second integer
 ---@field public requests_in_chunks boolean
----@field public proc process
+---@field public proc process | nil
 ---@field public capabilities table
 ---@field public yield_on_reads boolean
 ---@field public running boolean
@@ -1274,7 +1274,7 @@ function Server:read_errors(timeout)
 end
 
 ---Try to send a request to a server in a specific amount of time.
----@param data table Table or string with the json request
+---@param data table | string Table or string with the json request
 ---@param timeout? integer Time in seconds, set to 0 to not wait for write
 ---@return integer|boolean Amount of characters written or false if failed
 function Server:write_request(data, timeout)
@@ -1369,7 +1369,7 @@ end
 
 ---Called for each response that doesn't has a signal handler.
 ---@param response table
----@param request lsp.server.request
+---@param request lsp.server.request | nil
 function Server:on_response(response, request)
   if self.verbose then
     self:log(
