@@ -1495,8 +1495,7 @@ function lsp.request_hover(doc, line, col, in_tab)
                   )
                 then
                   help_active_node = core.root_view:get_active_node_default()
-                  help_bottom_node = core.root_view:get_active_node_default()
-                    :split("down", helpview)
+                  help_bottom_node = help_active_node:split("down", helpview)
                 else
                   help_bottom_node:add_view(helpview)
                 end
