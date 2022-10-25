@@ -38,6 +38,7 @@ function Timer:start()
         if not this.started then return end
         coroutine.yield()
       end
+      if not this.started then return end
       this:on_timer()
       if this.single_shot then break end
     end
