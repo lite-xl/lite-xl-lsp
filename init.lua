@@ -34,6 +34,9 @@ local Server = require "plugins.lsp.server"
 local Timer = require "plugins.lsp.timer"
 local SymbolResults = require "plugins.lsp.symbolresults"
 
+---@type lsp.helpdoc
+local HelpDoc = require "plugins.lsp.helpdoc"
+
 --
 -- Plugin settings
 --
@@ -1433,9 +1436,13 @@ function lsp.request_signature(doc, line, col, forced, fallback)
   end
 end
 
+---@type core.node
+local help_active_node = nil
+---@type core.node
+local help_bottom_node = nil
 --- Sends a request to applicable LSP servers for information about the
 --- symbol where the cursor is placed and shows it on a tooltip.
-function lsp.request_hover(doc, line, col)
+function lsp.request_hover(doc, line, col, in_tab)
   if not doc.lsp_open then return end
 
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
@@ -1463,10 +1470,37 @@ function lsp.request_hover(doc, line, col)
               text = content
             end
             if text and #text > 0 then
-              listbox.show_text(
-                text:gsub("^[\n%s]+", ""):gsub("[\n%s]+$", ""),
-                { line = line, col = col }
-              )
+              if not in_tab then
+                listbox.show_text(
+                  text:gsub("^[\n%s]+", ""):gsub("[\n%s]+$", ""),
+                  { line = line, col = col }
+                )
+              else
+                local line1, col1 = translate.start_of_word(doc, line, col)
+                local line2, col2 = translate.end_of_word(doc, line1, col1)
+                local title = doc:get_text(line1, col1, line2, col2):gsub("%s*", "")
+                title = "Help:" .. title .. ".md"
+                ---@type lsp.helpdoc
+                local helpdoc = HelpDoc(title, title)
+                helpdoc:set_text(text)
+                local helpview = DocView(helpdoc)
+                helpview.context = "application"
+                if
+                  not help_bottom_node
+                  or
+                  (
+                    #help_bottom_node.views == 1
+                    and
+                    not help_active_node:get_node_for_view(help_bottom_node.views[1])
+                  )
+                then
+                  help_active_node = core.root_view:get_active_node_default()
+                  help_bottom_node = core.root_view:get_active_node_default()
+                    :split("down", helpview)
+                else
+                  help_bottom_node:add_view(helpview)
+                end
+              end
             end
           end
         end
@@ -2252,6 +2286,13 @@ command.add(
     end
   end,
 
+  ["lsp:show-symbol-info-in-tab"] = function(doc)
+    local line1, col1, line2 = doc:get_selection()
+    if line1 == line2 then
+      lsp.request_hover(doc, line1, col1, true)
+    end
+  end,
+
   ["lsp:view-call-hierarchy"] = function(doc)
     local line1, col1, line2 = doc:get_selection()
     if line1 == line2 then
@@ -2340,6 +2381,7 @@ keymap.add {
   ["ctrl+space"]        = "lsp:complete",
   ["ctrl+shift+space"]  = "lsp:show-signature",
   ["alt+a"]             = "lsp:show-symbol-info",
+  ["alt+shift+a"]       = "lsp:show-symbol-info-in-tab",
   ["alt+d"]             = "lsp:goto-definition",
   ["alt+shift+d"]       = "lsp:goto-implementation",
   ["alt+s"]             = "lsp:view-document-symbols",
@@ -2390,10 +2432,11 @@ local menu_found, menu = pcall(require, "plugins.contextmenu")
 if menu_found then
   menu:register(lsp_predicate_symbols, {
     menu.DIVIDER,
-    { text = "Show Symbol Info",       command = "lsp:show-symbol-info" },
-    { text = "Goto Definition",        command = "lsp:goto-definition" },
-    { text = "Goto Implementation",    command = "lsp:goto-implementation" },
-    { text = "Find References",        command = "lsp:find-references" }
+    { text = "Show Symbol Info",        command = "lsp:show-symbol-info" },
+    { text = "Show Symbol Info in Tab", command = "lsp:show-symbol-info-in-tab" },
+    { text = "Goto Definition",         command = "lsp:goto-definition" },
+    { text = "Goto Implementation",     command = "lsp:goto-implementation" },
+    { text = "Find References",         command = "lsp:find-references" }
   })
 
   menu:register(lsp_predicate, {
