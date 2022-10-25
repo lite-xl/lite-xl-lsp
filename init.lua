@@ -42,12 +42,26 @@ local SymbolResults = require "plugins.lsp.symbolresults"
 ---@class config.plugins.lsp @global
 ---@field log_file string
 ---@field prettify_json boolean
+---@field mouse_hover boolean
+---@field mouse_hover_delay integer
 ---@field show_diagnostics boolean
 ---@field stop_unneeded_servers boolean
 ---@field log_server_stderr boolean
 ---@field force_verbosity_off boolean
 ---@field more_yielding boolean
 config.plugins.lsp = common.merge({
+  ---Show a symbol hover information when mouse cursor is on top.
+  mouse_hover = true,
+
+  ---The amount of time in milliseconds before showing the tooltip.
+  mouse_hover_delay = 300,
+
+  ---Show diagnostic messages
+  show_diagnostics = true,
+
+  ---Stop servers that aren't needed by any of the open files
+  stop_unneeded_servers = true,
+
   ---Set to a file path to log all json
   log_file = "",
 
@@ -55,12 +69,6 @@ config.plugins.lsp = common.merge({
   ---but this setting will impact performance so only enable it when
   ---in need of easy to read json output when developing the plugin.
   prettify_json = false,
-
-  ---Show diagnostic messages
-  show_diagnostics = true,
-
-  ---Stop servers that aren't needed by any of the open files
-  stop_unneeded_servers = true,
 
   ---Send a server stderr output to lite log
   log_server_stderr = false,
@@ -80,18 +88,20 @@ config.plugins.lsp = common.merge({
   config_spec = {
     name = "Language Server Protocol",
     {
-      label = "Log File",
-      description = "Absolute path to a '.log' file for logging all json.",
-      path = "log_file",
-      type = "FILE",
-      filters = {"%.log$"}
+      label = "Mouse Hover",
+      description = "Show a symbol hover information when mouse cursor is on top.",
+      path = "mouse_hover",
+      type = "TOGGLE",
+      default = true
     },
     {
-      label = "Prettify JSON",
-      description = "Prettify json for more readability but impacts performance.",
-      path = "prettify_json",
-      type = "TOGGLE",
-      default = false
+      label = "Mouse Hover Delay",
+      description = "The amount of time in milliseconds before showing the tooltip.",
+      path = "mouse_hover_delay",
+      type = "NUMBER",
+      default = 300,
+      min = 50,
+      max = 2000
     },
     {
       label = "Diagnostics",
@@ -106,6 +116,20 @@ config.plugins.lsp = common.merge({
       path = "stop_unneeded_servers",
       type = "TOGGLE",
       default = true
+    },
+    {
+      label = "Log File",
+      description = "Absolute path to a '.log' file for logging all json.",
+      path = "log_file",
+      type = "FILE",
+      filters = {"%.log$"}
+    },
+    {
+      label = "Prettify JSON",
+      description = "Prettify json for more readability but impacts performance.",
+      path = "prettify_json",
+      type = "TOGGLE",
+      default = false
     },
     {
       label = "Log Standard Error",
@@ -156,6 +180,12 @@ lsp.in_trigger = false
 ---call autocomplete only when neccesary.
 ---@type integer
 lsp.user_typed = 0
+
+---Used on the hover timer to display hover info
+---@field doc core.doc
+---@field line integer
+---@field col integer
+lsp.hover_position = {doc = nil, line = 0, col = 0}
 
 --
 -- Private functions
@@ -915,7 +945,16 @@ function lsp.open_document(doc)
       doc.lsp_changes_timer.on_timer = function()
         -- Send update to lsp servers
         lsp.update_document(doc, lsp.user_typed > 0)
-        if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
+      end
+
+      ---@type lsp.timer
+      doc.lsp_hover_timer = Timer(300, true)
+      doc.lsp_hover_timer.on_timer = function()
+        lsp.request_hover(
+          lsp.hover_position.doc,
+          lsp.hover_position.line,
+          lsp.hover_position.col
+        )
       end
     end
   end
@@ -1422,7 +1461,10 @@ function lsp.request_hover(doc, line, col)
               text = content
             end
             if text and #text > 0 then
-              listbox.show_text(text:gsub("^[\n%s]+", ""):gsub("[\n%s]+$", ""))
+              listbox.show_text(
+                text:gsub("^[\n%s]+", ""):gsub("[\n%s]+$", ""),
+                { line = line, col = col }
+              )
             end
           end
         end
@@ -1908,7 +1950,9 @@ local doc_save = Doc.save
 local doc_on_close = Doc.on_close
 local doc_raw_insert = Doc.raw_insert
 local doc_raw_remove = Doc.raw_remove
+local keymap_on_key_pressed = keymap.on_key_pressed
 local root_view_on_text_input = RootView.on_text_input
+local root_view_on_mouse_moved = RootView.on_mouse_moved
 
 function Doc:load(...)
   local res = doc_load(self, ...)
@@ -2018,16 +2062,36 @@ function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
   -- skip new files
   if not self.filename then return end
 
-  add_change(self, "", line1, col1, line2, col2)
-
   if self.lsp_open then
+    add_change(self, "", line1, col1, line2, col2)
     if config.plugins.lsp.delay_push_changes then
       self.lsp_changes_timer:reset()
       self.lsp_changes_timer:start()
     else
       lsp.update_document(self, lsp.user_typed > 0)
     end
+  elseif #lsp.get_active_servers(self.filename, true) > 0 then
+    add_change(self, "", line1, col1, line2, col2)
   end
+end
+
+local non_text_keys = {
+  ["escape"] = true,
+  ["return"] = true,
+  ["tab"] = true
+}
+keymap.on_key_pressed = function(k, ...)
+  if non_text_keys[k] then
+    if k == "tab" and autocomplete.is_open() then
+      -- allow signature request after selecting item from autocomplete box
+      lsp.user_typed = 2
+    else
+      -- do not keep triggering autocomplete if no text key pressed
+      -- this fixes servers like lua language server
+      lsp.user_typed = 0
+    end
+  end
+  return keymap_on_key_pressed(k, ...)
 end
 
 function RootView:on_text_input(text)
@@ -2039,7 +2103,61 @@ function RootView:on_text_input(text)
     local line1, col1, line2, col2 = av.doc:get_selection()
 
     if line1 == line2 and col1 == col2 then
-      lsp.user_typed = lsp.user_typed + 1
+      if lsp.user_typed >= 0 then
+        lsp.user_typed = lsp.user_typed + 1
+      else
+        lsp.user_typed = 1
+      end
+    end
+  end
+end
+
+function RootView:on_mouse_moved(x, y, dx, dy)
+  root_view_on_mouse_moved(self, x, y, dx, dy)
+
+  if not config.plugins.lsp.mouse_hover then return end
+
+  local av = get_active_docview()
+
+  if av and av.doc.lsp_open then
+    ---@type core.doc
+    local doc = av.doc
+    local line, col = av:resolve_screen_position(x, y)
+    local line1, col1 = translate.start_of_word(doc, line, col)
+    local line2, col2 = translate.end_of_word(doc, line1, col1)
+    local text = doc:get_text(line1, col1, line2, col2):gsub("%s*", "")
+    local lx1 = av:get_line_screen_position(line1, col1)
+    local lx2 = av:get_line_screen_position(line1, col2)
+    if
+      col >= col1 and col <= col2
+      and
+      text ~= ""
+      and
+      x >= lx1 and x <= lx2
+    then
+      if
+        lsp.hover_position.doc ~= doc
+        or
+        lsp.hover_position.line ~= line1
+        or
+        lsp.hover_position.col ~= col1
+      then
+        listbox.hide()
+
+        lsp.hover_position.doc = doc
+        lsp.hover_position.line = line1
+        lsp.hover_position.col = col1
+
+        doc.lsp_hover_timer:set_interval(config.plugins.lsp.mouse_hover_delay)
+        doc.lsp_hover_timer:reset()
+
+        if not doc.lsp_hover_timer:running() then
+          doc.lsp_hover_timer:start()
+        end
+      end
+    else
+      listbox.hide()
+      doc.lsp_hover_timer:stop()
     end
   end
 end
