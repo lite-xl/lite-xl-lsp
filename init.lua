@@ -181,8 +181,8 @@ lsp.in_trigger = false
 
 ---Flag that indicates if the user typed something on the editor to try and
 ---call autocomplete only when neccesary.
----@type integer
-lsp.user_typed = 0
+---@type boolean
+lsp.user_typed = false
 
 ---Used on the hover timer to display hover info
 ---@class lsp.hover_position
@@ -371,7 +371,6 @@ local function apply_edit(doc, text_edit)
   doc:remove(line1, col1, line2, col2+#current_text)
   doc:insert(line1, col1, text)
   doc:set_selection(line2, col1+#text, line2, col1+#text)
-  lsp.update_document(doc)
 
   return true
 end
@@ -453,7 +452,6 @@ local function autocomplete_onselect(index, item)
     if dv then
       local edit_applied = apply_edit(dv.doc, completion.textEdit)
       if edit_applied then
-        lsp.update_document(dv.doc)
         -- Retrigger code completion if last char is a trigger
         -- this is useful for example with clangd when autocompleting
         -- a #include, if user types < a list of paths will appear
@@ -463,13 +461,13 @@ local function autocomplete_onselect(index, item)
         lsp.in_trigger = false
         local line, col = dv.doc:get_selection()
         local char = dv.doc:get_char(line, col-1)
-        if char:match("%p") then
-          lsp.request_completion(
-            dv.doc,
-            line,
-            col,
-            true
-          )
+        local char_prev = dv.doc:get_char(line, col-2)
+        if char:match("%p") or (char == " " and char_prev:match("%p")) then
+          if #dv.doc.lsp_changes > 0 then
+            lsp.update_document(dv.doc, true)
+          else
+            lsp.request_completion(dv.doc, line, col, true)
+          end
         end
       end
       return edit_applied
@@ -782,7 +780,7 @@ function lsp.start_server(filename, project_directory)
               then
                 -- we delay rendering of diagnostics for 2 seconds to prevent
                 -- the constant reporting of errors while typing.
-                diagnostics.lintplus_populate_delayed(filename, lsp.user_typed > 0)
+                diagnostics.lintplus_populate_delayed(filename, lsp.user_typed)
               end
             else
               diagnostics.clear(filename)
@@ -943,13 +941,6 @@ function lsp.open_document(doc)
         end
       else
         doc.lsp_open = true
-      end
-
-      ---@type lsp.timer
-      doc.lsp_changes_timer = Timer(50, true)
-      doc.lsp_changes_timer.on_timer = function()
-        -- Send update to lsp servers
-        lsp.update_document(doc, lsp.user_typed > 0)
       end
 
       ---@type lsp.timer
@@ -1145,9 +1136,13 @@ function lsp.update_document(doc, request_completion)
           .. "]\n"
           .. '}\n'
           .. '}\n',
-          callback = completion_callback
+          callback = function()
+            doc.lsp_changes = {}
+            if completion_callback then
+              completion_callback()
+            end
+          end
         })
-        doc.lsp_changes = {}
       else
         lsp.servers_running[name]:push_notification('textDocument/didChange', {
           overwrite = true,
@@ -1230,7 +1225,7 @@ function lsp.request_completion(doc, line, col, forced)
         params = request,
         overwrite = true,
         callback = function(server, response)
-          if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
+          lsp.user_typed = false
 
           -- don't autocomplete if caret position changed
           local cline, cchar = doc:get_selection()
@@ -1359,9 +1354,6 @@ function lsp.request_completion(doc, line, col, forced)
           else
             autocomplete.complete(symbols)
           end
-        end,
-        overwritten_callback = function()
-          if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
         end
       })
     end
@@ -1420,13 +1412,10 @@ function lsp.request_signature(doc, line, col, forced, fallback)
           then
             autocomplete.close()
             listbox.show_signatures(response.result)
-            if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
+            lsp.user_typed  = false
           elseif fallback then
             fallback(doc, line, col)
           end
-        end,
-        overwritten_callback = function()
-          if lsp.user_typed > 0 then lsp.user_typed = lsp.user_typed - 1 end
         end
       })
       break
@@ -1990,7 +1979,6 @@ local doc_save = Doc.save
 local doc_on_close = Doc.on_close
 local doc_raw_insert = Doc.raw_insert
 local doc_raw_remove = Doc.raw_remove
-local keymap_on_key_pressed = keymap.on_key_pressed
 local root_view_on_text_input = RootView.on_text_input
 local root_view_on_mouse_moved = RootView.on_mouse_moved
 
@@ -2084,15 +2072,11 @@ function Doc:raw_insert(line, col, text, undo_stack, time)
   -- skip new files
   if not self.filename then return end
 
-  add_change(self, text, line, col, line, col)
-
   if self.lsp_open then
-    if config.plugins.lsp.delay_push_changes then
-      self.lsp_changes_timer:reset()
-      self.lsp_changes_timer:start()
-    else
-      lsp.update_document(self, lsp.user_typed > 0)
-    end
+    add_change(self, text, line, col, line, col)
+    lsp.update_document(self)
+  elseif #lsp.get_active_servers(self.filename, true) > 0 then
+    add_change(self, text, line, col, line, col)
   end
 end
 
@@ -2104,51 +2088,22 @@ function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
 
   if self.lsp_open then
     add_change(self, "", line1, col1, line2, col2)
-    if config.plugins.lsp.delay_push_changes then
-      self.lsp_changes_timer:reset()
-      self.lsp_changes_timer:start()
-    else
-      lsp.update_document(self, lsp.user_typed > 0)
-    end
+    lsp.update_document(self)
   elseif #lsp.get_active_servers(self.filename, true) > 0 then
     add_change(self, "", line1, col1, line2, col2)
   end
 end
 
-local non_text_keys = {
-  ["escape"] = true,
-  ["return"] = true,
-  ["tab"] = true
-}
-keymap.on_key_pressed = function(k, ...)
-  if non_text_keys[k] then
-    if k == "tab" and autocomplete.is_open() then
-      -- allow signature request after selecting item from autocomplete box
-      lsp.user_typed = 2
-    else
-      -- do not keep triggering autocomplete if no text key pressed
-      -- this fixes servers like lua language server
-      lsp.user_typed = 0
-    end
-  end
-  return keymap_on_key_pressed(k, ...)
-end
-
 function RootView:on_text_input(text)
   root_view_on_text_input(self, text)
 
+  -- this part should actually trigger after Doc:raw_insert and Doc:raw_remove
+  -- so it is safe to trigger autocompletion from here.
   local av = get_active_docview()
 
   if av then
-    local line1, col1, line2, col2 = av.doc:get_selection()
-
-    if line1 == line2 and col1 == col2 then
-      if lsp.user_typed >= 0 then
-        lsp.user_typed = lsp.user_typed + 1
-      else
-        lsp.user_typed = 1
-      end
-    end
+    lsp.user_typed = true
+    lsp.update_document(av.doc, true)
   end
 end
 
