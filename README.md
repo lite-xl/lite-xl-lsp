@@ -30,7 +30,7 @@ Stuff that is currently implemented:
 
 * Code auto completion (**ctrl+space**)
 * Function signatures tooltip (**ctrl+shift+space**)
-* Current cursor symbol details tooltip (**alt+a**)
+* Current cursor symbol details tooltip on mouse hover or shortcut (**alt+a**)
 * Goto definition (**alt+d**)
 * Goto implementation (**alt+shift+d**)
 * View/jump to current document symbols (**alt+s**)
@@ -149,6 +149,22 @@ lsp.add_server {
 Configuration options that can be used to control the plugin behaviour:
 
 ```lua
+---Show a symbol hover information when mouse cursor is on top.
+---@type boolean
+config.plugins.lsp.mouse_hover = true,
+
+---The amount of time in milliseconds before showing the tooltip.
+---@type integer
+config.plugins.lsp.mouse_hover_delay = 300,
+
+---Show diagnostic messages
+---@type boolean
+config.plugins.lsp.show_diagnostics = true
+
+---Stop servers that aren't needed by any of the open files
+---@type boolean
+config.plugins.lsp.stop_unneeded_servers = true
+
 ---Set to a file path to log all json
 ---@type string
 config.plugins.lsp.log_file = ""
@@ -158,14 +174,6 @@ config.plugins.lsp.log_file = ""
 ---in need of easy to read json output when developing the plugin.
 ---@type boolean
 config.plugins.lsp.prettify_json = false
-
----Show diagnostic messages
----@type boolean
-config.plugins.lsp.show_diagnostics = true
-
----Stop servers that aren't needed by any of the open files
----@type boolean
-config.plugins.lsp.stop_unneeded_servers = true
 
 ---Send a server stderr output to lite log
 ---@type boolean
