@@ -1,10 +1,11 @@
 ---@type core.doc
 local Doc = require "core.doc"
 
+---A partially readonly core.doc.
 ---@class lsp.helpdoc : core.doc
 local HelpDoc = Doc:extend()
 
----Set the help text
+---Set the help text.
 ---@param text string
 function HelpDoc:set_text(text)
   self.lines = {}
@@ -18,6 +19,7 @@ function HelpDoc:set_text(text)
     self.highlighter.lines[i] = false
     i = i + 1
   end
+  self:reset_syntax()
 end
 
 --Let user modify text, maybe to make it more legible?
