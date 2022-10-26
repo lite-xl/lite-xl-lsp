@@ -426,8 +426,6 @@ local function autocomplete_onhover(index, item)
             :gsub("^[%s\n]+", "")
             :gsub("\n\n\n+", "\n\n")
 
-          core.root_view:draw()
-
           if server.verbose then
             server:log(
               "Resolve response: %s", util.jsonprettify(json.encode(symbol))
