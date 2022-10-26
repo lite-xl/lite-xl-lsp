@@ -757,7 +757,7 @@ function lsp.start_server(filename, project_directory)
 
             if server.verbose then
               core.log_quiet(
-                "["..server.name.."] %d diagnostics for:  %s",
+                "["..server.name.."] %s diagnostics for:  %s",
                 filename,
                 params.diagnostics and #params.diagnostics or 0
               )
