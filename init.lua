@@ -83,11 +83,6 @@ config.plugins.lsp = common.merge({
   ---when receiving large responses, but will affect LSP performance.
   more_yielding = false,
 
-  ---Enable previous behaviour of delaying sending document updates on
-  ---fast typing or redoing/undoing which seems problematic so disable it
-  ---by default and not document this flag.
-  delay_push_changes = false,
-
   config_spec = {
     name = "Language Server Protocol",
     {
