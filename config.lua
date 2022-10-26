@@ -419,8 +419,8 @@ lspconfig.sumneko_lua = add_lsp {
 
 -- typescript-language-server
 -- Status: Untested
--- Site: https://github.com/theia-ide/typescript-language-server
--- Installation: npm install -g typescript typescript-language-server
+-- Site: https://github.com/typescript-language-server/typescript-language-server
+-- Installation: npm install -g typescript-language-server typescript
 lspconfig.tsserver = add_lsp {
   name = "typescript-language-server",
   language = "javascript",
