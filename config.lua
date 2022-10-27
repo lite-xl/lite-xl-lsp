@@ -34,23 +34,65 @@ local function merge(a, b)
   return t
 end
 
-local function add_lsp(o)
+---Options that can be passed to a LSP server to overwrite the defaults.
+---@class lsp.config.options
+---
+---Name of server.
+---@field name string
+---Main language, eg: C.
+---@field language string
+---File types that are supported by this server.
+---@field file_patterns string[]
+---LSP command and optional arguments.
+---@field command string[]
+---Optional table of settings to pass into the lsp
+---Note that also having a settings.json or settings.lua in
+---your workspace directory with a table of settings is supported.
+---@field settings table<string,any>
+---Optional table of initializationOptions for the LSP.
+---@field init_options table<string,any>
+---Set by default to 16 should only be modified if having issues with a server.
+---@field requests_per_second integer
+---By default each request is written to the server stdin in chunks of 10KB,
+---if this gives issues set to false to write everything at once.
+---@field requests_in_chunks boolean
+---Some servers like bash language server support incremental changes
+---which are more performant but don't advertise it, set to true to force
+---incremental changes even if server doesn't advertise them.
+---@field incremental_changes boolean
+---Set to true to debug the lsp client when developing it
+---@field verbose boolean
+
+---@class lsp.config.server
+---Register the lsp server for usage.
+---@field setup fun(options?:lsp.config.options)
+---Get the default lsp server options.
+---@field get_options fun():lsp.config.options
+
+---Helper to register a language server.
+---@param options lsp.config.options
+---@return lsp.config.server
+local function add_lsp(options)
   return {
-    setup = function(p)
-      local options = merge(o, p)
-      lsp.add_server(options)
+    setup = function(user_options)
+      local merged_options = merge(options, user_options)
+      lsp.add_server(merged_options)
+    end,
+    get_options = function()
+      return options
     end
   }
 end
 
-
+---List of predefined language servers that can be easily enabled at runtime.
+---@class lsp.config
 local lspconfig = {}
 
--- bash-language-server
--- Status: Works
--- Site: https://github.com/bash-lsp/bash-language-server
--- Installation: npm i -g bash-language-server
--- Note: also install `shellcheck` for linting
+---# bash-language-server
+--- __Status__: Works
+--- __Site__: https://github.com/bash-lsp/bash-language-server
+--- __Installation__: `npm i -g bash-language-server`
+--- __Note__: also install `shellcheck` for linting
 lspconfig.bashls = add_lsp {
   name = "bash-language-server",
   language = "shell",
@@ -60,10 +102,10 @@ lspconfig.bashls = add_lsp {
   verbose = false
 }
 
--- ccls
--- Status: Works
--- Site: https://github.com/MaskRay/ccls/
--- Installation: https://github.com/MaskRay/ccls/wiki
+---# ccls
+--- __Status__: Works
+--- __Site__: https://github.com/MaskRay/ccls/
+--- __Installation__: https://github.com/MaskRay/ccls/wiki
 lspconfig.ccls = add_lsp {
   name = "ccls",
   language = "c/cpp",
@@ -76,10 +118,11 @@ lspconfig.ccls = add_lsp {
   verbose = false
 }
 
--- clangd
--- Status: Works
--- Site: https://clangd.llvm.org/
--- Installation: install the clang software package on your system
+---# clangd
+--- __Status__: Works
+--- __Site__: https://clangd.llvm.org/
+--- __Installation__: install the clang software package on your system
+--- __Note__: See https://clangd.llvm.org/installation.html#project-setup
 lspconfig.clangd = add_lsp {
   name = "clangd",
   language = "c/cpp",
@@ -92,10 +135,10 @@ lspconfig.clangd = add_lsp {
   verbose = false
 }
 
--- Clojure
--- Status: Untested
--- Site: https://clojure-lsp.github.io/
--- Installation: https://clojure-lsp.github.io/clojure-lsp/installation/
+---# Clojure
+--- __Status__: Untested
+--- __Site__: https://clojure-lsp.github.io/
+--- __Installation__: https://clojure-lsp.github.io/clojure-lsp/installation/
 lspconfig.clojure_lsp = add_lsp {
   name = "clojure-lsp",
   language = "clojure",
@@ -104,23 +147,23 @@ lspconfig.clojure_lsp = add_lsp {
   verbose = false
 }
 
--- css-languageserver
--- Status: Requires snippets support for completion to work which isn't implemented
--- Site: https://github.com/vscode-langservers/vscode-css-languageserver-bin
--- Installation: npm install -g vscode-css-languageserver-bin
+---# css-languageserver
+--- __Status__: Requires snippets support for completion to work which isn't implemented
+--- __Site__: https://github.com/vscode-langservers/vscode-css-languageserver-bin
+--- __Installation__: `npm install -g vscode-css-languageserver-bin`
 lspconfig.cssls = add_lsp {
   name = "css-languageserver",
   language = "css",
-  file_patterns = {"%.css$", "%.less$", "%.sass$"},
+  file_patterns = { "%.css$", "%.less$", "%.sass$" },
   command = { "css-languageserver", "--stdio" },
   fake_snippets = true,
   verbose = false
 }
 
--- dartls
--- Status: Untested
--- Site: https://github.com/dart-lang/sdk
--- Installation: Provided in dart sdk
+---# dartls
+--- __Status__: Untested
+--- __Site__: https://github.com/dart-lang/sdk
+--- __Installation__: Provided in dart sdk
 lspconfig.dartls = add_lsp {
   name = "dart",
   language = "dart",
@@ -129,10 +172,10 @@ lspconfig.dartls = add_lsp {
   verbose = false
 }
 
--- Dockerfile
--- Status: Untested
--- Site: https://github.com/rcjsuen/dockerfile-language-server-nodejs
--- Installation: npm install -g dockerfile-language-server-nodejs
+---# Dockerfile
+--- __Status__: Untested
+--- __Site__: https://github.com/rcjsuen/dockerfile-language-server-nodejs
+--- __Installation__: `npm install -g dockerfile-language-server-nodejs`
 lspconfig.dockerls = add_lsp {
   name = "docker-langserver",
   language = "dockerfile",
@@ -141,10 +184,10 @@ lspconfig.dockerls = add_lsp {
   verbose = false
 }
 
--- Flow - JavaScript
--- Status: Untested
--- Site: https://flow.org/
--- Installation: npm install -g flow-bin
+---# Flow - JavaScript
+--- __Status__: Untested
+--- __Site__: https://flow.org/
+--- __Installation__: `npm install -g flow-bin`
 lspconfig.flow = add_lsp {
   name = "flow",
   language = "javascript",
@@ -153,10 +196,10 @@ lspconfig.flow = add_lsp {
   verbose = false
 }
 
--- gopls
--- Status: Works
--- Site: https://pkg.go.dev/golang.org/x/tools/gopls
--- Installation: go get -u golang.org/x/tools/gopls
+---# gopls
+--- __Status__: Works
+--- __Site__: https://pkg.go.dev/golang.org/x/tools/gopls
+--- __Installation__: `go get -u golang.org/x/tools/gopls`
 lspconfig.gopls = add_lsp {
   name = "gopls",
   language = "go",
@@ -165,15 +208,17 @@ lspconfig.gopls = add_lsp {
   verbose = false
 }
 
--- groovy-language-server
--- Status: Untested
--- Site: https://github.com/prominic/groovy-language-server
--- Installation:
---    mkdir ~/lsp
---    cd ~/lsp
---    git clone https://github.com/prominic/groovy-language-server.git
---    cd ~/lsp/groovy-language-server
---    ./gradlew build
+---# groovy-language-server
+--- __Status__: Untested
+--- __Site__: https://github.com/prominic/groovy-language-server
+--- __Installation__:
+--- ```sh
+--- mkdir ~/lsp
+--- cd ~/lsp
+--- git clone https://github.com/prominic/groovy-language-server.git
+--- cd ~/lsp/groovy-language-server
+--- ./gradlew build
+--- ```
 lspconfig.groovyls = add_lsp {
   name = "groovy-language-server",
   language = "groovy",
@@ -183,11 +228,11 @@ lspconfig.groovyls = add_lsp {
   verbose = false
 }
 
--- haskell-language-server
--- Status: Untested
--- Site: https://github.com/haskell/haskell-language-server
--- Installation: ghcup install hls
--- or https://github.com/haskell/haskell-language-server#installation
+---# haskell-language-server
+--- __Status__: Untested
+--- __Site__: https://github.com/haskell/haskell-language-server
+--- __Installation__: `ghcup install hls`
+--- or https://github.com/haskell/haskell-language-server#installation
 lspconfig.hls = add_lsp {
   name = "haskell-language-server",
   language = "haskell",
@@ -196,10 +241,10 @@ lspconfig.hls = add_lsp {
   verbose = false
 }
 
--- vscode-html-languageserver
--- Status: Untested
--- Site: https://github.com/vscode-langservers/vscode-html-languageserver-bin
--- Installation: npm install --global vscode-html-languageserver-bin
+---# vscode-html-languageserver
+--- __Status__: Untested
+--- __Site__: https://github.com/vscode-langservers/vscode-html-languageserver-bin
+--- __Installation__: `npm install --global vscode-html-languageserver-bin`
 lspconfig.html = add_lsp {
   name = "html-languageserver",
   language = "html",
@@ -208,24 +253,26 @@ lspconfig.html = add_lsp {
   verbose = false
 }
 
--- intelephense
--- Status: Works
--- Site: https://github.com/bmewburn/intelephense-docs
--- Installation: npm -g install intelephense
--- Note: Set your license and storage by passing the init_options as follows:
--- init_options = { licenceKey = "...", storagePath = "/some/path"}
+---# intelephense
+--- __Status__: Works
+--- __Site__: https://github.com/bmewburn/intelephense-docs
+--- __Installation__: `npm -g install intelephense`
+--- __Note__: Set your license and storage by passing the init_options as follows:
+--- ```lua
+--- init_options = { licenceKey = "...", storagePath = "/some/path"}
+--- ```
 lspconfig.intelephense = add_lsp {
   name = "intelephense",
   language = "php",
-  file_patterns = {"%.php$"},
+  file_patterns = { "%.php$" },
   command = { "intelephense", "--stdio" },
   verbose = false
 }
 
--- vscode-json-languageserver
--- Status: Untested
--- Site: https://www.npmjs.com/package/vscode-json-languageserver
--- Installation: npm install -g vscode-json-languageserver
+---# vscode-json-languageserver
+--- __Status__: Untested
+--- __Site__: https://www.npmjs.com/package/vscode-json-languageserver
+--- __Installation__: `npm install -g vscode-json-languageserver`
 lspconfig.jsonls = add_lsp {
   name = "vscode-json-languageserver",
   language = "json",
@@ -234,10 +281,10 @@ lspconfig.jsonls = add_lsp {
   verbose = false
 }
 
--- kotlin-language-server
--- Status: Untested
--- Site: https://github.com/fwcd/kotlin-language-server
--- Installation: https://github.com/fwcd/kotlin-language-server/releases
+---# kotlin-language-server
+--- __Status__: Untested
+--- __Site__: https://github.com/fwcd/kotlin-language-server
+--- __Installation__: https://github.com/fwcd/kotlin-language-server/releases
 lspconfig.kotlin_language_server = add_lsp {
   name = "kotlin-language-server",
   language = "kotlin",
@@ -246,6 +293,10 @@ lspconfig.kotlin_language_server = add_lsp {
   verbose = false
 }
 
+---# nimlsp
+--- __Status__: Works
+--- __Site__: https://github.com/PMunch/nimlsp
+--- __Installation__: `nimble install nimlsp`
 lspconfig.nimlsp = add_lsp {
   name = "nimlsp",
   language = "Nim",
@@ -257,25 +308,25 @@ lspconfig.nimlsp = add_lsp {
   verbose = false
 }
 
--- ocaml-lsp
--- Status: Reported working on https://github.com/jgmdev/lite-xl-lsp/issues/17
--- Site: https://github.com/ocaml/ocaml-lsp
--- Installation: https://github.com/ocaml/ocaml-lsp#installation
+---# ocaml-lsp
+--- __Status__: Reported working on https://github.com/jgmdev/lite-xl-lsp/issues/17
+--- __Site__: https://github.com/ocaml/ocaml-lsp
+--- __Installation__: https://github.com/ocaml/ocaml-lsp#installation
 lspconfig.ocaml_lsp = add_lsp {
   name = "ocaml-lsp",
   language = "ocaml",
-  file_patterns = {"%.ml$", "%.mli$"},
-  command = {"ocamllsp"},
+  file_patterns = { "%.ml$", "%.mli$" },
+  command = { "ocamllsp" },
   id_not_extension = true,
   verbose = false
 }
 
--- python-language-server
--- Status: Works (deprecated in favor of python-lsp-server)
--- Site: https://github.com/palantir/python-language-server
--- Installation: pip install python-language-server
--- Note: Also don't forget to install any additional optional dependencies
--- for additional features (see official site for details).
+---# python-language-server
+--- __Status__: Works (deprecated in favor of python-lsp-server)
+--- __Site__: https://github.com/palantir/python-language-server
+--- __Installation__: `pip install python-language-server`
+--- __Note__: Also don't forget to install any additional optional dependencies
+--- for additional features (see official site for details).
 lspconfig.pyls = add_lsp {
   name = "pyls",
   language = "python",
@@ -284,12 +335,12 @@ lspconfig.pyls = add_lsp {
   verbose = false
 }
 
--- svelte-language-server
--- Status: Works
--- Site: https://github.com/sveltejs/language-tools/tree/master/packages/language-server
--- Installation: npm install -g svelte-language-server
--- Note: Also don't forget to install any additional optional dependencies
--- for additional features (see official site for details).
+---# svelte-language-server
+--- __Status__: Works
+--- __Site__: https://github.com/sveltejs/language-tools/tree/master/packages/language-server
+--- __Installation__: `npm install -g svelte-language-server`
+--- __Note__: Also don't forget to install any additional optional dependencies
+--- for additional features (see official site for details).
 lspconfig.sveltels = add_lsp {
   name = "sveltels",
   language = "svelte",
@@ -298,12 +349,12 @@ lspconfig.sveltels = add_lsp {
   verbose = false
 }
 
--- python-lsp-server
--- Status: Works
--- Site: https://github.com/python-lsp/python-lsp-server
--- Installation: pip install python-lsp-server
--- Note: Also don't forget to install any additional optional dependencies
--- for additional features (see official site for details).
+---# python-lsp-server
+--- __Status__: Works
+--- __Site__: https://github.com/python-lsp/python-lsp-server
+--- __Installation__: `pip install python-lsp-server`
+--- __Note__: Also don't forget to install any additional optional dependencies
+--- for additional features (see official site for details).
 lspconfig.pylsp = add_lsp {
   name = "pylsp",
   language = "python",
@@ -312,10 +363,10 @@ lspconfig.pylsp = add_lsp {
   verbose = false
 }
 
--- Rust Language Server
--- Status: Works
--- Site: https://github.com/rust-lang/rls
--- Installation: Install rust on your system
+---# Rust Language Server
+--- __Status__: Works
+--- __Site__: https://github.com/rust-lang/rls
+--- __Installation__: Install rust on your system
 lspconfig.rls = add_lsp {
   name = "rust-language-server",
   language = "rust",
@@ -324,10 +375,10 @@ lspconfig.rls = add_lsp {
   verbose = false
 }
 
--- Rust Analyzer
--- Status: Works
--- Site: https://rust-analyzer.github.io/
--- Installation: See official website for instructions
+---# Rust Analyzer
+--- __Status__: Works
+--- __Site__: https://rust-analyzer.github.io/
+--- __Installation__: See official website for instructions
 lspconfig.rust_analyzer = add_lsp {
   name = "rust-analyzer",
   language = "rust",
@@ -336,10 +387,10 @@ lspconfig.rust_analyzer = add_lsp {
   verbose = false
 }
 
--- Solargraph
--- Status: Untested
--- Site: https://github.com/castwide/solargraph
--- Installation: gem install solargraph
+---# Solargraph
+--- __Status__: Untested
+--- __Site__: https://github.com/castwide/solargraph
+--- __Installation__: `gem install solargraph`
 lspconfig.solargraph = add_lsp {
   name = "solargraph",
   language = "ruby",
@@ -348,10 +399,10 @@ lspconfig.solargraph = add_lsp {
   verbose = false
 }
 
--- sql-language-server
--- Status: Untested
--- Site: https://github.com/joe-re/sql-language-server
--- Installation: npm i -g sql-language-server
+---# sql-language-server
+--- __Status__: Untested
+--- __Site__: https://github.com/joe-re/sql-language-server
+--- __Installation__: `npm i -g sql-language-server`
 lspconfig.sqlls = add_lsp {
   name = "sql-language-server",
   language = "sql",
@@ -360,14 +411,14 @@ lspconfig.sqlls = add_lsp {
   verbose = false
 }
 
--- lua-language-server
--- Status: Works
--- Site: https://github.com/sumneko/lua-language-server
--- Installation: https://github.com/sumneko/lua-language-server/wiki/Build-and-Run-(Standalone)
+---# lua-language-server
+--- __Status__: Works
+--- __Site__: https://github.com/sumneko/lua-language-server
+--- __Installation__: https://github.com/sumneko/lua-language-server/wiki/Build-and-Run-(Standalone)
 lspconfig.sumneko_lua = add_lsp {
   name = "lua-language-server",
   language = "lua",
-  file_patterns = {"%.lua$"},
+  file_patterns = { "%.lua$" },
   command = { 'lua-language-server' },
   verbose = false,
   settings = {
@@ -417,10 +468,10 @@ lspconfig.sumneko_lua = add_lsp {
   }
 }
 
--- typescript-language-server
--- Status: Untested
--- Site: https://github.com/typescript-language-server/typescript-language-server
--- Installation: npm install -g typescript-language-server typescript
+---# typescript-language-server
+--- __Status__: Untested
+--- __Site__: https://github.com/typescript-language-server/typescript-language-server
+--- __Installation__: `npm install -g typescript-language-server typescript`
 lspconfig.tsserver = add_lsp {
   name = "typescript-language-server",
   language = "javascript",
@@ -429,10 +480,10 @@ lspconfig.tsserver = add_lsp {
   verbose = false
 }
 
--- vim-language-server
--- Status: Untested
--- Site: https://github.com/iamcco/vim-language-server
--- Installation: npm install -g vim-language-server
+---# vim-language-server
+--- __Status__: Untested
+--- __Site__: https://github.com/iamcco/vim-language-server
+--- __Installation__: `npm install -g vim-language-server`
 lspconfig.vimls = add_lsp {
   name = "vim-language-server",
   language = "vim",
@@ -441,14 +492,16 @@ lspconfig.vimls = add_lsp {
   verbose = false
 }
 
--- vlang-vls
--- Status: Initializes but doesn't responds to completion requests
---         at least it helped improve lit-xl-lsp requests mechanism
--- Site: https://github.com/vlang/vls
--- Installation:
---  git clone https://github.com/vlang/vls.git vls && cd vls/
---  v -prod cmd/vls
---  mv cmd/vls vlang-vls
+---# vlang-vls
+--- __Status__: Initializes but doesn't responds to completion requests
+--- at least it helped improve lit-xl-lsp requests mechanism
+--- __Site__: https://github.com/vlang/vls
+--- __Installation__:
+--- ```sh
+--- git clone https://github.com/vlang/vls.git vls && cd vls/
+--- v -prod cmd/vls
+--- mv cmd/vls vlang-vls
+--- ```
 lspconfig.vls = add_lsp {
   name = "vlang-vls",
   language = "v",
@@ -457,10 +510,10 @@ lspconfig.vls = add_lsp {
   verbose = false
 }
 
--- yaml-language-server
--- Status: Untested
--- Site: https://github.com/redhat-developer/yaml-language-server
--- Installation: See official website for instructions
+---# yaml-language-server
+--- __Status__: Untested
+--- __Site__: https://github.com/redhat-developer/yaml-language-server
+--- __Installation__: See official website for instructions
 lspconfig.yamlls = add_lsp {
   name = "yaml-language-server",
   language = "yaml",
@@ -469,10 +522,10 @@ lspconfig.yamlls = add_lsp {
   verbose = false
 }
 
--- Zig Language Server
--- Status: Untested
--- Site: https://github.com/zigtools/zls
--- Installation: See official website for instructions
+---# Zig Language Server
+--- __Status__: Untested
+--- __Site__: https://github.com/zigtools/zls
+--- __Installation__: See official website for instructions
 lspconfig.zls = add_lsp {
   name = "zls",
   language = "zig",
@@ -480,5 +533,6 @@ lspconfig.zls = add_lsp {
   command = { 'zls' },
   verbose = false
 }
+
 
 return lspconfig
