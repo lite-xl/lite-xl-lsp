@@ -12,7 +12,7 @@ local util = {}
 ---Split a string by the given delimeter
 ---@param s string The string to split
 ---@param delimeter string Delimeter without lua patterns
----@param delimeter_pattern string Optional delimeter with lua patterns
+---@param delimeter_pattern? string Optional delimeter with lua patterns
 ---@return table
 function util.split(s, delimeter, delimeter_pattern)
   if not delimeter_pattern then
@@ -355,6 +355,46 @@ function util.strip_markdown(text)
     prev_line = new_line
   end
   return clean_text
+end
+
+---@param text string
+---@param font renderer.font
+---@param max_width number
+function util.wrap_text(text, font, max_width)
+  local lines = util.split(text, "\n")
+  local wrapped_text = ""
+  local longest_line = 0;
+  for _, line in ipairs(lines) do
+    local line_len = line:ulen() or 0
+    if line_len > longest_line then
+      longest_line = line_len
+      local line_width = font:get_width(line)
+      if line_width > max_width then
+        local words = util.split(line, " ")
+        local new_line = words[1] and words[1] or ""
+        wrapped_text = wrapped_text .. new_line
+        for w=2, #words do
+          if font:get_width(new_line .. " " .. words[w]) <= max_width then
+            new_line = new_line .. " " .. words[w]
+            wrapped_text = wrapped_text .. " " .. words[w]
+          else
+            wrapped_text = wrapped_text .. "\n" .. words[w]
+            new_line = words[w]
+          end
+        end
+        wrapped_text = wrapped_text .. "\n"
+      else
+        wrapped_text = wrapped_text .. line .. "\n"
+      end
+    else
+      wrapped_text = wrapped_text .. line .. "\n"
+    end
+  end
+
+  wrapped_text = wrapped_text:gsub("\n\n\n\n", "\n\n")
+    :gsub("\n\n\n", "\n\n")
+
+  return wrapped_text:sub(1, #wrapped_text - 2)
 end
 
 

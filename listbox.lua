@@ -10,6 +10,7 @@ local common = require "core.common"
 local command = require "core.command"
 local style = require "core.style"
 local keymap = require "core.keymap"
+local util = require "plugins.lsp.util"
 local RootView = require "core.rootview"
 local DocView = require "core.docview"
 
@@ -302,6 +303,9 @@ end
 ---@param position? lsp.listbox.position
 function listbox.show_text(text, position)
   if text and type("text") == "string" then
+    local win_w = system.get_window_size()
+    text = util.wrap_text(text, style.font, win_w)
+
     local items = {}
     for result in string.gmatch(text.."\n", "(.-)\n") do
       table.insert(items, {text = result})
