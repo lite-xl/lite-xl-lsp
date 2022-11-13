@@ -306,6 +306,8 @@ function util.strip_markdown(text)
       -- italic
       :gsub("%*(.-)%*", "%1")
       :gsub("%s_(.-)_%s", "%1")
+      :gsub("\\_(.-)\\_", "_%1_")
+      :gsub("^_(.-)_", "%1")
       -- code
       :gsub("^%s*```(%w+)%s*\n", "")
       :gsub("^%s*```%s*\n", "")
@@ -325,6 +327,8 @@ function util.strip_markdown(text)
       :gsub("%s<(.-)>%s", "%1")
       :gsub("%[(.-)%]%s*%[(.-)%]", "%1")
       :gsub("%[(.-)%]%((.-)%)", "%1: %2")
+      -- remove escaped punctuations
+      :gsub("\\(%p)", "%1")
 
     -- if paragraph put in same line
     local is_paragraph = false
