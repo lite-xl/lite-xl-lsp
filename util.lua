@@ -391,8 +391,7 @@ function util.wrap_text(text, font, max_width)
     end
   end
 
-  wrapped_text = wrapped_text:gsub("\n\n\n\n", "\n\n")
-    :gsub("\n\n\n", "\n\n")
+  wrapped_text = wrapped_text:gsub("\n\n\n\n?", "\n\n")
 
   return wrapped_text:sub(1, #wrapped_text - 2)
 end
