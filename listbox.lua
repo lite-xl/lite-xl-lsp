@@ -29,6 +29,7 @@ local listbox = {}
 ---@field selected_item_idx integer
 ---@field show_items_count boolean
 ---@field max_height integer
+---@field active_view core.docview | nil
 ---@field line integer | nil
 ---@field col integer | nil
 ---@field last_line integer | nil
@@ -43,6 +44,7 @@ local settings = {
   selected_item_idx = 1,
   show_items_count = false,
   max_height = 6,
+  active_view = nil,
   line = nil,
   col = nil,
   last_line = nil,
@@ -280,6 +282,9 @@ function listbox.append(element)
 end
 
 function listbox.hide()
+  settings.active_view = nil
+  settings.line = nil
+  settings.col = nil
   settings.selected_item_idx = 1
   settings.shown_items = {}
 end
@@ -291,6 +296,7 @@ function listbox.show(is_list, position)
 
   local active_view = get_active_view()
   if active_view then
+    settings.active_view = active_view
     settings.last_line, settings.last_col = active_view.doc:get_selection()
     if settings.items and #settings.items > 0 then
       settings.is_list = is_list or false
@@ -451,18 +457,28 @@ local root_view_draw = RootView.draw
 RootView.update = function(...)
   root_view_update(...)
 
+  if not settings.active_view then return end
+
   local active_view = get_active_view()
   if active_view then
-    -- reset suggestions if caret was moved
+    -- reset suggestions if caret was moved or not same active view
     local line, col = active_view.doc:get_selection()
-    if line ~= settings.last_line or col ~= settings.last_col then
+    if
+      settings.active_view ~= active_view
+      or
+      line ~= settings.last_line or col ~= settings.last_col
+    then
       listbox.hide()
     end
+  else
+    listbox.hide()
   end
 end
 
 RootView.draw = function(...)
   root_view_draw(...)
+
+  if not settings.active_view then return end
 
   local active_view = get_active_view()
   if active_view and #settings.shown_items > 0 then
