@@ -293,6 +293,19 @@ lspconfig.kotlin_language_server = add_lsp {
   verbose = false
 }
 
+---# nil
+--- __Status__:       Works
+--- __Site__:         https://github.com/oxalica/nil
+--- __Installation__: cargo install --git https://github.com/oxalica/nil nil
+--- __Note__:         nix >= 2.4 needs to be installed
+lspconfig.nillsp = add_lsp {
+  name = "nil",
+  language = "nix",
+  file_patterns = { "%.nix$" },
+  command = { "nil" },
+  verbose = false
+}
+
 ---# nimlsp
 --- __Status__: Works
 --- __Site__: https://github.com/PMunch/nimlsp
