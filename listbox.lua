@@ -34,7 +34,7 @@ local listbox = {}
 ---@field col integer | nil
 ---@field last_line integer | nil
 ---@field last_col integer | nil
----@field callback lsp.listbox.callback
+---@field callback lsp.listbox.callback | nil
 ---@field is_list boolean
 ---@field has_fuzzy_search boolean
 ---@field above_text boolean
@@ -68,6 +68,7 @@ end
 
 local function get_suggestions_rect(active_view)
   if #settings.shown_items == 0 then
+    listbox.hide()
     return 0, 0, 0, 0
   end
 
@@ -78,7 +79,18 @@ local function get_suggestions_rect(active_view)
     line, col = active_view.doc:get_selection()
   end
 
+  -- Validate line against current view because there can be cases
+  -- when user rapidly switches between tabs causing the deferred draw
+  -- to be called late and the current document view already changed.
+  if line > #active_view.doc.lines then
+    listbox.hide()
+    return 0, 0, 0, 0
+  end
+
   local x, y = active_view:get_line_screen_position(line)
+
+  -- This function causes tokenizer to fail if given line is greater than
+  -- the amount of lines the document holds, so validation above is needed.
   x = x + active_view:get_col_x_offset(line, col)
 
   local padding_x = not settings.is_list
@@ -481,7 +493,11 @@ RootView.draw = function(...)
   if not settings.active_view then return end
 
   local active_view = get_active_view()
-  if active_view and #settings.shown_items > 0 then
+  if
+    active_view and settings.active_view == active_view
+    and
+    #settings.shown_items > 0
+  then
     -- draw suggestions box after everything else
     core.root_view:defer_draw(draw_listbox, active_view)
   end
