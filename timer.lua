@@ -5,7 +5,6 @@ local Object = require "core.object"
 ---@class lsp.timer : core.object
 ---@field public interval integer
 ---@field public single_shot boolean
----@field private key integer
 ---@field private started boolean
 ---@field private last_run integer
 local Timer = Object:extend()
@@ -17,7 +16,6 @@ function Timer:new(interval, single_shot)
   Timer.super.new(self)
 
   self.single_shot = single_shot or false
-  self.key = 0
   self.started = false
   self.last_run = 0
 
@@ -31,7 +29,7 @@ function Timer:start()
   self.started = true
   local this = self
 
-  self.key = core.add_thread(function()
+  core.add_thread(function()
     while true do
       this:reset()
       while (this.last_run + this.interval) > system.get_time() do
