@@ -1,7 +1,7 @@
 ---@type core.doc
 local Doc = require "core.doc"
 
----A partially readonly core.doc.
+---A readonly core.doc.
 ---@class lsp.helpdoc : core.doc
 local HelpDoc = Doc:extend()
 
@@ -22,10 +22,8 @@ function HelpDoc:set_text(text)
   self:reset_syntax()
 end
 
---Let user modify text, maybe to make it more legible?
--- function HelpDoc:raw_insert(...) end
--- function HelpDoc:raw_remove(...) end
-
+function HelpDoc:raw_insert(...) end
+function HelpDoc:raw_remove(...) end
 function HelpDoc:load(...) end
 function HelpDoc:reload() end
 function HelpDoc:save(...) end
