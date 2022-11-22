@@ -7,19 +7,18 @@ local config = require "core.config"
 local util = require "plugins.lsp.util"
 local Timer = require "plugins.lsp.timer"
 
+---@class lsp.diagnostics
 local diagnostics = {}
 
----@class diagnostics.position
+---@class lsp.diagnostics.position
 ---@field line integer
 ---@field character integer
-diagnostics.position = {}
 
----@class diagnostics.range
----@field start diagnostics.position
----@field end diagnostics.position
-diagnostics.range = {}
+---@class lsp.diagnostics.range
+---@field start lsp.diagnostics.position
+---@field end lsp.diagnostics.position
 
----@class diagnostics.severity
+---@class lsp.diagnostics.severity
 ---@field ERROR integer
 ---@field WARNING integer
 ---@field INFO integer
@@ -31,17 +30,16 @@ diagnostics.severity = {
   HINT = 4
 }
 
----@alias diagnostics.severity_code
----|>'diagnostics.severity.ERROR'
----| 'diagnostics.severity.WARNING'
----| 'diagnostics.severity.INFO'
----| 'diagnostics.severity.HINT'
+---@alias lsp.diagnostics.severity_code
+---|>`diagnostics.severity.ERROR`
+---| `diagnostics.severity.WARNING`
+---| `diagnostics.severity.INFO`
+---| `diagnostics.severity.HINT`
 
----@class diagnostics.code_description
+---@class lsp.diagnostics.code_description
 ---@field href string
-diagnostics.code_description = {}
 
----@class diagnostics.tag
+---@class lsp.diagnostics.tag
 ---@field UNNECESSARY integer
 ---@field DEPRECATED integer
 diagnostics.tag = {
@@ -49,40 +47,36 @@ diagnostics.tag = {
   DEPRECATED = 2
 }
 
----@alias diagnostics.tag_code
----|>'diagnostics.tag.UNNECESSARY'
----| 'diagnostics.tag.DEPRECATED'
+---@alias lsp.diagnostics.tag_code
+---|>`diagnostics.tag.UNNECESSARY`
+---| `diagnostics.tag.DEPRECATED`
 
----@class diagnostics.location
+---@class lsp.diagnostics.location
 ---@field uri string
----@field range diagnostics.range
-diagnostics.location = {}
+---@field range lsp.diagnostics.range
 
----@class diagnostics.related_information
----@field location diagnostics.location
+---@class lsp.diagnostics.related_information
+---@field location lsp.diagnostics.location
 ---@field message string
-diagnostics.related_information = {}
 
 ---A diagnostic message.
----@class diagnostics.message
+---@class lsp.diagnostics.message
 ---@field filename string
----@field range diagnostics.position
----@field severity diagnostics.severity_code | integer
+---@field range lsp.diagnostics.position
+---@field severity lsp.diagnostics.severity_code | integer
 ---@field code integer | string
----@field codeDescription diagnostics.code_description
+---@field codeDescription lsp.diagnostics.code_description
 ---@field source string
 ---@field message string
----@field tags diagnostics.tag_code[]
----@field relatedInformation diagnostics.related_information
-diagnostics.message = {}
+---@field tags lsp.diagnostics.tag_code[]
+---@field relatedInformation lsp.diagnostics.related_information
 
 ---A diagnostic item.
----@class diagnostics.item
+---@class lsp.diagnostics.item
 ---@field filename string
----@field messages diagnostics.message[]
-diagnostics.message = {}
+---@field messages lsp.diagnostics.message[]
 
----@type table<integer, diagnostics.item>
+---@type table<integer, lsp.diagnostics.item>
 diagnostics.list = {}
 
 ---@type integer
@@ -106,8 +100,8 @@ diagnostics.lintplus_kinds = lintplus_kinds
 ---@type boolean
 diagnostics.lintplus_found = lintplus_found
 
----@param a diagnostics.message
----@param b diagnostics.message
+---@param a lsp.diagnostics.message
+---@param b lsp.diagnostics.message
 local function sort_helper(a, b)
   return a.severity < b.severity
 end
@@ -130,6 +124,7 @@ end
 ---@param filename string
 ---@return integer | nil
 function diagnostics.get_index(filename)
+  ---@cast filename +nil
   filename = get_absolute_path(filename)
   if not filename then return nil end
   for index, diagnostic in ipairs(diagnostics.list) do
@@ -142,9 +137,10 @@ end
 
 ---Get the diagnostics associated to a file.
 ---@param filename string
----@param severity? diagnostics.severity_code | integer
----@return diagnostics.message[] | nil
+---@param severity? lsp.diagnostics.severity_code | integer
+---@return lsp.diagnostics.message[] | nil
 function diagnostics.get(filename, severity)
+  ---@cast filename +nil
   filename = get_absolute_path(filename)
   if not filename then return nil end
   for _, diagnostic in ipairs(diagnostics.list) do
@@ -164,11 +160,12 @@ end
 
 ---Adds a new list of diagnostics associated to a file replacing previous one.
 ---@param filename string
----@param messages diagnostics.message[]
+---@param messages lsp.diagnostics.message[]
 ---@return boolean
 function diagnostics.add(filename, messages)
   local index = diagnostics.get_index(filename)
 
+  ---@cast filename +nil
   filename = get_absolute_path(filename)
   if not filename then return false end
 
@@ -199,7 +196,7 @@ end
 
 ---Get the amount of diagnostics associated to a file.
 ---@param filename string
----@param severity? diagnostics.severity_code | integer
+---@param severity? lsp.diagnostics.severity_code | integer
 function diagnostics.get_messages_count(filename, severity)
   local index = diagnostics.get_index(filename)
 
@@ -240,6 +237,7 @@ function diagnostics.lintplus_clear_messages(filename)
   end
 end
 
+---@param filename string
 function diagnostics.lintplus_populate(filename)
   if lintplus_found then
     diagnostics.lintplus_clear_messages(filename)
@@ -273,6 +271,8 @@ function diagnostics.lintplus_populate(filename)
   end
 end
 
+---@param filename string
+---@param user_typed boolean
 function diagnostics.lintplus_populate_delayed(filename, user_typed)
   if lintplus_found then
     diagnostics.lintplus_clear_messages(filename)
