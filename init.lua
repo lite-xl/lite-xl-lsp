@@ -25,6 +25,7 @@ local DocView = require "core.docview"
 local StatusView = require "core.statusview"
 local RootView = require "core.rootview"
 local autocomplete = require "plugins.autocomplete"
+local LineWrapping = require "plugins.linewrapping"
 
 local json = require "plugins.lsp.json"
 local util = require "plugins.lsp.util"
@@ -1472,6 +1473,8 @@ function lsp.request_hover(doc, line, col, in_tab)
                 helpdoc:set_text(text)
                 local helpview = DocView(helpdoc)
                 helpview.context = "application"
+                helpview.wrapping_enabled = true
+                LineWrapping.update_docview_breaks(helpview)
                 if
                   not help_bottom_node
                   or
