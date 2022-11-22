@@ -184,6 +184,43 @@ lspconfig.dockerls = add_lsp {
   verbose = false
 }
 
+---# Deno
+--- __Status__: Works
+--- __Site__: https://deno.land/manual/advanced/language_server
+--- __Installation__: Provided in Deno runtime
+lspconfig.deno = add_lsp {
+  name = "deno",
+  language = "typescript",
+  file_patterns = { "%.ts$", "%.tsx$" },
+  command = { 'deno', 'lsp' },
+  id_not_extension = true,
+  verbose = false,
+  settings = {
+    deno = {
+      enable = true,
+      unstable = true,
+      config = "./deno.json",
+      importMap = "./import_map.json",
+      lint = true,
+      codeLens  = {
+        implementations = true,
+        references = true,
+        test = true,
+        referencesAllFunctions = true
+      },
+      suggest = {
+        names = true,
+        paths = true,
+        completeFunctionCalls = true,
+        imports = {
+          autoDiscover = true,
+        },
+        autoImports = true
+      }
+    }
+  }
+}
+
 ---# Flow - JavaScript
 --- __Status__: Untested
 --- __Site__: https://flow.org/
