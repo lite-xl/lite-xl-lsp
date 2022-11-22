@@ -14,7 +14,26 @@ local util = require "plugins.lsp.util"
 local RootView = require "core.rootview"
 local DocView = require "core.docview"
 
----@alias lsp.listbox.callback fun(doc: core.doc, item: table)
+---@class lsp.listbox.item
+---@field text string
+---@field info string
+---@field on_draw fun(item:lsp.listbox.item, x:number, y:number, calc_only?:boolean):number
+
+---@alias lsp.listbox.callback fun(doc: core.doc, item: lsp.listbox.item)
+
+---@class lsp.listbox.signature_param
+---@field label string
+
+---@class lsp.listbox.signature
+---@field label string
+---@field activeParameter? integer
+---@field activeSignature? integer
+---@field parameters lsp.listbox.signature_param[]
+
+---@class lsp.listbox.signature_list
+---@field activeParameter? integer
+---@field activeSignature? integer
+---@field signatures lsp.listbox.signature[]
 
 ---@class lsp.listbox.position
 ---@field line integer
@@ -23,9 +42,9 @@ local DocView = require "core.docview"
 ---@class lsp.listbox
 local listbox = {}
 
----@class lsp.settings
----@field items table
----@field shown_items table
+---@class lsp.listbox.settings
+---@field items lsp.listbox.item[]
+---@field shown_items lsp.listbox.item[]
 ---@field selected_item_idx integer
 ---@field show_items_count boolean
 ---@field max_height integer
@@ -57,15 +76,22 @@ local settings = {
 
 local mt = { __tostring = function(t) return t.text end }
 
---
+--------------------------------------------------------------------------------
 -- Private functions
---
+--------------------------------------------------------------------------------
+
+---@return core.docview | nil
 local function get_active_view()
   if getmetatable(core.active_view) == DocView then
     return core.active_view
   end
 end
 
+---@param active_view core.docview
+---@return number x
+---@return number y
+---@return number width
+---@return number height
 local function get_suggestions_rect(active_view)
   if #settings.shown_items == 0 then
     listbox.hide()
@@ -159,6 +185,7 @@ local function get_suggestions_rect(active_view)
   return x, y, width, height
 end
 
+---@param av core.docview
 local function draw_listbox(av)
   if #settings.shown_items <= 0 then
     return
@@ -268,9 +295,11 @@ local function set_position(position)
   end
 end
 
---
+--------------------------------------------------------------------------------
 -- Public functions
---
+--------------------------------------------------------------------------------
+
+---@param elements lsp.listbox.item[]
 function listbox.add(elements)
   if type(elements) == "table" and #elements > 0 then
     local items = {}
@@ -289,6 +318,7 @@ function listbox.clear()
   settings.col = nil
 end
 
+---@param element lsp.listbox.item
 function listbox.append(element)
   table.insert(settings.items, setmetatable(element, mt))
 end
@@ -334,7 +364,7 @@ function listbox.show_text(text, position)
   listbox.show(false, position)
 end
 
----@param items table
+---@param items lsp.listbox.item[]
 ---@param callback lsp.listbox.callback
 ---@param position? lsp.listbox.position
 function listbox.show_list(items, callback, position)
@@ -347,7 +377,7 @@ function listbox.show_list(items, callback, position)
   listbox.show(true, position)
 end
 
----@param signatures table
+---@param signatures lsp.listbox.signature_list
 ---@param position? lsp.listbox.position
 function listbox.show_signatures(signatures, position)
   local active_parameter = nil
@@ -459,10 +489,9 @@ function listbox.toggle_above(enable)
   end
 end
 
-
---
+--------------------------------------------------------------------------------
 -- Patch event logic into RootView
---
+--------------------------------------------------------------------------------
 local root_view_update = RootView.update
 local root_view_draw = RootView.draw
 
@@ -503,17 +532,19 @@ RootView.draw = function(...)
   end
 end
 
---
+--------------------------------------------------------------------------------
 -- Commands
---
+--------------------------------------------------------------------------------
 local function predicate()
-  return get_active_view() and #settings.shown_items > 0
+  local av = get_active_view()
+  return av and settings.active_view and #settings.shown_items > 0, av
 end
 
 command.add(predicate, {
-  ["listbox:select"] = function()
+  ["listbox:select"] = function(av)
+    ---@cast av core.docview
     if settings.is_list then
-      local doc = core.active_view.doc
+      local doc = av.doc
       local item = settings.shown_items[settings.selected_item_idx]
 
       if settings.callback then
@@ -547,9 +578,9 @@ command.add(predicate, {
   end,
 })
 
---
+--------------------------------------------------------------------------------
 -- Keymaps
---
+--------------------------------------------------------------------------------
 keymap.add {
   ["tab"]    = "listbox:select",
   ["up"]     = "listbox:previous",
