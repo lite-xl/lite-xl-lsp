@@ -119,11 +119,8 @@ local function get_suggestions_rect(active_view)
   -- the amount of lines the document holds, so validation above is needed.
   x = x + active_view:get_col_x_offset(line, col)
 
-  local padding_x = not settings.is_list
-    and (style.padding.x / 2) or style.padding.x
-
-  local padding_y = not settings.is_list
-    and (style.padding.y / 2) or style.padding.y
+  local padding_x = style.padding.x
+  local padding_y = style.padding.y
 
   if settings.above_text and line > 1 then
     y = y - active_view:get_line_height() - style.padding.y
@@ -162,20 +159,16 @@ local function get_suggestions_rect(active_view)
     max_width = 150
   end
 
-  local height = 0
-  if not settings.is_list then
-    height = max_items * (text_height) + (padding_y * 2)
-  else
-    height = max_items * (text_height + padding_y) + padding_y
-  end
-
+  local height = max_items * (text_height + (padding_y/4)) + (padding_y*2)
   local width = max_width + padding_x * 2
 
   x = x - padding_x
   y = y - padding_y
 
   local win_w = system.get_window_size()
-  if width > (win_w - x) then
+  if (width/win_w*100) >= 85 and (width+style.padding.x*4) < win_w then
+    x = win_w - width - style.padding.x*2
+  elseif width > (win_w - x) then
     x = x - (width - (win_w - x))
     if x < 0 then
       x = 0
@@ -208,19 +201,13 @@ local function draw_listbox(av)
 
   renderer.draw_rect(rx, ry, rw, rh, style.background3)
 
-  local padding_x = not settings.is_list
-    and (style.padding.x / 2) or style.padding.x
-
-  local padding_y = not settings.is_list
-    and (style.padding.y / 2) or style.padding.y
+  local padding_x = style.padding.x
+  local padding_y = style.padding.y
 
   -- draw text
   local font = settings.is_list and av:get_font() or style.font
-  local line_height = font:get_height()
-  if settings.is_list then
-    line_height = line_height + padding_y
-  end
-  local y = ry + padding_y / 2
+  local line_height = font:get_height() + (padding_y / 4)
+  local y = ry + padding_y
 
   local max_height = settings.max_height
 
@@ -351,7 +338,7 @@ end
 ---@param position? lsp.listbox.position
 function listbox.show_text(text, position)
   if text and type("text") == "string" then
-    local win_w = system.get_window_size()
+    local win_w = system.get_window_size() - style.padding.x * 6
     text = util.wrap_text(text, style.font, win_w)
 
     local items = {}
