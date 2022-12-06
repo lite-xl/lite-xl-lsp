@@ -371,6 +371,18 @@ lspconfig.ocaml_lsp = add_lsp {
   verbose = false
 }
 
+--# pyright
+--- __Status__: Works
+--- __Site__: https://github.com/microsoft/pyright
+--- __Installation__: `pip install pyright`  or `npm install -g pyright`
+lspconfig.pyright = add_lsp {
+  name = "pyright",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { "pyright-langserver",  "--stdio" },
+  verbose = false
+}
+
 ---# python-language-server
 --- __Status__: Works (deprecated in favor of python-lsp-server)
 --- __Site__: https://github.com/palantir/python-language-server
