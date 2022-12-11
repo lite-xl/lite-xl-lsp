@@ -2182,7 +2182,7 @@ core.status_view:add_item({
 
       if diagnostic_messages and #diagnostic_messages > 0 then
         return {
-          style.syntax["string"],
+          style.warn,
           style.icon_font, "!",
           style.font, " " .. tostring(#diagnostic_messages)
         }
