@@ -25,7 +25,10 @@ local DocView = require "core.docview"
 local StatusView = require "core.statusview"
 local RootView = require "core.rootview"
 local autocomplete = require "plugins.autocomplete"
-local LineWrapping = require "plugins.linewrapping"
+local LineWrapping
+if config.plugins.linewrapping or type(config.plugins.linewrapping) == "nil" then
+  LineWrapping = require "plugins.linewrapping"
+end
 
 local json = require "plugins.lsp.json"
 local util = require "plugins.lsp.util"
@@ -43,47 +46,39 @@ local HelpDoc = require "plugins.lsp.helpdoc"
 --
 
 ---Configuration options for the LSP plugin.
----@class config.plugins.lsp @global
+---@class config.plugins.lsp
+---Set to a file path to log all json
 ---@field log_file string
+---Setting to true prettyfies json for more readability on the log
+---but this setting will impact performance so only enable it when
+---in need of easy to read json output when developing the plugin.
 ---@field prettify_json boolean
+---Show a symbol hover information when mouse cursor is on top.
 ---@field mouse_hover boolean
+---The amount of time in milliseconds before showing the tooltip.
 ---@field mouse_hover_delay integer
+---Show diagnostic messages
 ---@field show_diagnostics boolean
+---Stop servers that aren't needed by any of the open files
 ---@field stop_unneeded_servers boolean
+---Send a server stderr output to lite log
 ---@field log_server_stderr boolean
+---Force verbosity off even if a server is configured with verbosity on
 ---@field force_verbosity_off boolean
+---Yield when reading from LSP which may give you better UI responsiveness
+---when receiving large responses, but will affect LSP performance.
 ---@field more_yielding boolean
 config.plugins.lsp = common.merge({
-  ---Show a symbol hover information when mouse cursor is on top.
   mouse_hover = true,
-
-  ---The amount of time in milliseconds before showing the tooltip.
   mouse_hover_delay = 300,
-
-  ---Show diagnostic messages
   show_diagnostics = true,
-
-  ---Stop servers that aren't needed by any of the open files
   stop_unneeded_servers = true,
-
-  ---Set to a file path to log all json
   log_file = "",
-
-  ---Setting to true prettyfies json for more readability on the log
-  ---but this setting will impact performance so only enable it when
-  ---in need of easy to read json output when developing the plugin.
   prettify_json = false,
-
-  ---Send a server stderr output to lite log
   log_server_stderr = false,
-
-  ---Force verbosity off even if a server is configured with verbosity on
   force_verbosity_off = false,
-
-  ---Yield when reading from LSP which may give you better UI responsiveness
-  ---when receiving large responses, but will affect LSP performance.
   more_yielding = false,
-
+  -- The config specification used by the settings gui
   config_spec = {
     name = "Language Server Protocol",
     {
@@ -768,9 +763,9 @@ function lsp.start_server(filename, project_directory)
               local added = diagnostics.add(filename, params.diagnostics)
 
               if
-                added and config.plugins.lsp.show_diagnostics
+                added and diagnostics.lintplus_found
                 and
-                diagnostics.lintplus_found
+                config.plugins.lsp.show_diagnostics
               then
                 -- we delay rendering of diagnostics for 2 seconds to prevent
                 -- the constant reporting of errors while typing.
@@ -852,7 +847,8 @@ function lsp.start_servers()
   end
 end
 
---- Send notification to applicable LSP servers that a document was opened
+---Send notification to applicable LSP servers that a document was opened
+---@param doc core.doc
 function lsp.open_document(doc)
   -- in some rare ocassions this function may return nil when the
   -- user closed lite-xl with files opened, removed the files from system
@@ -1474,7 +1470,9 @@ function lsp.request_hover(doc, line, col, in_tab)
                 local helpview = DocView(helpdoc)
                 helpview.context = "application"
                 helpview.wrapping_enabled = true
-                LineWrapping.update_docview_breaks(helpview)
+                if LineWrapping then
+                  LineWrapping.update_docview_breaks(helpview)
+                end
                 if
                   not help_bottom_node
                   or
@@ -2001,6 +1999,9 @@ function Doc:save(...)
       lsp.open_document(self)
     end)
   else
+    diagnostics.lintplus_populate_delayed(
+      core.normalize_to_project_dir(self.abs_filename)
+    )
     core.add_thread(function()
       lsp.update_document(self)
       lsp.save_document(self)
