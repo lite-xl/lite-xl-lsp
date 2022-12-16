@@ -163,6 +163,15 @@ Server.symbol_kind = {
   'Null', 'EnumMember', 'Struct', 'Event', 'Operator', 'TypeParameter'
 }
 
+---LSP Docs: /#messageType
+---@enum
+Server.message_type = {
+	Error = 1,
+	Warning = 2,
+	Info = 3,
+	Log = 4
+}
+
 ---@class lsp.server.requestoptions
 ---@field params table<string,any>
 ---@field data table @Optional data appended to request.
@@ -333,6 +342,10 @@ function Server:initialize(workspace, editor_name, editor_version)
             -- tagSupport = {valueSet = {}},
             -- labelSupport = true
           },
+          -- diagnostic = {
+          --   dynamicRegistration = true,
+          --   relatedDocumentSupport = false
+          -- },
           -- formatting = {dynamicRegistration = false},-- not supported
           -- rangeFormatting = {dynamicRegistration = false}, -- not supported
           -- onTypeFormatting = {dynamicRegistration = false}, -- not supported
@@ -396,12 +409,12 @@ function Server:initialize(workspace, editor_name, editor_version)
           --  multilineTokenSupport = true
           -- },
           -- moniker = {dynamicRegistration = false} -- not supported
-        }
-        -- window = {
-        --  workDoneProgress = true,
-        --  showMessage = {},
-        --  showDocument = {}
-        -- },
+        },
+        window = {
+         -- workDoneProgress = true,
+         -- showMessage = {},
+         showDocument = { support = true }
+        },
         -- general = {
         --  regularExpressions = {},
         --  markdown = {}
