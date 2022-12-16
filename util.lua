@@ -17,9 +17,11 @@ function util.doc_is_open(abs_filename)
   abs_filename = abs_filename:gsub("\\", "/")
   for _, doc in ipairs(core.docs) do
     ---@cast doc core.doc
-    local doc_path = doc.abs_filename:gsub("\\", "/")
-    if doc_path == abs_filename then
-      return true;
+    if doc.abs_filename then
+      local doc_path = doc.abs_filename:gsub("\\", "/")
+      if doc_path == abs_filename then
+        return true;
+      end
     end
   end
   return false
