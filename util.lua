@@ -4,10 +4,26 @@
 -- @copyright Jefferson Gonzalez
 -- @license MIT
 
+local core = require "core"
 local config = require "core.config"
 local json = require "plugins.lsp.json"
 
 local util = {}
+
+---Check if the given file is currently opened on the editor.
+---@param abs_filename string
+function util.doc_is_open(abs_filename)
+  -- make path separator consistent
+  abs_filename = abs_filename:gsub("\\", "/")
+  for _, doc in ipairs(core.docs) do
+    ---@cast doc core.doc
+    local doc_path = doc.abs_filename:gsub("\\", "/")
+    if doc_path == abs_filename then
+      return true;
+    end
+  end
+  return false
+end
 
 ---Split a string by the given delimeter
 ---@param s string The string to split
@@ -97,6 +113,26 @@ function util.toselection(range)
   local col2 = range['end'].character + 1
 
   return line1, col1, line2, col2
+end
+
+---Opens the given location on a external application.
+---@param location string
+function util.open_external(location)
+  local filelauncher = ""
+  if PLATFORM == "Windows" then
+    filelauncher = "start"
+  elseif PLATFORM == "Mac OS X" then
+    filelauncher = "open"
+  else
+    filelauncher = "xdg-open"
+  end
+
+  -- non-Windows platforms need the text quoted (%q)
+  if PLATFORM ~= "Windows" then
+    location = string.format("%q", location)
+  end
+
+  system.exec(filelauncher .. " " .. location)
 end
 
 ---Prettify json output and logs it if config.lsp.log_file is set.
