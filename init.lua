@@ -18,17 +18,22 @@ local common = require "core.common"
 local config = require "core.config"
 local command = require "core.command"
 local style = require "core.style"
-local translate = require "core.doc.translate"
 local keymap = require "core.keymap"
+local translate = require "core.doc.translate"
+local autocomplete = require "plugins.autocomplete"
 local Doc = require "core.doc"
 local DocView = require "core.docview"
 local StatusView = require "core.statusview"
 local RootView = require "core.rootview"
-local autocomplete = require "plugins.autocomplete"
 local LineWrapping
-if config.plugins.linewrapping or type(config.plugins.linewrapping) == "nil" then
-  LineWrapping = require "plugins.linewrapping"
-end
+-- If the lsp plugin is loaded from users init.lua it will load linewrapping
+-- even if it was disabled from the settings ui, so we queue this check since
+-- there is no way to automatically load settings ui before the user module.
+core.add_thread(function()
+  if config.plugins.linewrapping or type(config.plugins.linewrapping) == "nil" then
+    LineWrapping = require "plugins.linewrapping"
+  end
+end)
 
 local json = require "plugins.lsp.json"
 local util = require "plugins.lsp.util"
@@ -37,6 +42,7 @@ local diagnostics = require "plugins.lsp.diagnostics"
 local Server = require "plugins.lsp.server"
 local Timer = require "plugins.lsp.timer"
 local SymbolResults = require "plugins.lsp.symbolresults"
+local MessageBox = require "widget.messagebox"
 
 ---@type lsp.helpdoc
 local HelpDoc = require "plugins.lsp.helpdoc"
@@ -59,6 +65,8 @@ local HelpDoc = require "plugins.lsp.helpdoc"
 ---@field mouse_hover_delay integer
 ---Show diagnostic messages
 ---@field show_diagnostics boolean
+---Amount of milliseconds to delay updating the inline diagnostics.
+---@field diagnostics_delay number
 ---Stop servers that aren't needed by any of the open files
 ---@field stop_unneeded_servers boolean
 ---Send a server stderr output to lite log
@@ -99,10 +107,19 @@ config.plugins.lsp = common.merge({
     },
     {
       label = "Diagnostics",
-      description = "Show diagnostic messages with lint+.",
+      description = "Show inline diagnostic messages with lint+.",
       path = "show_diagnostics",
       type = "TOGGLE",
       default = false
+    },
+    {
+      label = "Diagnostics Delay",
+      description = "Amount of milliseconds to delay the update of inline diagnostics.",
+      path = "diagnostics_delay",
+      type = "NUMBER",
+      default = 500,
+      min = 100,
+      max = 10000
     },
     {
       label = "Stop Servers",
@@ -733,6 +750,42 @@ function lsp.start_server(filename, project_directory)
           end
         )
 
+        -- Respond to window/showDocument request
+        client:add_request_listener(
+          "window/showDocument",
+          function(server, request)
+            if request.params.external then
+              MessageBox.info(
+                server.name .. " LSP Server",
+                "Wants to externally open:\n'" .. request.params.uri .. "'",
+                function(_, button_id)
+                  if button_id == 1 then
+                    util.open_external(request.params.uri)
+                  end
+                end,
+                MessageBox.BUTTONS_YES_NO
+              )
+            else
+              local document = util.tofilename(request.params.uri)
+              ---@type core.docview
+              local doc_view = core.root_view:open_doc(
+                core.open_doc(common.home_expand(document))
+              )
+              if request.params.selection then
+                local line1, col1, line2, col2 = util.toselection(
+                  request.params.selection
+                )
+                doc_view.doc:set_selection(line1, col1, line2, col2)
+              end
+              if request.params.takeFocus then
+                system.raise_window()
+              end
+            end
+
+            server:push_response(request.method, request.id, {success=true})
+          end
+        )
+
         -- Display server messages on lite UI
         client:add_message_listener(
           "window/logMessage",
@@ -747,9 +800,8 @@ function lsp.start_server(filename, project_directory)
         client:add_message_listener(
           "textDocument/publishDiagnostics",
           function(server, params)
-            local filename = core.normalize_to_project_dir(
-              util.tofilename(params.uri)
-            )
+            local abs_filename = util.tofilename(params.uri)
+            local filename = core.normalize_to_project_dir(abs_filename)
 
             if server.verbose then
               core.log_quiet(
@@ -766,15 +818,33 @@ function lsp.start_server(filename, project_directory)
                 added and diagnostics.lintplus_found
                 and
                 config.plugins.lsp.show_diagnostics
+                and
+                util.doc_is_open(abs_filename)
               then
                 -- we delay rendering of diagnostics for 2 seconds to prevent
                 -- the constant reporting of errors while typing.
-                diagnostics.lintplus_populate_delayed(filename, lsp.user_typed)
+                diagnostics.lintplus_populate_delayed(filename)
               end
             else
               diagnostics.clear(filename)
               diagnostics.lintplus_clear_messages(filename)
             end
+          end
+        )
+
+        -- Register/unregister diagnostic messages
+        client:add_message_listener(
+          "window/showMessage",
+          function(server, params)
+            local log_func = "log_quiet"
+            if params.type == Server.message_type.Error then
+              log_func = "error"
+            elseif params.type == Server.message_type.Warning then
+              log_func = "warn"
+            elseif params.type == Server.message_type.Info then
+              log_func = "log"
+            end
+            core[log_func]("["..server.name.."] message: %s", params.message)
           end
         )
 
@@ -1999,9 +2069,6 @@ function Doc:save(...)
       lsp.open_document(self)
     end)
   else
-    diagnostics.lintplus_populate_delayed(
-      core.normalize_to_project_dir(self.abs_filename)
-    )
     core.add_thread(function()
       lsp.update_document(self)
       lsp.save_document(self)

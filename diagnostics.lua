@@ -222,17 +222,26 @@ end
 ---Remove registered diagnostics from lintplus for the given file or for
 ---all files if no filename is given.
 ---@param filename? string
-function diagnostics.lintplus_clear_messages(filename)
+---@param force boolean
+function diagnostics.lintplus_clear_messages(filename, force)
   if lintplus_found then
+    if
+      not force and lintplus_delays[filename]
+      and
+      lintplus_delays[filename]:running()
+    then
+      return
+    end
     if filename then
       lintplus.clear_messages(filename)
     else
       for fname, _ in pairs(lintplus.messages) do
+        if lintplus_delays[fname] then
+          lintplus_delays[fname]:stop()
+          lintplus_delays[fname] = nil
+        end
         lintplus.clear_messages(fname)
       end
-    end
-    if lintplus_delays[filename] then
-      lintplus_delays[filename]:stop()
     end
   end
 end
@@ -240,7 +249,7 @@ end
 ---@param filename string
 function diagnostics.lintplus_populate(filename)
   if lintplus_found then
-    diagnostics.lintplus_clear_messages(filename)
+    diagnostics.lintplus_clear_messages(filename, true)
 
     if not filename then
       for _, diagnostic in ipairs(diagnostics.list) do
@@ -273,20 +282,21 @@ end
 
 ---@param filename string
 ---@param user_typed boolean
-function diagnostics.lintplus_populate_delayed(filename, user_typed)
+function diagnostics.lintplus_populate_delayed(filename)
   if lintplus_found then
-    diagnostics.lintplus_clear_messages(filename)
     if not lintplus_delays[filename] then
-      lintplus_delays[filename] = Timer(1000, true)
+      lintplus_delays[filename] = Timer(
+        config.plugins.lsp.diagnostics_delay or 500,
+        true
+      )
       lintplus_delays[filename].on_timer = function()
         diagnostics.lintplus_populate(filename)
+        lintplus_delays[filename] = nil
       end
       lintplus_delays[filename]:start()
-    elseif user_typed then
+    else
       lintplus_delays[filename]:reset()
       lintplus_delays[filename]:start()
-    else
-      diagnostics.lintplus_populate(filename)
     end
   end
 end
