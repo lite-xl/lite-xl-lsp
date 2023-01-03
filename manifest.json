@@ -1,7 +1,8 @@
 {
   "plugins": [
     {
-      "name": "lsp",
+      "id": "lsp",
+      "name": "Language Server Protocol",
       "description": "Provides intellisense by leveraging the LSP protocol.",
       "version": "0.2",
       "mod_version": "3",
