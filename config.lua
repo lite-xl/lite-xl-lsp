@@ -371,6 +371,18 @@ lspconfig.ocaml_lsp = add_lsp {
   verbose = false
 }
 
+---# omnisharp
+--- __Status__: Works but, freeze on large projects (https://github.com/ppy/osu.git)
+--- __Site__: https://github.com/OmniSharp/omnisharp-roslyn
+--- __Installation__: See official website for instructions
+lspconfig.omnisharp = add_lsp {
+  name = "omnisharp",
+  language = "c#",
+  file_patterns = { "%.cs$" },
+  command = { "omnisharp", "-lsp" },
+  verbose = false
+}
+
 --# pyright
 --- __Status__: Works
 --- __Site__: https://github.com/microsoft/pyright
