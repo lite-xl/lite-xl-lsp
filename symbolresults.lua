@@ -5,10 +5,10 @@
 --
 
 local style = require "core.style"
-local Widget = require "widget"
-local Label = require "widget.label"
-local Line = require "widget.line"
-local ListBox = require "widget.listbox"
+local Widget = require "libraries.widget"
+local Label = require "libraries.widget.label"
+local Line = require "libraries.widget.line"
+local ListBox = require "libraries.widget.listbox"
 local Server = require "plugins.lsp.server"
 
 local Lsp = {}

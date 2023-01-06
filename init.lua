@@ -42,7 +42,7 @@ local diagnostics = require "plugins.lsp.diagnostics"
 local Server = require "plugins.lsp.server"
 local Timer = require "plugins.lsp.timer"
 local SymbolResults = require "plugins.lsp.symbolresults"
-local MessageBox = require "widget.messagebox"
+local MessageBox = require "libraries.widget.messagebox"
 
 ---@type lsp.helpdoc
 local HelpDoc = require "plugins.lsp.helpdoc"
