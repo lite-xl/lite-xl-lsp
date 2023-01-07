@@ -50,7 +50,6 @@ local Object = require "core.object"
 ---@field public write_fails_before_shutdown integer
 ---@field public verbose boolean
 ---@field public initialized boolean
----@field public initialized_warmup integer
 ---@field public hitrate_list table
 ---@field public requests_per_second integer
 ---@field public requests_in_chunks boolean
@@ -247,7 +246,6 @@ function Server:new(options)
   self.verbose = options.verbose or false
   self.last_restart = system.get_time()
   self.initialized = false
-  self.initialized_warmup = 0
   self.hitrate_list = {}
   self.requests_per_second = options.requests_per_second or 16
   self.requests_in_chunks = type(options.requests_in_chunks) == "nil" and
@@ -442,22 +440,15 @@ function Server:initialize(workspace, editor_name, editor_version)
           )
         end
 
-        server.initialized = true;
-        server.initialized_warmup = os.time() + 3
-
         server:notify('initialized') -- required by protocol
+
+        -- We wait a few seconds to prevent initialization issues
+        coroutine.yield(3)
+        server.initialized = true;
         server:send_event_signal("initialized", server, result)
       end
     end
   })
-end
-
-function Server:is_initialized()
-  -- We use a warmup to prevent initialization issues
-  if self.initialized and self.initialized_warmup < os.time() then
-    return true
-  end
-  return false
 end
 
 ---Register an event listener.
@@ -563,7 +554,7 @@ end
 
 ---Sends one of the queued notifications.
 function Server:process_notifications()
-  if not self:is_initialized() then return end
+  if not self.initialized then return end
 
   for index, request in ipairs(self.notification_list) do
     local message = {
@@ -719,7 +710,7 @@ end
 
 ---Sends all queued client responses to server.
 function Server:process_client_responses()
-  if not self:is_initialized() then return end
+  if not self.initialized then return end
 
   ::send_responses::
   for index, response in ipairs(self.response_list) do
@@ -779,7 +770,7 @@ end
 ---Send one of the queued chunks of raw data to lsp server which are
 ---usually huge, like the textDocument/didOpen notification.
 function Server:process_raw()
-  if not self:is_initialized() then return end
+  if not self.initialized then return end
 
   -- Wait until everything else is processed to prevent initialization issues
   if
@@ -952,7 +943,7 @@ local requests_whitelist = {
 ---@param method string
 ---@param options lsp.server.requestoptions
 function Server:push_request(method, options)
-  if not self:is_initialized() and method ~= "initialize" then
+  if not self.initialized and method ~= "initialize" then
     return
   end
 
