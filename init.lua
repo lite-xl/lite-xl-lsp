@@ -857,16 +857,8 @@ function lsp.start_server(filename, project_directory)
           end
           local settings = lsp.get_workspace_settings(server)
           if not util.table_empty(settings) then
-            server:push_request("workspace/didChangeConfiguration", {
-              params = {settings = settings},
-              callback = function(server, response)
-                if server.verbose then
-                  server:log(
-                    "'workspace/didChangeConfiguration' response:\n%s",
-                    util.jsonprettify(json.encode(response))
-                  )
-                end
-              end
+            server:push_notification("workspace/didChangeConfiguration", {
+              params = {settings = settings}
             })
           end
 
