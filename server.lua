@@ -105,6 +105,10 @@ Server.options = {
 ---@type integer Time in seconds
 Server.DEFAULT_TIMEOUT = 10
 
+---The maximum amount of data to retrieve when reading from server.
+---@type integer Amount of bytes
+Server.BUFFER_SIZE = 1024 * 10
+
 ---LSP Docs: /#errorCodes
 Server.error_code = {
   ParseError                      = -32700,
@@ -1095,7 +1099,7 @@ function Server:read_responses(timeout)
   if timeout == 0 then max_time = max_time + 1 end
   local output = ""
   while max_time > os.time() and output == "" do
-    output = self.proc:read_stdout(1024)
+    output = self.proc:read_stdout(Server.BUFFER_SIZE)
     if timeout == 0 then break end
     if output == "" and inside_coroutine then
       coroutine.yield()
@@ -1114,7 +1118,7 @@ function Server:read_responses(timeout)
     -- Make sure we retrieve everything
     local more_output = nil
     while more_output ~= "" do
-      more_output = self.proc:read_stdout(1024)
+      more_output = self.proc:read_stdout(Server.BUFFER_SIZE)
       if more_output ~= "" then
         if more_output == nil then
           break
@@ -1137,7 +1141,7 @@ function Server:read_responses(timeout)
         -- retrieve rest of output
         local new_output = nil
         while new_output ~= "" do
-          new_output = self.proc:read_stdout(1024)
+          new_output = self.proc:read_stdout(Server.BUFFER_SIZE)
           if new_output ~= "" then
             if new_output == nil then
               break
@@ -1252,7 +1256,7 @@ function Server:read_errors(timeout)
   if timeout == 0 then max_time = max_time + 1 end
   local output = ""
   while max_time > os.time() and output == "" do
-    output = self.proc:read_stderr(1024)
+    output = self.proc:read_stderr(Server.BUFFER_SIZE)
     if timeout == 0 then break end
     if output == "" and inside_coroutine then
       coroutine.yield()
@@ -1262,7 +1266,7 @@ function Server:read_errors(timeout)
   if timeout == 0 and output ~= "" then
     local new_output = nil
     while new_output ~= "" do
-      new_output = self.proc:read_stderr(1024)
+      new_output = self.proc:read_stderr(Server.BUFFER_SIZE)
       if new_output ~= "" then
         if new_output == nil then
           break
