@@ -1,5 +1,5 @@
 {
-  "plugins": [
+  "addons": [
     {
       "id": "lsp",
       "name": "Language Server Protocol",
