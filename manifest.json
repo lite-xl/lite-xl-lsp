@@ -9,7 +9,7 @@
       "dependencies": {
         "widget": { "version": ">=0.1" },
         "lintplus": { "version": ">=0.2", "optional": true },
-        "settings": { "version": ">=1.0", "optional": true }
+        "settings": { "optional": true }
       },
       "tags": [
         "language server protocol"
