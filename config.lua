@@ -214,6 +214,11 @@ lspconfig.deno = add_lsp {
         completeFunctionCalls = true,
         imports = {
           autoDiscover = true,
+          hosts = {
+            ["https://deno.land/"] = true,
+            ["https://nest.land/"] = true,
+            ["https://crux.land/"] = true
+          }
         },
         autoImports = true
       }
