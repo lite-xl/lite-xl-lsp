@@ -547,6 +547,18 @@ lspconfig.sumneko_lua = add_lsp {
   }
 }
 
+---# LaTeX Texlab language server
+--- __Status__: Works
+--- __Site__: https://github.com/latex-lsp/texlab
+--- __Installation__: git clone https://github.com/latex-lsp/texlab.git , then inside the texlab folder, run: cargo build --release
+--- __Note__: Rust has to be installed
+lspconfig.texlab = add_lsp {
+  name = "texlab",
+  language = "latex",
+  file_patterns = { "%.tex$", "%.bib$" },
+  command = { '/path...to...texlab/target/release/texlab' }  
+}
+
 ---# typescript-language-server
 --- __Status__: Untested
 --- __Site__: https://github.com/typescript-language-server/typescript-language-server
