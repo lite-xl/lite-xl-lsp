@@ -555,8 +555,8 @@ lspconfig.sumneko_lua = add_lsp {
 lspconfig.texlab = add_lsp {
   name = "texlab",
   language = "latex",
-  file_patterns = { "%.tex$", "%.bib$" },
-  command = { '/path...to...texlab/target/release/texlab' }  
+  file_patterns = { "%.tex$", "%.bib$" , "%.dtx$", "%.sty$", "%.ins$", "%.cls$" },
+  command = { 'texlab' }
 }
 
 ---# typescript-language-server
