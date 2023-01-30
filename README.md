@@ -14,13 +14,13 @@ it into your lite-xl configs directory. For example:
 ```sh
 cd ~/.config/lite-xl/
 git clone https://github.com/lite-xl/lite-xl-lsp plugins/lsp
-git clone https://github.com/lite-xl/lite-xl-widgets widget
+git clone https://github.com/lite-xl/lite-xl-widgets libraries/widget
 git clone https://github.com/liquidev/lintplus plugins/lintplus
 ```
 
 The lite-xl configs directory should have:
 
-* ~/.config/lite-xl/widget/
+* ~/.config/lite-xl/libraries/widget/
 * ~/.config/lite-xl/plugins/lsp/
 * ~/.config/lite-xl/plugins/lintplus/
 
