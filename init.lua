@@ -353,7 +353,12 @@ end
 ---@param doc core.doc
 ---@param text_edit table
 ---@return boolean True on success
-local function apply_edit(doc, text_edit)
+local function apply_edit(doc, text_edit, opts)
+  local select_result = true
+  if opts and opts.select_result ~= nil then
+    select_result = opts.select_result
+  end
+  
   local range = nil
 
   if text_edit.range then
@@ -378,7 +383,7 @@ local function apply_edit(doc, text_edit)
 
   doc:remove(line1, col1, line2, col2+#current_text)
   doc:insert(line1, col1, text)
-  doc:set_selection(line2, col1+#text, line2, col1+#text)
+  if select_result then doc:set_selection(line2, col1+#text, line2, col1+#text) end
 
   return true
 end
@@ -433,6 +438,9 @@ local function autocomplete_onhover(index, item)
           item.desc = item.desc:gsub("[%s\n]+$", "")
             :gsub("^[%s\n]+", "")
             :gsub("\n\n\n+", "\n\n")
+          if symbol.additionalTextEdits and item.data and item.data.completion_item then
+            item.data.completion_item.additionalTextEdits = symbol.additionalTextEdits
+          end
 
           if server.verbose then
             server:log(
@@ -453,33 +461,37 @@ end
 ---@param item table
 local function autocomplete_onselect(index, item)
   local completion = item.data.completion_item
-  if completion.textEdit then
-    local dv = get_active_docview()
-    if dv then
-      local edit_applied = apply_edit(dv.doc, completion.textEdit)
-      if edit_applied then
-        -- Retrigger code completion if last char is a trigger
-        -- this is useful for example with clangd when autocompleting
-        -- a #include, if user types < a list of paths will appear
-        -- when selecting a path that ends with / as <AL/ the
-        -- autocompletion will be retriggered to show a list of
-        -- header files that belong to that directory.
-        lsp.in_trigger = false
-        local line, col = dv.doc:get_selection()
-        local char = dv.doc:get_char(line, col-1)
-        local char_prev = dv.doc:get_char(line, col-2)
-        if char:match("%p") or (char == " " and char_prev:match("%p")) then
-          if #dv.doc.lsp_changes > 0 then
-            lsp.update_document(dv.doc, true)
-          else
-            lsp.request_completion(dv.doc, line, col, true)
-          end
-        end
-      end
-      return edit_applied
+  if not completion.textEdit then return false end
+  
+  local dv = get_active_docview()
+  if not dv then return false end
+
+  if not apply_edit(dv.doc, completion.textEdit) then return false end
+  
+  if completion.additionalTextEdits then
+    for i, edit in pairs(completion.additionalTextEdits) do
+      apply_edit(dv.doc, edit, {select_result = false})
     end
   end
-  return false
+
+  -- Retrigger code completion if last char is a trigger
+  -- this is useful for example with clangd when autocompleting
+  -- a #include, if user types < a list of paths will appear
+  -- when selecting a path that ends with / as <AL/ the
+  -- autocompletion will be retriggered to show a list of
+  -- header files that belong to that directory.
+  lsp.in_trigger = false
+  local line, col = dv.doc:get_selection()
+  local char = dv.doc:get_char(line, col-1)
+  local char_prev = dv.doc:get_char(line, col-2)
+  if char:match("%p") or (char == " " and char_prev:match("%p")) then
+    if #dv.doc.lsp_changes > 0 then
+      lsp.update_document(dv.doc, true)
+    else
+      lsp.request_completion(dv.doc, line, col, true)
+    end
+  end
+  return true
 end
 
 --
