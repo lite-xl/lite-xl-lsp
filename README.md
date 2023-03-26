@@ -151,11 +151,11 @@ Configuration options that can be used to control the plugin behaviour:
 ```lua
 ---Show a symbol hover information when mouse cursor is on top.
 ---@type boolean
-config.plugins.lsp.mouse_hover = true,
+config.plugins.lsp.mouse_hover = true
 
 ---The amount of time in milliseconds before showing the tooltip.
 ---@type integer
-config.plugins.lsp.mouse_hover_delay = 300,
+config.plugins.lsp.mouse_hover_delay = 300
 
 ---Show diagnostic messages
 ---@type boolean
