@@ -86,6 +86,7 @@ config.plugins.lsp = common.merge({
   log_server_stderr = false,
   force_verbosity_off = false,
   more_yielding = false,
+  autostart_server = true,
   -- The config specification used by the settings gui
   config_spec = {
     name = "Language Server Protocol",
@@ -120,6 +121,13 @@ config.plugins.lsp = common.merge({
       default = 500,
       min = 100,
       max = 10000
+    },
+    {
+      label = "Autostart Server",
+      description = "Automatically start server when opening a file",
+      path = "autostart_server",
+      type = "TOGGLE",
+      default = true
     },
     {
       label = "Stop Servers",
@@ -2041,7 +2049,7 @@ local root_view_on_mouse_moved = RootView.on_mouse_moved
 function Doc:load(...)
   local res = doc_load(self, ...)
   -- skip new files
-  if self.filename then
+  if self.filename and config.plugins.lsp.autostart_server then
     diagnostics.lintplus_init_doc(self)
     core.add_thread(function()
       lsp.start_server(self.filename, core.project_dir)
@@ -2465,3 +2473,4 @@ end
 
 
 return lsp
+
