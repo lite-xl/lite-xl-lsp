@@ -53,9 +53,6 @@ end
 ---@field init_options table<string,any>
 ---Set by default to 16 should only be modified if having issues with a server.
 ---@field requests_per_second integer
----By default each request is written to the server stdin in chunks of 10KB,
----if this gives issues set to false to write everything at once.
----@field requests_in_chunks boolean
 ---Some servers like bash language server support incremental changes
 ---which are more performant but don't advertise it, set to true to force
 ---incremental changes even if server doesn't advertise them.
@@ -358,7 +355,6 @@ lspconfig.nimlsp = add_lsp {
   file_patterns = { "%.nim$" },
   command = { "nimlsp" },
   requests_per_second = 25,
-  requests_in_chunks = true,
   incremental_changes = false,
   verbose = false
 }

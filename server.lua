@@ -52,7 +52,6 @@ local Object = require "core.object"
 ---@field public initialized boolean
 ---@field public hitrate_list table
 ---@field public requests_per_second integer
----@field public requests_in_chunks boolean
 ---@field public proc process | nil
 ---@field public capabilities table
 ---@field public yield_on_reads boolean
@@ -68,7 +67,6 @@ local Server = Object:extend()
 ---@field settings table
 ---@field init_options table
 ---@field requests_per_second number
----@field requests_in_chunks boolean
 ---@field incremental_changes boolean
 ---@field id_not_extension boolean
 Server.options = {
@@ -88,9 +86,6 @@ Server.options = {
   init_options = {},
   ---Set by default to 16 should only be modified if having issues with a server
   requests_per_second = 32,
-  ---By default each request is written to the server stdin in chunks of
-  ---10KB, if this gives issues set to false to write everything at once.
-  requests_in_chunks = true,
   ---Some servers like bash language server support incremental changes
   ---which are more performant but don't advertise it, set to true to force
   ---incremental changes even if server doesn't advertise them.
@@ -252,8 +247,6 @@ function Server:new(options)
   self.initialized = false
   self.hitrate_list = {}
   self.requests_per_second = options.requests_per_second or 16
-  self.requests_in_chunks = type(options.requests_in_chunks) == "nil" and
-    true or options.requests_in_chunks
 
   self.proc = process.start(
     options.command, {
@@ -444,7 +437,7 @@ function Server:initialize(workspace, editor_name, editor_version)
           )
         end
 
-        server:notify('initialized') -- required by protocol
+        while not server:notify('initialized') do end -- required by protocol
 
         -- We wait a few seconds to prevent initialization issues
         coroutine.yield(3)
@@ -486,6 +479,7 @@ end
 ---Send a message to the server that doesn't needs a response.
 ---@param method string
 ---@param params? table
+---@return boolean sent
 function Server:notify(method, params)
   local message = {
     jsonrpc = '2.0',
@@ -499,16 +493,19 @@ function Server:notify(method, params)
     self:log("Sending notification:\n%s", util.jsonprettify(data))
   end
 
-  local written = self:write_request(data)
+  local sent = self:write_request(data)
 
-  if not written and self.verbose then
-    self:log("Could not send notification.")
+  if not sent and self.verbose then
+    self:log("Could not send '%s' notification.", method)
   end
+
+  return sent
 end
 
 ---Reply to a server request.
 ---@param id integer
 ---@param result table
+---@return boolean sent
 function Server:respond(id, result)
   local message = {
     jsonrpc = '2.0',
@@ -522,24 +519,27 @@ function Server:respond(id, result)
     self:log("Responding to '%d':\n%s", id, util.jsonprettify(data))
   end
 
-  local written = self:write_request(data)
+  local sent = self:write_request(data)
 
-  if not written and self.verbose then
+  if not sent and self.verbose then
     self:log("Could not send response.")
   end
+
+  return sent
 end
 
 ---Respond to a an unknown server request with a method not found error code.
 ---@param id integer
----@param error_message string
----@param error_code integer
+---@param error_message? string
+---@param error_code? integer
+---@return boolean sent
 function Server:respond_error(id, error_message, error_code)
   local message = {
     jsonrpc = '2.0',
     id = id,
     error = {
       code = error_code or Server.error_code.MethodNotFound,
-      message = error_message
+      message = error_message or "method not found"
     }
   }
 
@@ -549,11 +549,13 @@ function Server:respond_error(id, error_message, error_code)
     self:log("Responding error to '%d':\n%s", id, util.jsonprettify(data))
   end
 
-  local written = self:write_request(data)
+  local sent = self:write_request(data)
 
-  if not written and self.verbose then
+  if not sent and self.verbose then
     self:log("Could not send response.")
   end
+
+  return sent
 end
 
 ---Sends one of the queued notifications.
@@ -577,10 +579,10 @@ function Server:process_notifications()
         )
     end
 
-    local written = self:write_request(data, 0)
+    local written = self:write_request(data)
 
     if self.verbose then
-      if not written or written < 0 then
+      if not written then
         self:log(
           "Failed sending notification '%s'",
           request.method
@@ -588,7 +590,7 @@ function Server:process_notifications()
       end
     end
 
-    if written and written > 0 then
+    if written then
       if request.callback then
         request.callback(self)
       end
@@ -622,10 +624,10 @@ function Server:process_requests()
 
       local data = json.encode(message)
 
-      local written = self:write_request(data, 0)
+      local written = self:write_request(data)
 
       if self.verbose then
-        if written and written > 0 then
+        if written then
           self:log(
             "Sent request '%s':\n%s",
             request.method,
@@ -640,7 +642,7 @@ function Server:process_requests()
         end
       end
 
-      if written and written > 0 then
+      if written then
         local time = 1
         if request.id == 1 then
           time = 10 -- give initialize enough time to respond
@@ -735,10 +737,10 @@ function Server:process_client_responses()
         self:log("Sending client response:\n%s", util.jsonprettify(data))
     end
 
-    local written = self:write_request(data, 0)
+    local written = self:write_request(data)
 
     if self.verbose then
-      if not written or written < 0 then
+      if not written then
         self:log(
           "Failed sending client response '%s'",
           response.id
@@ -746,7 +748,7 @@ function Server:process_client_responses()
       end
     end
 
-    if written and written > 0 then
+    if written then
       self.write_fails = 0
       table.remove(self.response_list, index)
       -- restart loop after removing from table to prevent issues
@@ -769,6 +771,25 @@ function Server:process_errors(log_errors)
   end
 
   return errors
+end
+
+---Ensures that all data is written to a process if the write didn't fail
+---on first try, otherwise it returns false.
+---@param proc process
+---@param data string
+---@return boolean written
+local function process_write(proc, data)
+  local data_len = #data
+  local written = proc:write(data) or 0
+  local total_written = written
+  if written > 0 then
+    while total_written < data_len do
+      written = proc:write(data:sub(total_written + 1)) or 0
+      total_written = total_written + written
+    end
+    return true
+  end
+  return false
 end
 
 ---Send one of the queued chunks of raw data to lsp server which are
@@ -795,10 +816,11 @@ function Server:process_raw()
   local sent = false
   for index, raw in ipairs(self.raw_list) do
     raw.sending = true
-    local written = 0
+    local written = false
+
     -- first send the header
-    while written <= 0 do
-      written = self.proc:write(string.format(
+    while not written do
+      written = process_write(self.proc, string.format(
         'Content-Length: %d\r\n\r\n',
         #raw.raw_data + 2 -- last \r\n
       ))
@@ -813,16 +835,16 @@ function Server:process_raw()
     raw.raw_data = raw.raw_data .. "\r\n"
 
     while #raw.raw_data > 0 do
-      local wrote = 0
+      written = false
 
       if #raw.raw_data > chunks then
-        while wrote <= 0 do
-          wrote = self.proc:write(raw.raw_data:sub(1, chunks))
+        while not written do
+          written = process_write(self.proc, raw.raw_data:sub(1, chunks))
         end
         raw.raw_data = raw.raw_data:sub(chunks+1)
       else
-        while wrote <= 0 do
-          wrote = self.proc:write(raw.raw_data)
+        while not written do
+          written = process_write(self.proc, raw.raw_data)
         end
         raw.raw_data = ""
       end
@@ -1284,74 +1306,36 @@ end
 
 ---Try to send a request to a server in a specific amount of time.
 ---@param data table | string Table or string with the json request
----@param timeout? integer Time in seconds, set to 0 to not wait for write
----@return integer|boolean Amount of characters written or false if failed
-function Server:write_request(data, timeout)
+---@return boolean written
+function Server:write_request(data)
   if not self.proc:running() then
     return false
   end
-
-  timeout = timeout or Server.DEFAULT_TIMEOUT
 
   if type(data) == "table" then
     data = json.encode(data)
   end
 
-  local max_time = os.time() + timeout
+  local written = false
+  local retries = 0
 
-  if timeout == 0 then max_time = max_time + 1 end
-  local written = 0
+  local request_data = string.format(
+    'Content-Length: %d\r\n\r\n%s\r\n',
+    #data + 2,
+    data
+  )
 
-  if not self.requests_in_chunks then
-    while max_time > os.time() and written <= 0 do
-      written = self.proc:write(string.format(
-        'Content-Length: %d\r\n\r\n%s\r\n',
-        #data + 2,
-        data
-      ))
-
-      if timeout == 0 then break end
+  -- retry 10 times, if inside a coroutine in a time
+  -- lapse of 2 seconds with 200ms retry intervals
+  while 10 > retries and not written do
+    written = process_write(self.proc, request_data)
+    retries = retries + 1
+    if not written and retries < 10 and coroutine.running() then
+      -- WARNING: yielding could pontentially cause a race
+      -- condition, in case of future issues this could be
+      -- the root cause.
+      coroutine.yield(0.2)
     end
-  else
-    -- first send the header
-    while max_time > os.time() and written <= 0 do
-      written = self.proc:write(string.format(
-        'Content-Length: %d\r\n\r\n',
-        #data + 2 -- last \r\n
-      ))
-
-      if timeout == 0 then break end
-    end
-
-    if written and written <= 0 then
-      return false
-    end
-
-    -- send content in chunks
-    local chunks = 10 * 1024
-    data = data .. "\r\n"
-
-    while #data > 0 do
-      local wrote = 0
-
-      if #data > chunks then
-        wrote = self.proc:write(data:sub(1, chunks))
-        data = data:sub(chunks+1)
-      else
-        wrote = self.proc:write(data)
-        data = ""
-      end
-
-      if wrote > 0 then
-        written = written + wrote
-      else
-        return false
-      end
-    end
-  end
-
-  if written and written <= 0 then
-    return false
   end
 
   return written
@@ -1498,8 +1482,8 @@ function Server:stop()
   self.running = false
 end
 
----Shut downs the server is not running or amount of write fails has
----reached its maximum allowed.
+---Shutdown the server if not running or amount of write fails
+---reached the maximum allowed.
 function Server:shutdown_if_needed()
   if
     self.write_fails >= self.write_fails_before_shutdown
@@ -1529,6 +1513,7 @@ function Server:exit()
     method = "shutdown",
     params = {}
   }
+
   self:write_request(json.encode(message))
 
   -- send exit notification
