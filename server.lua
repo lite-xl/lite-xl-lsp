@@ -493,10 +493,14 @@ function Server:notify(method, params)
     self:log("Sending notification:\n%s", util.jsonprettify(data))
   end
 
-  local sent = self:write_request(data)
+  local sent, errmsg = self:write_request(data)
 
   if not sent and self.verbose then
-    self:log("Could not send '%s' notification.", method)
+    self:log(
+      "Could not send '%s' notification with error: %s",
+      method,
+      errmsg or "unknown"
+    )
   end
 
   return sent
@@ -519,10 +523,10 @@ function Server:respond(id, result)
     self:log("Responding to '%d':\n%s", id, util.jsonprettify(data))
   end
 
-  local sent = self:write_request(data)
+  local sent, errmsg = self:write_request(data)
 
   if not sent and self.verbose then
-    self:log("Could not send response.")
+    self:log("Could not send response with error: %s", errmsg or "unknown")
   end
 
   return sent
@@ -549,10 +553,10 @@ function Server:respond_error(id, error_message, error_code)
     self:log("Responding error to '%d':\n%s", id, util.jsonprettify(data))
   end
 
-  local sent = self:write_request(data)
+  local sent, errmsg = self:write_request(data)
 
   if not sent and self.verbose then
-    self:log("Could not send response.")
+    self:log("Could not send response with error: %s", errmsg or "unknown")
   end
 
   return sent
@@ -579,13 +583,14 @@ function Server:process_notifications()
         )
     end
 
-    local written = self:write_request(data)
+    local written, errmsg = self:write_request(data)
 
     if self.verbose then
       if not written then
         self:log(
-          "Failed sending notification '%s'",
-          request.method
+          "Failed sending notification '%s' with error: %s",
+          request.method,
+          errmsg or "unknown"
         )
       end
     end
@@ -624,7 +629,7 @@ function Server:process_requests()
 
       local data = json.encode(message)
 
-      local written = self:write_request(data)
+      local written, errmsg = self:write_request(data)
 
       if self.verbose then
         if written then
@@ -635,8 +640,9 @@ function Server:process_requests()
           )
         else
           self:log(
-            "Failed sending request '%s':\n%s",
+            "Failed sending request '%s' with error: %s\n%s",
             request.method,
+            errmsg or "unknown",
             util.jsonprettify(data)
           )
         end
@@ -737,13 +743,14 @@ function Server:process_client_responses()
         self:log("Sending client response:\n%s", util.jsonprettify(data))
     end
 
-    local written = self:write_request(data)
+    local written, errmsg = self:write_request(data)
 
     if self.verbose then
       if not written then
         self:log(
-          "Failed sending client response '%s'",
-          response.id
+          "Failed sending client response '%s' with error: %s",
+          response.id,
+          errmsg or "unknown"
         )
       end
     end
@@ -773,23 +780,35 @@ function Server:process_errors(log_errors)
   return errors
 end
 
----Ensures that all data is written to a process if the write didn't fail
----on first try, otherwise it returns false.
----@param proc process
+---Sends raw data to the server process and ensures that all of it is written
+---if no errors occur, otherwise it returns false and the error message. Notice
+---that this function can perform yielding when ran inside of a coroutine.
 ---@param data string
----@return boolean written
-local function process_write(proc, data)
-  local data_len = #data
-  local written = proc:write(data) or 0
-  local total_written = written
-  if written > 0 then
-    while total_written < data_len do
-      written = proc:write(data:sub(total_written + 1)) or 0
-      total_written = total_written + written
+---@return boolean sent
+---@return string? errmsg
+function Server:send_data(data)
+  local failures, data_len = 0, #data
+  local written, errmsg = self.proc:write(data)
+  local total_written = written or 0
+
+  while total_written < data_len and not errmsg do
+    written, errmsg = self.proc:write(data:sub(total_written + 1))
+    total_written = total_written + (written or 0)
+
+    if not written and not errmsg and coroutine.running() then
+      -- with each consecutive fail the yield timeout is increased by 5ms
+      coroutine.yield((failures * 5) / 1000)
+      failures = failures + 1
+    else
+      failures = 0
     end
-    return true
   end
-  return false
+
+  if errmsg then
+    self:log("Error sending data: '%s'\n%s", errmsg, data)
+  end
+
+  return total_written == data_len, errmsg
 end
 
 ---Send one of the queued chunks of raw data to lsp server which are
@@ -816,14 +835,15 @@ function Server:process_raw()
   local sent = false
   for index, raw in ipairs(self.raw_list) do
     raw.sending = true
-    local written = false
 
     -- first send the header
-    while not written do
-      written = process_write(self.proc, string.format(
+    if
+      not self:send_data(string.format(
         'Content-Length: %d\r\n\r\n',
         #raw.raw_data + 2 -- last \r\n
       ))
+    then
+      break
     end
 
     if self.verbose then
@@ -835,17 +855,13 @@ function Server:process_raw()
     raw.raw_data = raw.raw_data .. "\r\n"
 
     while #raw.raw_data > 0 do
-      written = false
-
       if #raw.raw_data > chunks then
-        while not written do
-          written = process_write(self.proc, raw.raw_data:sub(1, chunks))
-        end
+        -- TODO: perform proper error handling
+        self:send_data(raw.raw_data:sub(1, chunks))
         raw.raw_data = raw.raw_data:sub(chunks+1)
       else
-        while not written do
-          written = process_write(self.proc, raw.raw_data)
-        end
+        -- TODO: perform proper error handling
+        self:send_data(raw.raw_data)
         raw.raw_data = ""
       end
 
@@ -1307,6 +1323,7 @@ end
 ---Try to send a request to a server in a specific amount of time.
 ---@param data table | string Table or string with the json request
 ---@return boolean written
+---@return string? errmsg
 function Server:write_request(data)
   if not self.proc:running() then
     return false
@@ -1316,29 +1333,13 @@ function Server:write_request(data)
     data = json.encode(data)
   end
 
-  local written = false
-  local retries = 0
-
-  local request_data = string.format(
+  -- WARNING: send_data performs yielding which can pontentially cause a
+  -- race condition, in case of future issues this may be the root cause.
+  return self:send_data(string.format(
     'Content-Length: %d\r\n\r\n%s\r\n',
     #data + 2,
     data
-  )
-
-  -- retry 10 times, if inside a coroutine in a time
-  -- lapse of 2 seconds with 200ms retry intervals
-  while 10 > retries and not written do
-    written = process_write(self.proc, request_data)
-    retries = retries + 1
-    if not written and retries < 10 and coroutine.running() then
-      -- WARNING: yielding could pontentially cause a race
-      -- condition, in case of future issues this could be
-      -- the root cause.
-      coroutine.yield(0.2)
-    end
-  end
-
-  return written
+  ))
 end
 
 function Server:log(message, ...)
