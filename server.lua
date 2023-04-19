@@ -795,10 +795,15 @@ function Server:send_data(data)
     written, errmsg = self.proc:write(data:sub(total_written + 1))
     total_written = total_written + (written or 0)
 
-    if not written and not errmsg and coroutine.running() then
+    if (not written or written <= 0) and not errmsg and coroutine.running() then
       -- with each consecutive fail the yield timeout is increased by 5ms
       coroutine.yield((failures * 5) / 1000)
+
       failures = failures + 1
+      if failures > 19 then -- after ~1000ms we error out
+        errmsg = "maximum amount of consecutive failures reached"
+        break
+      end
     else
       failures = 0
     end
