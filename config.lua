@@ -10,6 +10,8 @@
 --
 
 local lsp = require "plugins.lsp"
+local config = require "core.config"
+local snippets = pcall(require, "plugins.snippets") and config.plugins.lsp.snippets
 
 local function merge(a, b)
   local t = {}
@@ -145,7 +147,7 @@ lspconfig.clojure_lsp = add_lsp {
 }
 
 ---# css-languageserver
---- __Status__: Requires snippets support for completion to work which isn't implemented
+--- __Status__: Works
 --- __Site__: https://github.com/vscode-langservers/vscode-css-languageserver-bin
 --- __Installation__: `npm install -g vscode-css-languageserver-bin`
 lspconfig.cssls = add_lsp {
@@ -537,11 +539,12 @@ lspconfig.sumneko_lua = add_lsp {
     Lua = {
       completion = {
         enable = true,
-        keywordSnippet = "Disable"
+        callSnippet = snippets and "Replace" or "Disable",
+        keywordSnippet = snippets and "Replace" or "Disable"
       },
       develop = {
         enable = false,
-        debuggerPor = 11412,
+        debuggerPort = 11412,
         debuggerWait = false
       },
       diagnostics = {

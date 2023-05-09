@@ -161,6 +161,12 @@ Server.symbol_kind = {
   'Null', 'EnumMember', 'Struct', 'Event', 'Operator', 'TypeParameter'
 }
 
+---LSP Docs: /#insertTextFormat
+Server.insert_text_format = {
+  PlainText = 1,
+  Snippet = 2
+}
+
 ---LSP Docs: /#messageType
 ---@enum
 Server.message_type = {

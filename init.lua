@@ -68,6 +68,8 @@ local HelpDoc = require "plugins.lsp.helpdoc"
 ---@field show_diagnostics boolean
 ---Amount of milliseconds to delay updating the inline diagnostics.
 ---@field diagnostics_delay number
+---Wether to enable snippets processing.
+---@field snippets boolean
 ---Stop servers that aren't needed by any of the open files
 ---@field stop_unneeded_servers boolean
 ---Send a server stderr output to lite log
@@ -81,6 +83,8 @@ config.plugins.lsp = common.merge({
   mouse_hover = true,
   mouse_hover_delay = 300,
   show_diagnostics = true,
+  diagnostics_delay = 500,
+  snippets = true,
   stop_unneeded_servers = true,
   log_file = "",
   prettify_json = false,
@@ -122,6 +126,13 @@ config.plugins.lsp = common.merge({
       default = 500,
       min = 100,
       max = 10000
+    },
+    {
+      label = "Snippets",
+      description = "Snippets processing using lsp_snippets, may need a restart.",
+      path = "snippets",
+      type = "TOGGLE",
+      default = true
     },
     {
       label = "Autostart Server",
@@ -379,7 +390,7 @@ local function apply_edit(doc, text_edit)
   local text = text_edit.newText
   local current_text = ""
 
-  if snippets_found then
+  if snippets_found and config.plugins.lsp.snippets then
     doc:set_selection(line2, col1, line2, col2)
     snippets.execute {format = 'lsp', template = text}
     return true
@@ -468,8 +479,8 @@ end
 ---@param item table
 local function autocomplete_onselect(index, item)
   local completion = item.data.completion_item
+  local dv = get_active_docview()
   if completion.textEdit then
-    local dv = get_active_docview()
     if dv then
       local edit_applied = apply_edit(dv.doc, completion.textEdit)
       if edit_applied then
@@ -492,6 +503,22 @@ local function autocomplete_onselect(index, item)
         end
       end
       return edit_applied
+    end
+  elseif
+    dv and snippets_found and config.plugins.lsp.snippets
+    and
+    completion.insertText and completion.insertTextFormat
+    and
+    completion.insertTextFormat == Server.insert_text_format.Snippet
+  then
+    ---@type core.doc
+    local doc = dv.doc
+    if dv then
+      local line2, col2 = doc:get_selection()
+      local line1, col1 = doc:position_offset(line2, col2, translate.start_of_word)
+      doc:set_selection(line1, col1, line2, col2)
+      snippets.execute {format = 'lsp', template = completion.insertText}
+      return true
     end
   end
   return false
@@ -545,7 +572,9 @@ function lsp.add_server(options)
     end
   end
 
-  if snippets_found then options.snippets = true end
+  if snippets_found and config.plugins.lsp.snippets then
+    options.snippets = true
+  end
 
   if #options.command <= 0 then
     core.error("[LSP] Provide a command table list with the lsp command.")
