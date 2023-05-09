@@ -43,6 +43,7 @@ local Server = require "plugins.lsp.server"
 local Timer = require "plugins.lsp.timer"
 local SymbolResults = require "plugins.lsp.symbolresults"
 local MessageBox = require "libraries.widget.messagebox"
+local snippets_found, snippets = pcall(require, "plugins.snippets")
 
 ---@type lsp.helpdoc
 local HelpDoc = require "plugins.lsp.helpdoc"
@@ -378,6 +379,12 @@ local function apply_edit(doc, text_edit)
   local text = text_edit.newText
   local current_text = ""
 
+  if snippets_found then
+    doc:set_selection(line2, col1, line2, col2)
+    snippets.execute {format = 'lsp', template = text}
+    return true
+  end
+
   if lsp.in_trigger then
     local cline2, ccol2 = doc:get_selection()
     local cline1, ccol1 = doc:position_offset(line2, col2, translate.start_of_word)
@@ -537,6 +544,8 @@ function lsp.add_server(options)
       return false
     end
   end
+
+  if snippets_found then options.snippets = true end
 
   if #options.command <= 0 then
     core.error("[LSP] Provide a command table list with the lsp command.")

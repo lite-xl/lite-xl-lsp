@@ -4,12 +4,14 @@
       "id": "lsp",
       "name": "Language Server Protocol",
       "description": "Provides intellisense by leveraging the LSP protocol.",
-      "version": "0.2",
+      "version": "0.4",
       "mod_version": "3",
       "dependencies": {
         "widget": { "version": ">=0.1" },
-        "lintplus": { "version": ">=0.2", "optional": true },
-        "settings": { "optional": true }
+        "lintplus": { "version": ">=0.2" },
+        "settings": { },
+        "snippets": { },
+        "lsp_snippets": { },
       },
       "tags": [
         "language server protocol"
