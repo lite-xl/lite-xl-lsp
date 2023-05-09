@@ -372,8 +372,9 @@ end
 ---Apply an lsp textEdit to a document if possible.
 ---@param doc core.doc
 ---@param text_edit table
+---@param is_snippet boolean
 ---@return boolean True on success
-local function apply_edit(doc, text_edit)
+local function apply_edit(doc, text_edit, is_snippet)
   local range = nil
 
   if text_edit.range then
@@ -390,12 +391,6 @@ local function apply_edit(doc, text_edit)
   local text = text_edit.newText
   local current_text = ""
 
-  if snippets_found and config.plugins.lsp.snippets then
-    doc:set_selection(line2, col1, line2, col2)
-    snippets.execute {format = 'lsp', template = text}
-    return true
-  end
-
   if lsp.in_trigger then
     local cline2, ccol2 = doc:get_selection()
     local cline1, ccol1 = doc:position_offset(line2, col2, translate.start_of_word)
@@ -403,6 +398,13 @@ local function apply_edit(doc, text_edit)
   end
 
   doc:remove(line1, col1, line2, col2+#current_text)
+
+  if is_snippet and snippets_found and config.plugins.lsp.snippets then
+    doc:set_selection(line1, col1, line1, col1)
+    snippets.execute {format = 'lsp', template = text}
+    return true
+  end
+
   doc:insert(line1, col1, text)
   doc:set_selection(line2, col1+#text, line2, col1+#text)
 
@@ -482,7 +484,9 @@ local function autocomplete_onselect(index, item)
   local dv = get_active_docview()
   if completion.textEdit then
     if dv then
-      local edit_applied = apply_edit(dv.doc, completion.textEdit)
+      local is_snippet = completion.insertTextFormat
+        and completion.insertTextFormat == Server.insert_text_format.Snippet
+      local edit_applied = apply_edit(dv.doc, completion.textEdit, is_snippet)
       if edit_applied then
         -- Retrigger code completion if last char is a trigger
         -- this is useful for example with clangd when autocompleting
