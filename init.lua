@@ -2308,6 +2308,50 @@ core.status_view:add_item({
 })
 
 --
+-- Register autocomplete icons
+--
+if autocomplete.add_icon then
+  local autocomplete_icons = {
+    Text          = '', -- U+F77E
+    Method        = '', -- U+F6A6
+    Function      = '', -- U+F794
+    Constructor   = '', -- U+F423
+    Field         = 'ﰠ', -- U+FC20
+    Variable      = '', -- U+F52A
+    Class         = 'ﴯ', -- U+FD2F
+    Interface     = '', -- U+F0E8
+    Module        = '', -- U+F487
+    Property      = 'ﰠ', -- U+FC20
+    Unit          = '塞', -- U+F96C
+    Value         = '', -- U+F89F
+    Enum          = '', -- U+F15D
+    Keyword       = '', -- U+F80A
+    Snippet       = '', -- U+F44F
+    Color         = '', -- U+F8D7
+    File          = '', -- U+F718
+    Reference     = '', -- U+F706
+    Folder        = '', -- U+F74A
+    EnumMember    = '', -- U+F15D
+    Constant      = '', -- U+F8FE
+    Struct        = 'פּ', -- U+FB44
+    Event         = '', -- U+F0E7
+    Operator      = '', -- U+F694
+    Unknown       = '', -- U+F128
+    TypeParameter = ''  -- U+EA92
+  }
+
+  -- We add the font here to let it automatically scale by the scale plugin
+  style.syntax_fonts["lsp_types"] = renderer.font.load(
+    USERDIR .. "/plugins/lsp/fonts/symbols.ttf",
+    15 * SCALE
+  )
+
+  for name, char in pairs(autocomplete_icons) do
+    autocomplete.add_icon(name, char, style.syntax_fonts["lsp_types"])
+  end
+end
+
+--
 -- Commands
 --
 command.add(
