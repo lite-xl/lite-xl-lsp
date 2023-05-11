@@ -2312,32 +2312,32 @@ core.status_view:add_item({
 --
 if autocomplete.add_icon then
   local autocomplete_icons = {
-    Text          = '', -- U+F77E
-    Method        = '', -- U+F6A6
-    Function      = '', -- U+F794
-    Constructor   = '', -- U+F423
-    Field         = 'ﰠ', -- U+FC20
-    Variable      = '', -- U+F52A
-    Class         = 'ﴯ', -- U+FD2F
-    Interface     = '', -- U+F0E8
-    Module        = '', -- U+F487
-    Property      = 'ﰠ', -- U+FC20
-    Unit          = '塞', -- U+F96C
-    Value         = '', -- U+F89F
-    Enum          = '', -- U+F15D
-    Keyword       = '', -- U+F80A
-    Snippet       = '', -- U+F44F
-    Color         = '', -- U+F8D7
-    File          = '', -- U+F718
-    Reference     = '', -- U+F706
-    Folder        = '', -- U+F74A
-    EnumMember    = '', -- U+F15D
-    Constant      = '', -- U+F8FE
-    Struct        = 'פּ', -- U+FB44
-    Event         = '', -- U+F0E7
-    Operator      = '', -- U+F694
-    Unknown       = '', -- U+F128
-    TypeParameter = ''  -- U+EA92
+    { name = "Text",          color = "keyword",  icon = '' }, -- U+F77E
+    { name = "Method",        color = "function", icon = '' }, -- U+F6A6
+    { name = "Function",      color = "function", icon = '' }, -- U+F794
+    { name = "Constructor",   color = "literal",  icon = '' }, -- U+F423
+    { name = "Field",         color = "keyword2", icon = 'ﰠ' }, -- U+FC20
+    { name = "Variable",      color = "keyword2", icon = '' }, -- U+F52A
+    { name = "Class",         color = "literal",  icon = 'ﴯ' }, -- U+FD2F
+    { name = "Interface",     color = "literal",  icon = '' }, -- U+F0E8
+    { name = "Module",        color = "literal",  icon = '' }, -- U+F487
+    { name = "Property",      color = "keyword2", icon = 'ﰠ' }, -- U+FC20
+    { name = "Unit",          color = "number",   icon = '塞' }, -- U+F96C
+    { name = "Value",         color = "string",   icon = '' }, -- U+F89F
+    { name = "Enum",          color = "keyword2", icon = '' }, -- U+F15D
+    { name = "Keyword",       color = "keyword",  icon = '' }, -- U+F80A
+    { name = "Snippet",       color = "keyword",  icon = '' }, -- U+F44F
+    { name = "Color",         color = "string",   icon = '' }, -- U+F8D7
+    { name = "File",          color = "string",   icon = '' }, -- U+F718
+    { name = "Reference",     color = "string",   icon = '' }, -- U+F706
+    { name = "Folder",        color = "string",   icon = '' }, -- U+F74A
+    { name = "EnumMember",    color = "number",   icon = '' }, -- U+F15D
+    { name = "Constant",      color = "number",   icon = '' }, -- U+F8FE
+    { name = "Struct",        color = "keyword2", icon = 'פּ' }, -- U+FB44
+    { name = "Event",         color = "keyword",  icon = '' }, -- U+F0E7
+    { name = "Operator",      color = "operator", icon = '' }, -- U+F694
+    { name = "Unknown",       color = "keyword",  icon = '' }, -- U+F128
+    { name = "TypeParameter", color = "literal",  icon = '' }  -- U+EA92
   }
 
   -- We add the font here to let it automatically scale by the scale plugin
@@ -2346,8 +2346,10 @@ if autocomplete.add_icon then
     15 * SCALE
   )
 
-  for name, char in pairs(autocomplete_icons) do
-    autocomplete.add_icon(name, char, style.syntax_fonts["lsp_types"])
+  for _, icon in ipairs(autocomplete_icons) do
+    autocomplete.add_icon(
+      icon.name, icon.icon, style.syntax_fonts["lsp_types"], icon.color
+    )
   end
 end
 
