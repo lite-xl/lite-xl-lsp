@@ -46,7 +46,7 @@ end
 ---File types that are supported by this server.
 ---@field file_patterns string[]
 ---LSP command and optional arguments.
----@field command string[]
+---@field command table<integer,string|table>
 ---Optional table of settings to pass into the lsp
 ---Note that also having a settings.json or settings.lua in
 ---your workspace directory with a table of settings is supported.
@@ -146,15 +146,23 @@ lspconfig.clojure_lsp = add_lsp {
   verbose = false
 }
 
----# css-languageserver
+---# vscode-css-languageserver
 --- __Status__: Works
 --- __Site__: https://github.com/vscode-langservers/vscode-css-languageserver-bin
 --- __Installation__: `npm install -g vscode-css-languageserver-bin`
+---                   or `pacman -S vscode-css-languageserver`
 lspconfig.cssls = add_lsp {
   name = "css-languageserver",
   language = "css",
   file_patterns = { "%.css$", "%.less$", "%.sass$" },
-  command = { "css-languageserver", "--stdio" },
+  command = {
+    {
+      'vscode-css-languageserver',
+      'vscode-css-language-server',
+      'css-languageserver'
+    },
+    '--stdio'
+  },
   fake_snippets = true,
   verbose = false
 }
@@ -283,14 +291,22 @@ lspconfig.hls = add_lsp {
 }
 
 ---# vscode-html-languageserver
---- __Status__: Untested
+--- __Status__: Works
 --- __Site__: https://github.com/vscode-langservers/vscode-html-languageserver-bin
 --- __Installation__: `npm install --global vscode-html-languageserver-bin`
+---                   or `pacman -S vscode-html-languageserver`
 lspconfig.html = add_lsp {
   name = "html-languageserver",
   language = "html",
   file_patterns = { "%.html$" },
-  command = { 'html-languageserver', '--stdio' },
+  command = {
+    {
+      'vscode-html-languageserver',
+      'vscode-html-language-server',
+      'html-languageserver'
+    },
+    '--stdio'
+  },
   verbose = false
 }
 
@@ -311,14 +327,22 @@ lspconfig.intelephense = add_lsp {
 }
 
 ---# vscode-json-languageserver
---- __Status__: Untested
+--- __Status__: Works
 --- __Site__: https://www.npmjs.com/package/vscode-json-languageserver
 --- __Installation__: `npm install -g vscode-json-languageserver`
+---                   or `pacman -S vscode-json-languageserver`
 lspconfig.jsonls = add_lsp {
-  name = "vscode-json-languageserver",
+  name = "json-languageserver",
   language = "json",
   file_patterns = { "%.json$", "%.jsonc$" },
-  command = { 'vscode-json-languageserver', '--stdio' },
+  command = {
+    {
+      'vscode-json-languageserver',
+      'vscode-json-language-server',
+      'json-languageserver',
+    },
+    '--stdio'
+  },
   verbose = false
 }
 

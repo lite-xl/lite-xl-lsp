@@ -585,6 +585,12 @@ function lsp.add_server(options)
     return false
   end
 
+  -- some lsp servers may be installed with different binary names
+  -- so if command name is a list, search for one that exists
+  if type(options.command[1]) == "table" then
+    options.command[1] = util.get_best_executable(options.command[1])
+  end
+
   if config.plugins.lsp.force_verbosity_off then
     options.verbose = false
   end

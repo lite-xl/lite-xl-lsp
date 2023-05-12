@@ -239,6 +239,19 @@ function util.command_exists(command)
   return false
 end
 
+---From a list of executable names get the one that is installed
+---on the system or first one if none of them exists.
+---@param executables table<integer,string>
+---@return string executable_name
+function util.get_best_executable(executables)
+  for _, executable in ipairs(executables) do
+    if util.command_exists(executable) then
+      return executable
+    end
+  end
+  return executables[1]
+end
+
 ---Remove by key from a table and returns a new
 ---table with element removed.
 ---@param table_object table
