@@ -5,6 +5,7 @@
 -- @license MIT
 
 local core = require "core"
+local common = require "core.common"
 local config = require "core.config"
 local json = require "plugins.lsp.json"
 
@@ -25,6 +26,58 @@ function util.doc_is_open(abs_filename)
     end
   end
   return false
+end
+
+---Converts a utf-8 column position into the equivalent utf-16 position.
+---@param doc core.doc
+---@param line integer
+---@param column integer
+---@return integer col_position
+function util.doc_utf8_to_utf16(doc, line, column)
+  local ltext = doc.lines[line]
+  local ltext_len = ltext and #ltext or 0
+  local ltext_ulen = ltext and utf8extra.len(ltext) or 0
+  column = common.clamp(column, 1, ltext_len > 0 and ltext_len or 1)
+  -- no need for conversion so return column as is
+  if ltext_len == ltext_ulen then return column end
+  if column > 1 then
+    local col = 1
+    for pos, code in utf8extra.next, ltext do
+      if pos == column then
+        return col
+      end
+      col = col + 1
+    end
+    return col
+  end
+  return column
+end
+
+---Converts a utf-16 column position into the equivalent utf-8 position.
+---@param doc core.doc
+---@param line integer
+---@param column integer
+---@return integer col_position
+function util.doc_utf16_to_utf8(doc, line, column)
+  local ltext = doc.lines[line]
+  local ltext_len = ltext and #ltext or 0
+  local ltext_ulen = ltext and utf8extra.len(ltext) or 0
+  column = common.clamp(column, 1, ltext_ulen > 0 and ltext_ulen or 1)
+  -- no need for conversion so return column as is
+  if ltext_len == ltext_ulen then return column end
+  if column > 1 then
+    local col = 1
+    local utf8_pos = 1
+    for pos, code in utf8extra.next, ltext do
+      if col == column then
+        return pos
+      end
+      utf8_pos = pos
+      col = col + 1
+    end
+    return utf8_pos
+  end
+  return column
 end
 
 ---Split a string by the given delimeter
@@ -104,15 +157,21 @@ end
 
 ---Converts a document range returned by lsp to a valid document selection.
 ---@param range table LSP Range.
+---@param doc? core.doc
 ---@return integer line1
 ---@return integer col1
 ---@return integer line2
 ---@return integer col2
-function util.toselection(range)
+function util.toselection(range, doc)
   local line1 = range.start.line + 1
   local col1 = range.start.character + 1
   local line2 = range['end'].line + 1
   local col2 = range['end'].character + 1
+
+  if doc then
+    col1 = util.doc_utf16_to_utf8(doc, line1, col1)
+    col2 = util.doc_utf16_to_utf8(doc, line2, col2)
+  end
 
   return line1, col1, line2, col2
 end

@@ -176,6 +176,14 @@ Server.message_type = {
 	Log = 4
 }
 
+---LSP Docs: /#positionEncodingKind
+---@enum
+Server.position_encoding_kind = {
+  UTF8  = 'utf-8',
+  UTF16 = 'utf-16',
+  UTF32 = 'utf-32'
+}
+
 ---@class lsp.server.requestoptions
 ---@field params table<string,any>
 ---@field data table @Optional data appended to request.
@@ -413,14 +421,17 @@ function Server:initialize(workspace, editor_name, editor_version)
           -- moniker = {dynamicRegistration = false} -- not supported
         },
         window = {
-         -- workDoneProgress = true,
-         -- showMessage = {},
-         showDocument = { support = true }
+          -- workDoneProgress = true,
+          -- showMessage = {},
+          showDocument = { support = true }
         },
-        -- general = {
-        --  regularExpressions = {},
-        --  markdown = {}
-        -- },
+        general = {
+          -- regularExpressions = {},
+          -- markdown = {},
+          positionEncodings = {
+            Server.position_encoding_kind.UTF16
+          }
+        },
         -- experimental = nil
       }
     },
