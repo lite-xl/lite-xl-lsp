@@ -43,10 +43,15 @@ function util.doc_utf8_to_utf16(doc, line, column)
   if column > 1 then
     local col = 1
     for pos, code in utf8extra.next, ltext do
-      if pos == column then
+      if pos >= column then
         return col
       end
-      col = col + 1
+      -- Codepoints that high are encoded using surrogate pairs
+      if code < 0x010000 then
+        col = col + 1
+      else
+        col = col + 2
+      end
     end
     return col
   end
@@ -62,18 +67,23 @@ function util.doc_utf16_to_utf8(doc, line, column)
   local ltext = doc.lines[line]
   local ltext_len = ltext and #ltext or 0
   local ltext_ulen = ltext and utf8extra.len(ltext) or 0
-  column = common.clamp(column, 1, ltext_ulen > 0 and ltext_ulen or 1)
+  column = common.clamp(column, 1, ltext_len > 0 and ltext_len or 1)
   -- no need for conversion so return column as is
   if ltext_len == ltext_ulen then return column end
   if column > 1 then
     local col = 1
     local utf8_pos = 1
     for pos, code in utf8extra.next, ltext do
-      if col == column then
+      if col >= column then
         return pos
       end
       utf8_pos = pos
-      col = col + 1
+      -- Codepoints that high are encoded using surrogate pairs
+      if code < 0x010000 then
+        col = col + 1
+      else
+        col = col + 2
+      end
     end
     return utf8_pos
   end
