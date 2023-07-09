@@ -235,7 +235,7 @@ local function get_buffer_position_params(doc, line, col)
     },
     position = {
       line = line - 1,
-      character = col - 1
+      character = util.doc_utf8_to_utf16(doc, line, col) - 1
     }
   }
 end
@@ -370,11 +370,12 @@ local function get_references_lists(locations)
 end
 
 ---Apply an lsp textEdit to a document if possible.
+---@param server lsp.server
 ---@param doc core.doc
 ---@param text_edit table
 ---@param is_snippet boolean
 ---@return boolean True on success
-local function apply_edit(doc, text_edit, is_snippet)
+local function apply_edit(server, doc, text_edit, is_snippet)
   local range = nil
 
   if text_edit.range then
@@ -387,9 +388,23 @@ local function apply_edit(doc, text_edit, is_snippet)
 
   if not range then return false end
 
-  local line1, col1, line2, col2 = util.toselection(range)
   local text = text_edit.newText
+  local line1, col1, line2, col2
   local current_text = ""
+
+  if
+    not server.capabilities.positionEncoding
+    or
+    server.capabilities.positionEncoding == Server.position_encoding_kind.UTF16
+  then
+    line1, col1, line2, col2 = util.toselection(range, doc)
+  else
+    line1, col1, line2, col2 = util.toselection(range)
+    core.error(
+      "[LSP] Unsupported position encoding: ",
+      server.capabilities.positionEncoding
+    )
+  end
 
   if lsp.in_trigger then
     local cline2, ccol2 = doc:get_selection()
@@ -486,7 +501,7 @@ local function autocomplete_onselect(index, item)
     if dv then
       local is_snippet = completion.insertTextFormat
         and completion.insertTextFormat == Server.insert_text_format.Snippet
-      local edit_applied = apply_edit(dv.doc, completion.textEdit, is_snippet)
+      local edit_applied = apply_edit(item.data.server, dv.doc, completion.textEdit, is_snippet)
       if edit_applied then
         -- Retrigger code completion if last char is a trigger
         -- this is useful for example with clangd when autocompleting
@@ -544,7 +559,7 @@ end
 ---Open a document location returned by LSP
 ---@param location table
 function lsp.goto_location(location)
-  core.root_view:open_doc(
+  local doc_view = core.root_view:open_doc(
     core.open_doc(
       common.home_expand(
         util.tofilename(location.uri or location.targetUri)
@@ -552,9 +567,9 @@ function lsp.goto_location(location)
     )
   )
   local line1, col1 = util.toselection(
-    location.range or location.targetRange
+    location.range or location.targetRange, doc_view.doc
   )
-  core.active_view.doc:set_selection(line1, col1, line1, col1)
+  doc_view.doc:set_selection(line1, col1, line1, col1)
 end
 
 lsp.get_location_preview = get_location_preview
@@ -829,7 +844,7 @@ function lsp.start_server(filename, project_directory)
               )
               if request.params.selection then
                 local line1, col1, line2, col2 = util.toselection(
-                  request.params.selection
+                  request.params.selection, doc_view.doc
                 )
                 doc_view.doc:set_selection(line1, col1, line2, col2)
               end
@@ -1792,7 +1807,7 @@ function lsp.request_document_symbols(doc)
                   -- the symbol it self.
                   symbol = symbol.location and symbol.location or symbol
                   if not symbol.uri then
-                    local line1, col1 = util.toselection(symbol.range)
+                    local line1, col1 = util.toselection(symbol.range, doc)
                     doc:set_selection(line1, col1, line1, col1)
                   else
                     lsp.goto_location(symbol)
@@ -1854,7 +1869,7 @@ function lsp.request_document_format(doc)
             log(server, "Error formatting: " .. response.error.message)
           elseif response.result and #response.result > 0 then
             for _, result in pairs(response.result) do
-              apply_edit(doc, result)
+              apply_edit(server, doc, result)
             end
             log(server, "Formatted document")
           else
@@ -1897,7 +1912,7 @@ function lsp.view_document_diagnostics(doc)
     submit = function(text, item)
       if item then
         local diagnostic = diagnostic_messages[item.index]
-        local line1, col1 = util.toselection(diagnostic.range)
+        local line1, col1 = util.toselection(diagnostic.range, doc)
         doc:set_selection(line1, col1, line1, col1)
       end
     end,
@@ -2184,6 +2199,8 @@ function Doc:raw_insert(line, col, text, undo_stack, time)
   -- skip new files
   if not self.filename then return end
 
+  col = util.doc_utf8_to_utf16(self, line, col)
+
   if self.lsp_open then
     add_change(self, text, line, col, line, col)
     lsp.update_document(self)
@@ -2193,16 +2210,19 @@ function Doc:raw_insert(line, col, text, undo_stack, time)
 end
 
 function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
+  local lcol1 = util.doc_utf8_to_utf16(self, line1, col1)
+  local lcol2 = util.doc_utf8_to_utf16(self, line2, col2)
+
   doc_raw_remove(self, line1, col1, line2, col2, undo_stack, time)
 
   -- skip new files
   if not self.filename then return end
 
   if self.lsp_open then
-    add_change(self, "", line1, col1, line2, col2)
+    add_change(self, "", line1, lcol1, line2, lcol2)
     lsp.update_document(self)
   elseif #lsp.get_active_servers(self.filename, true) > 0 then
-    add_change(self, "", line1, col1, line2, col2)
+    add_change(self, "", line1, lcol1, line2, lcol2)
   end
 end
 
