@@ -64,6 +64,7 @@ local Server = Object:extend()
 ---@field language string
 ---@field file_patterns table<integer, string>
 ---@field command table<integer, string>
+---@field windows_skip_cmd boolean
 ---@field settings table
 ---@field init_options table
 ---@field requests_per_second number
@@ -78,6 +79,8 @@ Server.options = {
   file_patterns = {},
   ---Command to launch LSP server and optional arguments
   command = {},
+  ---On Windows, avoid running the LSP server with cmd.exe
+  windows_skip_cmd = false,
   ---Optional table of settings to pass into the lsp
   ---Note that also having a settings.json or settings.lua in
   ---your workspace directory is supported

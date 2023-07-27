@@ -606,6 +606,13 @@ function lsp.add_server(options)
     options.command[1] = util.get_best_executable(options.command[1])
   end
 
+  -- On Windows using cmd.exe allows us to take advantage of its ability to run
+  -- the correct executable, as well as running scripts.
+  if PLATFORM == "Windows" and not options.windows_skip_cmd then
+    table.insert(options.command, 1, "/C")
+    table.insert(options.command, 1, "cmd.exe")
+  end
+
   if config.plugins.lsp.force_verbosity_off then
     options.verbose = false
   end
