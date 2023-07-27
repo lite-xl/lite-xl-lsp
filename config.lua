@@ -47,6 +47,8 @@ end
 ---@field file_patterns string[]
 ---LSP command and optional arguments.
 ---@field command table<integer,string|table>
+---On Windows, avoid running the LSP server with cmd.exe.
+---@field windows_skip_cmd boolean
 ---Optional table of settings to pass into the lsp
 ---Note that also having a settings.json or settings.lua in
 ---your workspace directory with a table of settings is supported.
