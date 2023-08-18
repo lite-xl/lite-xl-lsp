@@ -235,6 +235,23 @@ lspconfig.deno = add_lsp {
   }
 }
 
+---# fennel-ls
+--- __Status__: Untested
+--- __Site__: https://git.sr.ht/~xerool/fennel-ls
+--- __Installation__:
+--- ```sh
+--- git clone https://git.sr.ht/~xerool/fennel-ls
+--- make -C fennel-ls
+--- sudo make -C fennel-ls install
+--- ```
+lspconfig.fennells = add_lsp {
+  name = "fennel-ls",
+  language = "fennel",
+  file_patterns = { "%.fnl$" },
+  command = { "fennel-ls" },
+  verbose = false
+}
+
 ---# Flow - JavaScript
 --- __Status__: Untested
 --- __Site__: https://flow.org/
