@@ -51,8 +51,14 @@ end
 
 ---Resets the timer countdown for execution.
 function Timer:reset()
-  if self.started then
-    self.last_run = system.get_time()
+  self.last_run = system.get_time()
+end
+
+---Restarts the timer countdown for execution.
+function Timer:restart()
+  self:reset()
+  if not self.started then
+    self:start()
   end
 end
 
