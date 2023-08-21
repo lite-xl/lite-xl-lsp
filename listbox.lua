@@ -316,6 +316,7 @@ function listbox.hide()
   settings.col = nil
   settings.selected_item_idx = 1
   settings.shown_items = {}
+  core.redraw = true
 end
 
 ---@param is_list? boolean
@@ -332,6 +333,7 @@ function listbox.show(is_list, position)
       settings.shown_items = settings.items
     end
   end
+  core.redraw = true
 end
 
 ---@param text string
@@ -504,19 +506,18 @@ RootView.update = function(...)
 end
 
 RootView.draw = function(...)
-  root_view_draw(...)
-
-  if not settings.active_view then return end
-
-  local active_view = get_active_view()
-  if
-    active_view and settings.active_view == active_view
-    and
-    #settings.shown_items > 0
-  then
-    -- draw suggestions box after everything else
-    core.root_view:defer_draw(draw_listbox, active_view)
+  if settings.active_view then
+    local active_view = get_active_view()
+    if
+      active_view and settings.active_view == active_view
+      and
+      #settings.shown_items > 0
+    then
+      -- draw suggestions box after everything else
+      core.root_view:defer_draw(draw_listbox, active_view)
+    end
   end
+  root_view_draw(...)
 end
 
 --------------------------------------------------------------------------------
