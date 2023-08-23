@@ -215,10 +215,22 @@ lsp.user_typed = false
 ---Used on the hover timer to display hover info
 ---@class lsp.hover_position
 ---@field doc core.doc | nil
----@field line integer
----@field col integer
+---@field x number
+---@field y number
 ---@field triggered boolean
-lsp.hover_position = {doc = nil, line = 0, col = 0, triggered = false}
+---@field utf8_range table | nil
+lsp.hover_position = {doc = nil, x = -1, y = -1, triggered = false, utf8_range = nil}
+
+---@type lsp.timer
+lsp.hover_timer = Timer(300, true)
+lsp.hover_timer.on_timer = function()
+  local doc, line, col = lsp.get_hovered_location(lsp.hover_position.x, lsp.hover_position.y)
+  if not doc then return end
+  lsp.hover_position.triggered = true
+  lsp.hover_position.utf8_range = nil
+  lsp.hover_position.doc = doc
+  lsp.request_hover(doc, line, col)
+end
 
 --
 -- Private functions
@@ -987,6 +999,29 @@ function lsp.start_servers()
   end
 end
 
+---Returns the hovered doc and the hovered position.
+---Returns nil if no doc with an LSP activated is under the provided coordinates.
+---@param x number
+---@param y number
+---@return core.doc|nil doc
+---@return integer|nil line
+---@return integer|nil col
+function lsp.get_hovered_location(x, y)
+  local n = core.root_view.root_node:get_child_overlapping_point(x, y)
+  if not n then return end
+  local av = n.active_view
+  if not av:extends(DocView) then return end
+  if av and av.doc.lsp_open then
+    ---@type core.doc
+    local doc = av.doc
+    local line, col = av:resolve_screen_position(x, y)
+    local last_x = av:get_col_x_offset(line, #av.doc.lines[line])
+    local lx, _ = av:get_line_screen_position(line)
+    if x > last_x + lx then return end
+    return doc, line, col
+  end
+end
+
 ---Send notification to applicable LSP servers that a document was opened
 ---@param doc core.doc
 function lsp.open_document(doc)
@@ -1071,16 +1106,6 @@ function lsp.open_document(doc)
         end
       else
         doc.lsp_open = true
-      end
-
-      ---@type lsp.timer
-      doc.lsp_hover_timer = Timer(300, true)
-      doc.lsp_hover_timer.on_timer = function()
-        lsp.request_hover(
-          lsp.hover_position.doc,
-          lsp.hover_position.line,
-          lsp.hover_position.col
-        )
       end
     end
   end
@@ -1555,6 +1580,27 @@ function lsp.request_signature(doc, line, col, forced, fallback)
   end
 end
 
+---Returns the "selection" for the token that includes the provided position.
+---@param doc core.doc
+---@param line integer
+---@param col integer
+---@return integer line1
+---@return integer col2
+---@return integer line2
+---@return integer col2
+local function get_token_range(doc, line, col)
+  local col1 = 0
+  for _, _, text in doc.highlighter:each_token(line) do
+    local text_len = #text
+    local col2 = col1 + text_len
+    if col2 >= col then
+      return line, col1 + 1, line, col2 + 1
+    end
+    col1 = col2
+  end
+  return line, col, line, col+1
+end
+
 ---@type core.node
 local help_active_node = nil
 ---@type core.node
@@ -1571,6 +1617,16 @@ function lsp.request_hover(doc, line, col, in_tab)
         params = get_buffer_position_params(doc, line, col),
         callback = function(server, response)
           if response.result and response.result.contents then
+            local range = response.result.range
+            local line1, col1, line2, col2
+            if range then
+              line1, col1, line2, col2 = util.toselection(range, doc)
+            else
+              line1, col1, line2, col2 = get_token_range(doc, line, col)
+            end
+            lsp.hover_position.utf8_range = { line1 = line1, col1 = col1,
+                                              line2 = line2, col2 = col2 }
+
             local content = response.result.contents
             local kind = nil
             local text = ""
@@ -2251,53 +2307,24 @@ function RootView:on_mouse_moved(x, y, dx, dy)
 
   if not config.plugins.lsp.mouse_hover then return end
 
-  local av = get_active_docview()
-
-  if av and av.doc.lsp_open then
-    ---@type core.doc
-    local doc = av.doc
-    local line, col = av:resolve_screen_position(x, y)
-    local line1, col1 = translate.start_of_word(doc, line, col)
-    local line2, col2 = translate.end_of_word(doc, line1, col1)
-    local text = doc:get_text(line1, col1, line2, col2):gsub("%s*", "")
-    local lx1 = av:get_line_screen_position(line1, col1)
-    local lx2 = av:get_line_screen_position(line1, col2)
-    if
-      col >= col1 and col <= col2
-      and
-      text ~= ""
-      and
-      x >= lx1 and x <= lx2
-    then
-      if
-        lsp.hover_position.doc ~= doc
-        or
-        lsp.hover_position.line ~= line1
-        or
-        lsp.hover_position.col ~= col1
-      then
-        listbox.hide()
-
-        lsp.hover_position.triggered = true
-        lsp.hover_position.doc = doc
-        lsp.hover_position.line = line1
-        lsp.hover_position.col = col1
-
-        doc.lsp_hover_timer:set_interval(config.plugins.lsp.mouse_hover_delay)
-        doc.lsp_hover_timer:reset()
-
-        if not doc.lsp_hover_timer:running() then
-          doc.lsp_hover_timer:start()
-        end
+  lsp.hover_position.x = x
+  lsp.hover_position.y = y
+  if lsp.hover_position.triggered then
+    local doc, line, col = lsp.get_hovered_location(x, y)
+    if doc == lsp.hover_position.doc and lsp.hover_position.utf8_range then
+      local utf8_range = lsp.hover_position.utf8_range
+      local line1, col1, line2, col2 = utf8_range.line1, utf8_range.col1,
+                                       utf8_range.line2, utf8_range.col2
+      if (line > line1 or (line == line1 and col >= col1)) and
+         (line < line2 or (line == line2 and col <= col2)) then
+        return
       end
-    else
-      if lsp.hover_position.triggered then
-        listbox.hide()
-        lsp.hover_position.triggered = false
-      end
-      doc.lsp_hover_timer:stop()
     end
+    listbox.hide()
+    lsp.hover_position.triggered = false
   end
+  lsp.hover_timer:set_interval(config.plugins.lsp.mouse_hover_delay)
+  lsp.hover_timer:restart()
 end
 
 --
