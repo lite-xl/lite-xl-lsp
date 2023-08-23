@@ -53,6 +53,8 @@ local Object = require "core.object"
 ---@field public hitrate_list table
 ---@field public requests_per_second integer
 ---@field public proc process | nil
+---@field public quit_timeout number
+---@field public exit_timer lsp.timer | nil
 ---@field public capabilities table
 ---@field public yield_on_reads boolean
 ---@field public running boolean
@@ -64,6 +66,7 @@ local Server = Object:extend()
 ---@field language string
 ---@field file_patterns table<integer, string>
 ---@field command table<integer, string>
+---@field quit_timeout number
 ---@field windows_skip_cmd boolean
 ---@field settings table
 ---@field init_options table
@@ -81,6 +84,8 @@ Server.options = {
   command = {},
   ---On Windows, avoid running the LSP server with cmd.exe
   windows_skip_cmd = false,
+  ---Seconds before closing the server when not needed anymore
+  quit_timeout = 60,
   ---Optional table of settings to pass into the lsp
   ---Note that also having a settings.json or settings.lua in
   ---your workspace directory is supported
@@ -271,6 +276,8 @@ function Server:new(options)
       stderr = process.REDIRECT_PIPE
     }
   )
+  self.quit_timeout = options.quit_timeout or 60
+  self.exit_timer = nil
   self.capabilities = nil
   self.yield_on_reads = false
   self.incremental_changes = options.incremental_changes or false
@@ -1500,7 +1507,7 @@ end
 ---Kills the server process and deinitialize the server object state.
 function Server:stop()
   self.initialized = false
-  self.proc:kill()
+  self.proc = nil
 
   self.request_list = {}
   self.response_list = {}
@@ -1545,9 +1552,6 @@ function Server:exit()
 
   -- send exit notification
   self:notify('exit')
-
-  -- wait 1 second until it exits
-  self.proc:wait(1000)
 
   self:stop()
 end

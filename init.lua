@@ -1025,6 +1025,10 @@ function lsp.open_document(doc)
           )
         )
       then
+        if server.exit_timer then
+          server.exit_timer:stop()
+          server.exit_timer = nil
+        end
         if file_info.size / 1024 <= 50 then
           -- file size is in range so push the notification as usual.
           server:push_notification('textDocument/didOpen', {
@@ -2172,10 +2176,15 @@ function Doc:on_close()
       end
     end
 
-    if not doc_found then
-      server:exit()
-      core.log("[LSP] stopped %s", name)
-      lsp.servers_running = util.table_remove_key(lsp.servers_running, name)
+    if not doc_found and not server.exit_timer then
+      local t = Timer(server.quit_timeout * 1000, true)
+      t.on_timer = function()
+        server:exit()
+        core.log("[LSP] stopped %s", name)
+        lsp.servers_running = util.table_remove_key(lsp.servers_running, name)
+      end
+      t:start()
+      server.exit_timer = t
     end
   end
 end
