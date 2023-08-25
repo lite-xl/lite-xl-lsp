@@ -2617,6 +2617,15 @@ if menu_found then
     { text = "Toggle Diagnostics",     command = "lsp:toggle-diagnostics" },
     { text = "Format Document",        command = "lsp:format-document" },
   })
+
+  local menu_show = menu.show
+  function menu:show(...)
+    lsp.hover_timer:stop()
+    lsp.hover_timer:reset()
+    listbox.hide()
+    lsp.hover_position.triggered = false
+    menu_show(self, ...)
+  end
 end
 
 
