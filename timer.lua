@@ -17,6 +17,7 @@ function Timer:new(interval, single_shot)
 
   self.single_shot = single_shot or false
   self.started = false
+  self.cancel_thread_marker = { cancel = true }
   self.last_run = 0
 
   self:set_interval(interval or 1000)
@@ -27,22 +28,26 @@ function Timer:start()
   if self.started then return end
 
   self.started = true
+  self.cancel_thread_marker = { cancel = false }
   local this = self
 
+  -- Save marker so that we keep this one and not an "updated" one
+  local marker = self.cancel_thread_marker
   core.add_thread(function()
     while true do
+      if marker.cancel == true then return end
       this:reset()
       local now = system.get_time()
       local remaining = (this.last_run + this.interval) - now
       if remaining > 0 then
         repeat
-          if not this.started then return end
+          if not this.started or marker.cancel then return end
           coroutine.yield(remaining)
           now = system.get_time()
           remaining = (this.last_run + this.interval) - now
         until remaining <= 0
       end
-      if not this.started then return end
+      if not this.started or marker.cancel then return end
       this:on_timer()
       if this.single_shot then break end
     end
@@ -77,7 +82,16 @@ end
 ---Appropriately set the timer interval by converting milliseconds to seconds.
 ---@param interval integer The interval in milliseconds
 function Timer:set_interval(interval)
-  self.interval = interval / 1000
+  local new_interval = interval / 1000
+  -- As this new interval might be shorter than the currently running one, and
+  -- because we might already be sleeping waiting for the old interval, we
+  -- mark the already running coroutine as cancelled, and create a new one.
+  if self.started and self.interval > new_interval then
+    self.cancel_thread_marker.cancel = true
+    self:stop()
+    self:start()
+  end
+  self.interval = new_interval
 end
 
 ---To be overwritten by the instantiated timer objects
