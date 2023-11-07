@@ -291,7 +291,6 @@ end
 function Server:initialize(workspace, editor_name, editor_version)
   local root_uri = util.touri(workspace);
 
-  self.running = false
   self.path = workspace or ""
   self.editor_name = editor_name or "unknown"
   self.editor_version = editor_version or "0.1"
@@ -639,6 +638,8 @@ end
 
 ---Sends one of the queued client requests.
 function Server:process_requests()
+  if not self.proc then return end
+
   local remove_request = nil
   for index, request in ipairs(self.request_list) do
     if request.timestamp < os.time() then
@@ -718,6 +719,8 @@ end
 ---Read the lsp server stdout, parse any responses, requests or
 ---notifications and properly dispatch signals to any listeners.
 function Server:process_responses()
+  if not self.proc then return end
+
   local responses = self:read_responses(0)
 
   if type(responses) == "table" then
@@ -799,6 +802,8 @@ end
 ---because of not flushing the stderr (especially true of clangd).
 ---@param log_errors boolean
 function Server:process_errors(log_errors)
+  if not self.proc then return end
+
   local errors = self:read_errors(0)
 
   if #errors > 0 and log_errors then
@@ -815,12 +820,15 @@ end
 ---@return boolean sent
 ---@return string? errmsg
 function Server:send_data(data)
+  local proc = self.proc -- save current process to avoid it changing
+  if not proc then return false end
+
   local failures, data_len = 0, #data
-  local written, errmsg = self.proc:write(data)
+  local written, errmsg = proc:write(data)
   local total_written = written or 0
 
   while total_written < data_len and not errmsg do
-    written, errmsg = self.proc:write(data:sub(total_written + 1))
+    written, errmsg = proc:write(data:sub(total_written + 1))
     total_written = total_written + (written or 0)
 
     if (not written or written <= 0) and not errmsg and coroutine.running() then
@@ -860,7 +868,7 @@ function Server:process_raw()
     return
   end
 
-  if not self.proc:running() then
+  if not self.proc or not self.proc:running() then
     self.raw_list = {}
     return
   end
@@ -888,6 +896,11 @@ function Server:process_raw()
     raw.raw_data = raw.raw_data .. "\r\n"
 
     while #raw.raw_data > 0 do
+      if not self.proc or not self.proc:running() then
+        self.raw_list = {}
+        return
+      end
+
       if #raw.raw_data > chunks then
         -- TODO: perform proper error handling
         self:send_data(raw.raw_data:sub(1, chunks))
@@ -1159,7 +1172,8 @@ end
 ---@param timeout integer Time in seconds, set to 0 to not wait
 ---@return table[]|boolean Responses list or false if failed
 function Server:read_responses(timeout)
-  if not self.proc:running() then
+  local proc = self.proc -- save current process to avoid it changing
+  if not proc or not proc:running() then
     return false
   end
 
@@ -1170,7 +1184,7 @@ function Server:read_responses(timeout)
   if timeout == 0 then max_time = max_time + 1 end
   local output = ""
   while max_time > os.time() and output == "" do
-    output = self.proc:read_stdout(Server.BUFFER_SIZE)
+    output = proc:read_stdout(Server.BUFFER_SIZE)
     if timeout == 0 then break end
     if output == "" and inside_coroutine then
       coroutine.yield()
@@ -1189,7 +1203,7 @@ function Server:read_responses(timeout)
     -- Make sure we retrieve everything
     local more_output = nil
     while more_output ~= "" do
-      more_output = self.proc:read_stdout(Server.BUFFER_SIZE)
+      more_output = proc:read_stdout(Server.BUFFER_SIZE)
       if more_output ~= "" then
         if more_output == nil then
           break
@@ -1212,7 +1226,7 @@ function Server:read_responses(timeout)
         -- retrieve rest of output
         local new_output = nil
         while new_output ~= "" do
-          new_output = self.proc:read_stdout(Server.BUFFER_SIZE)
+          new_output = proc:read_stdout(Server.BUFFER_SIZE)
           if new_output ~= "" then
             if new_output == nil then
               break
@@ -1259,7 +1273,7 @@ function Server:read_responses(timeout)
 
         -- read again to retrieve full response content
         while #output < bytes do
-          local chars = self.proc:read_stdout(bytes - #output)
+          local chars = proc:read_stdout(bytes - #output)
           if #chars > 0 then
             output = output .. chars
           end
@@ -1320,6 +1334,9 @@ end
 ---@param timeout integer Time in seconds, set to 0 to not wait
 ---@return string|nil
 function Server:read_errors(timeout)
+  local proc = self.proc -- save current process to avoid it changing
+  if not proc then return "" end
+
   timeout = timeout or Server.DEFAULT_TIMEOUT
   local inside_coroutine = self.yield_on_reads and coroutine.running() or false
 
@@ -1327,7 +1344,7 @@ function Server:read_errors(timeout)
   if timeout == 0 then max_time = max_time + 1 end
   local output = ""
   while max_time > os.time() and output == "" do
-    output = self.proc:read_stderr(Server.BUFFER_SIZE)
+    output = proc:read_stderr(Server.BUFFER_SIZE)
     if timeout == 0 then break end
     if output == "" and inside_coroutine then
       coroutine.yield()
@@ -1337,7 +1354,7 @@ function Server:read_errors(timeout)
   if timeout == 0 and output ~= "" then
     local new_output = nil
     while new_output ~= "" do
-      new_output = self.proc:read_stderr(Server.BUFFER_SIZE)
+      new_output = proc:read_stderr(Server.BUFFER_SIZE)
       if new_output ~= "" then
         if new_output == nil then
           break
@@ -1358,7 +1375,7 @@ end
 ---@return boolean written
 ---@return string? errmsg
 function Server:write_request(data)
-  if not self.proc:running() then
+  if not self.proc or not self.proc:running() then
     return false
   end
 
@@ -1513,7 +1530,6 @@ function Server:stop()
   self.response_list = {}
   self.notification_list = {}
   self.raw_list = {}
-  self.running = false
 end
 
 ---Shutdown the server if not running or amount of write fails
@@ -1522,7 +1538,7 @@ function Server:shutdown_if_needed()
   if
     self.write_fails >= self.write_fails_before_shutdown
     or
-    not self.proc:running()
+    (self.proc and not self.proc:running())
   then
     self:stop()
     self:on_shutdown()
