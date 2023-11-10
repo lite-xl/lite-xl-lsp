@@ -1072,7 +1072,7 @@ function lsp.open_document(doc)
                 uri = util.touri(doc_path),
                 languageId = lsp.get_language_id(server, doc),
                 version = doc.clean_change_id,
-                text = doc:get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+                text = table.concat(doc.lines)
               }
             },
             callback = function() doc.lsp_open = true end
@@ -1081,8 +1081,7 @@ function lsp.open_document(doc)
           -- big files too slow for json encoder, also sending a huge file
           -- without yielding would stall the ui, and some lsp servers have
           -- issues with receiving big files in a single chunk.
-          local text = doc
-            :get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+          local text = table.concat(doc.lines)
             :gsub('\\', '\\\\'):gsub("\n", "\\n"):gsub("\r", "\\r")
             :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
             :gsub('\f', '\\f')
@@ -1139,8 +1138,7 @@ function lsp.save_document(doc)
         then
           -- If save should include file content then raw is faster for
           -- huge files that would take too much to encode.
-          local text = doc
-            :get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+          local text = table.concat(doc.lines)
             :gsub('\\', '\\\\'):gsub("\n", "\\n"):gsub("\r", "\\r")
             :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
             :gsub('\f', '\\f')
@@ -1274,8 +1272,7 @@ function lsp.update_document(doc, request_completion)
       then
         -- If sync should be done by sending full file content then lets do
         -- it raw which is faster for big files.
-        local text = doc
-          :get_text(1, 1, #doc.lines, #doc.lines[#doc.lines])
+        local text = table.concat(doc.lines)
           :gsub('\\', '\\\\'):gsub("\n", "\\n"):gsub("\r", "\\r")
           :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
           :gsub('\f', '\\f')
