@@ -278,6 +278,18 @@ lspconfig.gopls = add_lsp {
   verbose = false
 }
 
+---# XML
+--- __Status__: Works
+--- __Site__: https://github.com/eclipse/lemminx
+--- __Installation__: 'paru -S lemminx'
+lspconfig.lemminx = add_lsp {
+  name = "lemminx",
+  language = "xml",
+  file_patterns = { "%.xml$" },
+  command = { "lemminx" },
+  verbose = false
+}
+
 ---# groovy-language-server
 --- __Status__: Untested
 --- __Site__: https://github.com/prominic/groovy-language-server
