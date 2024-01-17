@@ -497,6 +497,23 @@ lspconfig.pylsp = add_lsp {
   verbose = false
 }
 
+---# PerlNavigator - Perl
+--- __Status__: Untested
+--- __Site__: https://github.com/bscan/PerlNavigator
+--- __Installation__: `paru -S perlnavigator`
+lsp.add_server {
+  name = "perlnavigator",
+  language = "Perl",
+  file_patterns = { "%.pl$", "%.pm$" },
+  command = { "perlnavigator" },
+  settings = {
+    perlnavigator = {
+      -- The following setting is only needed if you want to set a custom perl path. It already defaults to "perl"
+      perlPath = "perl"
+    }
+  }
+}
+
 ---# Ruby LSP
 --- __Status__: Untested
 --- __Site__: https://github.com/Shopify/ruby-lsp
