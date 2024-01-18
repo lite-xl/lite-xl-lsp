@@ -343,6 +343,19 @@ lspconfig.html = add_lsp {
   verbose = false
 }
 
+---# Tailwind CSS
+--- __Status__: Broken (freezes when writing class names inside html doc, requires new implementation of json.lua)
+--- __Site__: https://github.com/tailwindlabs/tailwindcss-intellisense
+--- __Installation__: Arch Linux: `sudo pacman -S tailwindcss-language-server`
+lsp.add_server {
+  name = "tailwindcss",
+  language = "html",
+  file_patterns = { "%.html$"},
+  command = {'tailwindcss-language-server', '--stdio'},
+  fake_snippets = true,
+  verbose = false
+}
+
 ---# intelephense
 --- __Status__: Works
 --- __Site__: https://github.com/bmewburn/intelephense-docs
