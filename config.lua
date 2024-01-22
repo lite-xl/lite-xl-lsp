@@ -511,10 +511,10 @@ lspconfig.pylsp = add_lsp {
 }
 
 ---# PerlNavigator - Perl
---- __Status__: Untested
+--- __Status__: Works
 --- __Site__: https://github.com/bscan/PerlNavigator
 --- __Installation__: `paru -S perlnavigator`
-lsp.add_server {
+lspconfig.perlnavigator = add_lsp {
   name = "perlnavigator",
   language = "Perl",
   file_patterns = { "%.pl$", "%.pm$" },
