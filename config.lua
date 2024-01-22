@@ -347,7 +347,7 @@ lspconfig.html = add_lsp {
 --- __Status__: Broken (freezes when writing class names inside html doc, requires new implementation of json.lua)
 --- __Site__: https://github.com/tailwindlabs/tailwindcss-intellisense
 --- __Installation__: Arch Linux: `sudo pacman -S tailwindcss-language-server`
-lsp.add_server {
+lspconfig.tailwindcss = add_lsp {
   name = "tailwindcss",
   language = "html",
   file_patterns = { "%.html$"},
