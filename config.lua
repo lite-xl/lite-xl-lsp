@@ -431,6 +431,18 @@ lspconfig.nimlsp = add_lsp {
   verbose = false
 }
 
+---# R
+-- __Status__: Works
+-- __Site__:https://github.com/REditorSupport/languageserver#installation
+-- __Installation__: `paru -S r-languageserver`
+lspconfig.rlanguageserver = add_lsp {
+  name = "rlanguageserver",
+  language = "r",
+  file_patterns = { "%.r$", "%.R$" },
+  command = {'R', '--slave', '-e', 'languageserver::run()'},
+  verbose = false
+}
+
 ---# ocaml-lsp
 --- __Status__: Reported working on https://github.com/jgmdev/lite-xl-lsp/issues/17
 --- __Site__: https://github.com/ocaml/ocaml-lsp
