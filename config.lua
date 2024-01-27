@@ -343,6 +343,19 @@ lspconfig.html = add_lsp {
   verbose = false
 }
 
+---# Tailwind CSS
+--- __Status__: Broken (freezes when writing class names inside html doc, requires new implementation of json.lua)
+--- __Site__: https://github.com/tailwindlabs/tailwindcss-intellisense
+--- __Installation__: Arch Linux: `sudo pacman -S tailwindcss-language-server`
+lspconfig.tailwindcss = add_lsp {
+  name = "tailwindcss",
+  language = "html",
+  file_patterns = { "%.html$"},
+  command = {'tailwindcss-language-server', '--stdio'},
+  fake_snippets = true,
+  verbose = false
+}
+
 ---# intelephense
 --- __Status__: Works
 --- __Site__: https://github.com/bmewburn/intelephense-docs
@@ -495,6 +508,23 @@ lspconfig.pylsp = add_lsp {
   file_patterns = { "%.py$" },
   command = { 'pylsp' },
   verbose = false
+}
+
+---# PerlNavigator - Perl
+--- __Status__: Works
+--- __Site__: https://github.com/bscan/PerlNavigator
+--- __Installation__: `paru -S perlnavigator`
+lspconfig.perlnavigator = add_lsp {
+  name = "perlnavigator",
+  language = "Perl",
+  file_patterns = { "%.pl$", "%.pm$" },
+  command = { "perlnavigator" },
+  settings = {
+    perlnavigator = {
+      -- The following setting is only needed if you want to set a custom perl path. It already defaults to "perl"
+      perlPath = "perl"
+    }
+  }
 }
 
 ---# Ruby LSP
