@@ -183,6 +183,19 @@ lspconfig.dartls = add_lsp {
   verbose = false
 }
 
+---# Crystal
+--- __Status__: Untested
+--- __Site__: https://github.com/elbywan/crystalline
+--- __Installation__: 'paru -S crystalline-bin'
+lspconfig.crystalline = add_lsp {
+  name = "crystalline",
+  language = "crystal",
+  file_patterns = { "%.cr$" },
+  command = { "crystalline", "--stdio" },
+  verbose = false
+}
+
+
 ---# Dockerfile
 --- __Status__: Untested
 --- __Site__: https://github.com/rcjsuen/dockerfile-language-server-nodejs
