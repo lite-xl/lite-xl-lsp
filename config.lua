@@ -336,6 +336,30 @@ lspconfig.hls = add_lsp {
   verbose = false
 }
 
+---# Erlang
+--- __Status__: Untested
+--- __Site__: https://github.com/erlang-ls/erlang_ls
+--- __Installation__: ?
+lspconfig.erlangls = add_lsp {
+  name = "erlangls",
+  language = "erlang",
+  file_patterns = { "%.erl$", "%.hrl$" },
+  command = { 'Erlang', 'LS', '-t', 'stdio' },
+  verbose = false
+}
+
+---# Elixir
+--- __Status__: Works
+--- __Site__: https://github.com/elixir-lsp/elixir-ls
+--- __Installation__: 'paru -S elixir-ls'
+lspconfig.elixirls = add_lsp {
+  name = "elixirls",
+  language = "elixir",
+  file_patterns = { "%.ex$", "%.exs$" },
+  command = { "elixir-ls" },
+  verbose = false
+}
+
 ---# vscode-html-languageserver
 --- __Status__: Works
 --- __Site__: https://github.com/vscode-langservers/vscode-html-languageserver-bin
