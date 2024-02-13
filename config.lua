@@ -485,7 +485,7 @@ lspconfig.omnisharp = add_lsp {
 --- __Status__: Works
 --- __Site__: https://github.com/DanielGavin/ols
 --- __Installation__: `paru -S odinls`
-lsp.add_server {
+lspconfig.odinls = add_lsp {
   name = "odinls",
   language = "odin",
   file_patterns = { "%.odin$" },
