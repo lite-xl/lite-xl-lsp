@@ -481,6 +481,18 @@ lspconfig.omnisharp = add_lsp {
   verbose = false
 }
 
+---# Odin
+--- __Status__: Works
+--- __Site__: https://github.com/DanielGavin/ols
+--- __Installation__: `paru -S odinls`
+lspconfig.odinls = add_lsp {
+  name = "odinls",
+  language = "odin",
+  file_patterns = { "%.odin$" },
+  command = { "ols" },
+  verbose = false
+}
+
 --# pyright
 --- __Status__: Works
 --- __Site__: https://github.com/microsoft/pyright
