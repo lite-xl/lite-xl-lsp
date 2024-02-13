@@ -755,7 +755,6 @@ lspconfig.typst_lsp = add_lsp {
   verbose = false,
   settings = {
     exportPdf = "never", -- Choose onType, onSave or never.
-    semanticTokens = "enable", -- Choose enable, or disable
     experimentalFormatterMode = "on" -- Choose on, or off
   }
 }
