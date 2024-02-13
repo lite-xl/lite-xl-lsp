@@ -279,6 +279,18 @@ lspconfig.flow = add_lsp {
   verbose = false
 }
 
+---# Elm
+--- __Status__: Untested
+--- __Site__: https://github.com/elm-tooling/elm-language-server
+--- __Installation__: `paru -S elm-language-server`
+lspconfig.elmls = add_lsp {
+  name = "elmls",
+  language = "elm",
+  file_patterns = { "%.elm$" },
+  command = { "elm-language-server" },
+  verbose = false
+}
+
 ---# gopls
 --- __Status__: Works
 --- __Site__: https://pkg.go.dev/golang.org/x/tools/gopls
