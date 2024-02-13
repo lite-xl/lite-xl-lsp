@@ -743,6 +743,22 @@ lspconfig.tsserver = add_lsp {
   verbose = false
 }
 
+---# typst-lsp 
+--- __Status: Works
+--- __Site__: https://github.com/nvarner/typst-lsp
+--- __Instalation__: `yay typst-lsp-bin`
+lspconfig.typst_lsp = add_lsp {
+  name = "typst-lsp",
+  language = "typst",
+  file_patterns = { "%.typ$" },
+  command = { 'typst-lsp' },
+  verbose = false,
+  settings = {
+    exportPdf = "never", -- Choose onType, onSave or never.
+    experimentalFormatterMode = "on" -- Choose on, or off
+  }
+}
+
 ---# vim-language-server
 --- __Status__: Untested
 --- __Site__: https://github.com/iamcco/vim-language-server
