@@ -738,7 +738,7 @@ lspconfig.texlab = add_lsp {
 lspconfig.tsserver = add_lsp {
   name = "typescript-language-server",
   language = "javascript",
-  file_patterns = { "%.js?$", "%.jsx?$", "%.cjs$", "%.mjs$", "%.tsx?$" },
+  file_patterns = { "%.jsx?$", "%.cjs$", "%.mjs$", "%.tsx?$" },
   command = { 'typescript-language-server', '--stdio' },
   verbose = false
 }
