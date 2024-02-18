@@ -732,7 +732,7 @@ lspconfig.texlab = add_lsp {
 }
 
 ---# typescript-language-server
---- __Status__: Untested
+--- __Status__: Works
 --- __Site__: https://github.com/typescript-language-server/typescript-language-server
 --- __Installation__: `npm install -g typescript-language-server typescript`
 lspconfig.tsserver = add_lsp {
