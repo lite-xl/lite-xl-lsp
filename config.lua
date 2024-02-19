@@ -560,6 +560,19 @@ lspconfig.pyright = add_lsp {
   verbose = false
 }
 
+---# quick-lint-js
+--- __Status__: Works
+--- __Site__: https://github.com/quick-lint/quick-lint-js
+--- __Installation__: Arch Linux: `yay -Syu quick-lint-js`
+lspconfig.quicklintjs = add_lsp {
+  name = "quick-lint-js",
+  language = "javascript",
+  file_patterns = { "%.[mc]?js$" },
+  id_not_extension = true,
+  command = { "quick-lint-js", "--lsp-server" },
+  verbose = false
+}
+
 ---# R
 -- __Status__: Works
 -- __Site__:https://github.com/REditorSupport/languageserver#installation
