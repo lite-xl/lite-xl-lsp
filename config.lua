@@ -150,6 +150,18 @@ lspconfig.clojure_lsp = add_lsp {
   verbose = false
 }
 
+---# Crystal
+--- __Status__: Untested
+--- __Site__: https://github.com/elbywan/crystalline
+--- __Installation__: 'paru -S crystalline-bin'
+lspconfig.crystalline = add_lsp {
+  name = "crystalline",
+  language = "crystal",
+  file_patterns = { "%.cr$" },
+  command = { "crystalline", "--stdio" },
+  verbose = false
+}
+
 ---# vscode-css-languageserver
 --- __Status__: Works
 --- __Site__: https://github.com/vscode-langservers/vscode-css-languageserver-bin
@@ -180,31 +192,6 @@ lspconfig.dartls = add_lsp {
   language = "dart",
   file_patterns = { "%.dart$" },
   command = { "dart", "language-server", "--protocol=lsp" },
-  verbose = false
-}
-
----# Crystal
---- __Status__: Untested
---- __Site__: https://github.com/elbywan/crystalline
---- __Installation__: 'paru -S crystalline-bin'
-lspconfig.crystalline = add_lsp {
-  name = "crystalline",
-  language = "crystal",
-  file_patterns = { "%.cr$" },
-  command = { "crystalline", "--stdio" },
-  verbose = false
-}
-
-
----# Dockerfile
---- __Status__: Untested
---- __Site__: https://github.com/rcjsuen/dockerfile-language-server-nodejs
---- __Installation__: `npm install -g dockerfile-language-server-nodejs`
-lspconfig.dockerls = add_lsp {
-  name = "docker-langserver",
-  language = "dockerfile",
-  file_patterns = { "Dockerfile$" },
-  command = { "docker-langserver", "--stdio" },
   verbose = false
 }
 
@@ -250,6 +237,54 @@ lspconfig.deno = add_lsp {
   }
 }
 
+---# Dockerfile
+--- __Status__: Untested
+--- __Site__: https://github.com/rcjsuen/dockerfile-language-server-nodejs
+--- __Installation__: `npm install -g dockerfile-language-server-nodejs`
+lspconfig.dockerls = add_lsp {
+  name = "docker-langserver",
+  language = "dockerfile",
+  file_patterns = { "Dockerfile$" },
+  command = { "docker-langserver", "--stdio" },
+  verbose = false
+}
+
+---# Elixir
+--- __Status__: Works
+--- __Site__: https://github.com/elixir-lsp/elixir-ls
+--- __Installation__: 'paru -S elixir-ls'
+lspconfig.elixirls = add_lsp {
+  name = "elixirls",
+  language = "elixir",
+  file_patterns = { "%.ex$", "%.exs$" },
+  command = { "elixir-ls" },
+  verbose = false
+}
+
+---# Elm
+--- __Status__: Untested
+--- __Site__: https://github.com/elm-tooling/elm-language-server
+--- __Installation__: `paru -S elm-language-server`
+lspconfig.elmls = add_lsp {
+  name = "elmls",
+  language = "elm",
+  file_patterns = { "%.elm$" },
+  command = { "elm-language-server" },
+  verbose = false
+}
+
+---# Erlang
+--- __Status__: Untested
+--- __Site__: https://github.com/erlang-ls/erlang_ls
+--- __Installation__: ?
+lspconfig.erlangls = add_lsp {
+  name = "erlangls",
+  language = "erlang",
+  file_patterns = { "%.erl$", "%.hrl$" },
+  command = { 'Erlang', 'LS', '-t', 'stdio' },
+  verbose = false
+}
+
 ---# fennel-ls
 --- __Status__: Untested
 --- __Site__: https://git.sr.ht/~xerool/fennel-ls
@@ -279,18 +314,6 @@ lspconfig.flow = add_lsp {
   verbose = false
 }
 
----# Elm
---- __Status__: Untested
---- __Site__: https://github.com/elm-tooling/elm-language-server
---- __Installation__: `paru -S elm-language-server`
-lspconfig.elmls = add_lsp {
-  name = "elmls",
-  language = "elm",
-  file_patterns = { "%.elm$" },
-  command = { "elm-language-server" },
-  verbose = false
-}
-
 ---# gopls
 --- __Status__: Works
 --- __Site__: https://pkg.go.dev/golang.org/x/tools/gopls
@@ -300,18 +323,6 @@ lspconfig.gopls = add_lsp {
   language = "go",
   file_patterns = { "%.go$" },
   command = { "gopls" },
-  verbose = false
-}
-
----# XML
---- __Status__: Works
---- __Site__: https://github.com/eclipse/lemminx
---- __Installation__: 'paru -S lemminx'
-lspconfig.lemminx = add_lsp {
-  name = "lemminx",
-  language = "xml",
-  file_patterns = { "%.xml$" },
-  command = { "lemminx" },
   verbose = false
 }
 
@@ -348,30 +359,6 @@ lspconfig.hls = add_lsp {
   verbose = false
 }
 
----# Erlang
---- __Status__: Untested
---- __Site__: https://github.com/erlang-ls/erlang_ls
---- __Installation__: ?
-lspconfig.erlangls = add_lsp {
-  name = "erlangls",
-  language = "erlang",
-  file_patterns = { "%.erl$", "%.hrl$" },
-  command = { 'Erlang', 'LS', '-t', 'stdio' },
-  verbose = false
-}
-
----# Elixir
---- __Status__: Works
---- __Site__: https://github.com/elixir-lsp/elixir-ls
---- __Installation__: 'paru -S elixir-ls'
-lspconfig.elixirls = add_lsp {
-  name = "elixirls",
-  language = "elixir",
-  file_patterns = { "%.ex$", "%.exs$" },
-  command = { "elixir-ls" },
-  verbose = false
-}
-
 ---# vscode-html-languageserver
 --- __Status__: Works
 --- __Site__: https://github.com/vscode-langservers/vscode-html-languageserver-bin
@@ -389,19 +376,6 @@ lspconfig.html = add_lsp {
     },
     '--stdio'
   },
-  verbose = false
-}
-
----# Tailwind CSS
---- __Status__: Broken (freezes when writing class names inside html doc, requires new implementation of json.lua)
---- __Site__: https://github.com/tailwindlabs/tailwindcss-intellisense
---- __Installation__: Arch Linux: `sudo pacman -S tailwindcss-language-server`
-lspconfig.tailwindcss = add_lsp {
-  name = "tailwindcss",
-  language = "html",
-  file_patterns = { "%.html$"},
-  command = {'tailwindcss-language-server', '--stdio'},
-  fake_snippets = true,
   verbose = false
 }
 
@@ -453,6 +427,18 @@ lspconfig.kotlin_language_server = add_lsp {
   verbose = false
 }
 
+---# XML
+--- __Status__: Works
+--- __Site__: https://github.com/eclipse/lemminx
+--- __Installation__: 'paru -S lemminx'
+lspconfig.lemminx = add_lsp {
+  name = "lemminx",
+  language = "xml",
+  file_patterns = { "%.xml$" },
+  command = { "lemminx" },
+  verbose = false
+}
+
 ---# nil
 --- __Status__:       Works
 --- __Site__:         https://github.com/oxalica/nil
@@ -480,18 +466,6 @@ lspconfig.nimlsp = add_lsp {
   verbose = false
 }
 
----# R
--- __Status__: Works
--- __Site__:https://github.com/REditorSupport/languageserver#installation
--- __Installation__: `paru -S r-languageserver`
-lspconfig.rlanguageserver = add_lsp {
-  name = "rlanguageserver",
-  language = "r",
-  file_patterns = { "%.r$", "%.R$" },
-  command = {'R', '--slave', '-e', 'languageserver::run()'},
-  verbose = false
-}
-
 ---# ocaml-lsp
 --- __Status__: Reported working on https://github.com/jgmdev/lite-xl-lsp/issues/17
 --- __Site__: https://github.com/ocaml/ocaml-lsp
@@ -502,18 +476,6 @@ lspconfig.ocaml_lsp = add_lsp {
   file_patterns = { "%.ml$", "%.mli$" },
   command = { "ocamllsp" },
   id_not_extension = true,
-  verbose = false
-}
-
----# omnisharp
---- __Status__: Works but, freeze on large projects (https://github.com/ppy/osu.git)
---- __Site__: https://github.com/OmniSharp/omnisharp-roslyn
---- __Installation__: See official website for instructions
-lspconfig.omnisharp = add_lsp {
-  name = "omnisharp",
-  language = "c#",
-  file_patterns = { "%.cs$" },
-  command = { "omnisharp", "-lsp" },
   verbose = false
 }
 
@@ -529,57 +491,15 @@ lspconfig.odinls = add_lsp {
   verbose = false
 }
 
---# pyright
---- __Status__: Works
---- __Site__: https://github.com/microsoft/pyright
---- __Installation__: `pip install pyright`  or `npm install -g pyright`
-lspconfig.pyright = add_lsp {
-  name = "pyright",
-  language = "python",
-  file_patterns = { "%.py$" },
-  command = { "pyright-langserver",  "--stdio" },
-  verbose = false
-}
-
----# python-language-server
---- __Status__: Works (deprecated in favor of python-lsp-server)
---- __Site__: https://github.com/palantir/python-language-server
---- __Installation__: `pip install python-language-server`
---- __Note__: Also don't forget to install any additional optional dependencies
---- for additional features (see official site for details).
-lspconfig.pyls = add_lsp {
-  name = "pyls",
-  language = "python",
-  file_patterns = { "%.py$" },
-  command = { 'pyls' },
-  verbose = false
-}
-
----# svelte-language-server
---- __Status__: Works
---- __Site__: https://github.com/sveltejs/language-tools/tree/master/packages/language-server
---- __Installation__: `npm install -g svelte-language-server`
---- __Note__: Also don't forget to install any additional optional dependencies
---- for additional features (see official site for details).
-lspconfig.sveltels = add_lsp {
-  name = "sveltels",
-  language = "svelte",
-  file_patterns = { "%.svelte$" },
-  command = { 'svelteserver', '--stdio' },
-  verbose = false
-}
-
----# python-lsp-server
---- __Status__: Works
---- __Site__: https://github.com/python-lsp/python-lsp-server
---- __Installation__: `pip install python-lsp-server`
---- __Note__: Also don't forget to install any additional optional dependencies
---- for additional features (see official site for details).
-lspconfig.pylsp = add_lsp {
-  name = "pylsp",
-  language = "python",
-  file_patterns = { "%.py$" },
-  command = { 'pylsp' },
+---# omnisharp
+--- __Status__: Works but, freeze on large projects (https://github.com/ppy/osu.git)
+--- __Site__: https://github.com/OmniSharp/omnisharp-roslyn
+--- __Installation__: See official website for instructions
+lspconfig.omnisharp = add_lsp {
+  name = "omnisharp",
+  language = "c#",
+  file_patterns = { "%.cs$" },
+  command = { "omnisharp", "-lsp" },
   verbose = false
 }
 
@@ -598,6 +518,70 @@ lspconfig.perlnavigator = add_lsp {
       perlPath = "perl"
     }
   }
+}
+
+---# python-language-server
+--- __Status__: Works (deprecated in favor of python-lsp-server)
+--- __Site__: https://github.com/palantir/python-language-server
+--- __Installation__: `pip install python-language-server`
+--- __Note__: Also don't forget to install any additional optional dependencies
+--- for additional features (see official site for details).
+lspconfig.pyls = add_lsp {
+  name = "pyls",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { 'pyls' },
+  verbose = false
+}
+
+---# python-lsp-server
+--- __Status__: Works
+--- __Site__: https://github.com/python-lsp/python-lsp-server
+--- __Installation__: `pip install python-lsp-server`
+--- __Note__: Also don't forget to install any additional optional dependencies
+--- for additional features (see official site for details).
+lspconfig.pylsp = add_lsp {
+  name = "pylsp",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { 'pylsp' },
+  verbose = false
+}
+
+--# pyright
+--- __Status__: Works
+--- __Site__: https://github.com/microsoft/pyright
+--- __Installation__: `pip install pyright`  or `npm install -g pyright`
+lspconfig.pyright = add_lsp {
+  name = "pyright",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { "pyright-langserver",  "--stdio" },
+  verbose = false
+}
+
+---# R
+-- __Status__: Works
+-- __Site__:https://github.com/REditorSupport/languageserver#installation
+-- __Installation__: `paru -S r-languageserver`
+lspconfig.rlanguageserver = add_lsp {
+  name = "rlanguageserver",
+  language = "r",
+  file_patterns = { "%.r$", "%.R$" },
+  command = {'R', '--slave', '-e', 'languageserver::run()'},
+  verbose = false
+}
+
+---# Rust Language Server
+--- __Status__: Works
+--- __Site__: https://github.com/rust-lang/rls
+--- __Installation__: Install rust on your system
+lspconfig.rls = add_lsp {
+  name = "rust-language-server",
+  language = "rust",
+  file_patterns = { "%.rs$" },
+  command = { 'rls' },
+  verbose = false
 }
 
 ---# Ruby LSP
@@ -634,18 +618,6 @@ lspconfig.ruby_lsp = add_lsp {
     -- enableExperimentalFeatures = true,
     -- rubyVersionManager = "",
   },
-  verbose = false
-}
-
----# Rust Language Server
---- __Status__: Works
---- __Site__: https://github.com/rust-lang/rls
---- __Installation__: Install rust on your system
-lspconfig.rls = add_lsp {
-  name = "rust-language-server",
-  language = "rust",
-  file_patterns = { "%.rs$" },
-  command = { 'rls' },
   verbose = false
 }
 
@@ -743,6 +715,33 @@ lspconfig.sumneko_lua = add_lsp {
   }
 }
 
+---# svelte-language-server
+--- __Status__: Works
+--- __Site__: https://github.com/sveltejs/language-tools/tree/master/packages/language-server
+--- __Installation__: `npm install -g svelte-language-server`
+--- __Note__: Also don't forget to install any additional optional dependencies
+--- for additional features (see official site for details).
+lspconfig.sveltels = add_lsp {
+  name = "sveltels",
+  language = "svelte",
+  file_patterns = { "%.svelte$" },
+  command = { 'svelteserver', '--stdio' },
+  verbose = false
+}
+
+---# Tailwind CSS
+--- __Status__: Broken (freezes when writing class names inside html doc, requires new implementation of json.lua)
+--- __Site__: https://github.com/tailwindlabs/tailwindcss-intellisense
+--- __Installation__: Arch Linux: `sudo pacman -S tailwindcss-language-server`
+lspconfig.tailwindcss = add_lsp {
+  name = "tailwindcss",
+  language = "html",
+  file_patterns = { "%.html$"},
+  command = {'tailwindcss-language-server', '--stdio'},
+  fake_snippets = true,
+  verbose = false
+}
+
 ---# LaTeX Texlab language server
 --- __Status__: Works
 --- __Site__: https://github.com/latex-lsp/texlab
@@ -836,6 +835,5 @@ lspconfig.zls = add_lsp {
   command = { 'zls' },
   verbose = false
 }
-
 
 return lspconfig
