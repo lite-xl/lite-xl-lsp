@@ -659,7 +659,7 @@ lspconfig.solargraph = add_lsp {
 }
 
 ---# sql-language-server
---- __Status__: Untested
+--- __Status__: Works
 --- __Site__: https://github.com/joe-re/sql-language-server
 --- __Installation__: `npm i -g sql-language-server`
 lspconfig.sqlls = add_lsp {
