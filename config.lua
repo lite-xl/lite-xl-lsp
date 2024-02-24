@@ -49,6 +49,8 @@ end
 ---@field command table<integer,string|table>
 ---On Windows, avoid running the LSP server with cmd.exe.
 ---@field windows_skip_cmd boolean
+---Enviroment variables to set for the server command.
+---@field env table<string, string>
 ---Seconds before closing the server when not needed anymore.
 ---@field quit_timeout number
 ---Optional table of settings to pass into the lsp

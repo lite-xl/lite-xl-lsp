@@ -68,6 +68,7 @@ local Server = Object:extend()
 ---@field command table<integer, string>
 ---@field quit_timeout number
 ---@field windows_skip_cmd boolean
+---@field env table<string, string>
 ---@field settings table
 ---@field init_options table
 ---@field requests_per_second number
@@ -84,6 +85,8 @@ Server.options = {
   command = {},
   ---On Windows, avoid running the LSP server with cmd.exe
   windows_skip_cmd = false,
+  ---Enviroment variables to set for the server command.
+  env = {},
   ---Seconds before closing the server when not needed anymore
   quit_timeout = 60,
   ---Optional table of settings to pass into the lsp
@@ -239,7 +242,7 @@ function Server.get_symbols_kind_list()
 end
 
 ---Instantiates a new LSP server.
----@param options table
+---@param options lsp.server.options
 function Server:new(options)
   Server.super.new(self)
 
@@ -273,7 +276,8 @@ function Server:new(options)
 
   self.proc = process.start(
     options.command, {
-      stderr = process.REDIRECT_PIPE
+      stderr = process.REDIRECT_PIPE,
+      env = options.env
     }
   )
   self.quit_timeout = options.quit_timeout or 60
