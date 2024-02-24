@@ -8,10 +8,8 @@
       "mod_version": "3",
       "dependencies": {
         "widget": { "version": ">=0.1" },
-        "lintplus": { "version": ">=0.2" },
-        "settings": { },
-        "snippets": { },
-        "lsp_snippets": { },
+        "lintplus": { "version": ">=0.2", "optional": true },
+        "lsp_snippets": { "optional": true }
       },
       "tags": [
         "language server protocol"
