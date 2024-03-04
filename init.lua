@@ -793,13 +793,12 @@ function lsp.start_server(filename, project_directory)
             "[LSP]: %s was shutdown, revise your configuration",
             sname
           )
-          local last_shutdown = lsp.servers_running[sname].last_shutdown
-            or system.get_time()
+          local last_shutdown = lsp.servers_running[sname].last_shutdown or 0
           lsp.servers_running = util.table_remove_key(
             lsp.servers_running,
             sname
           )
-          if system.get_time() - last_shutdown <= 5 then
+          if system.get_time() - last_shutdown >= 5 then
             lsp.start_servers()
             if lsp.servers_running[sname] then
               lsp.servers_running[sname].last_shutdown = system.get_time()
