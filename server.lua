@@ -1222,7 +1222,10 @@ function Server:read_responses(timeout)
     if output:find('^Content%-Length: %d+\r\n') then
       bytes = tonumber(output:match("%d+"))
 
-      local header_content = util.split(output, "\r\n\r\n")
+      local header_content, ends_with_delimiter = util.split(output, "\r\n\r\n")
+      -- Some LSP servers send \r\n\r\n after the response and count that in Content-Length.
+      -- Because we split it away, reduce the expected number of bytes.
+      local skip_last_4 = #header_content > 1 and ends_with_delimiter
 
       -- in case the response sent both header and content or
       -- more than one response at the same time
@@ -1243,11 +1246,15 @@ function Server:read_responses(timeout)
         end
 
         -- iterate every output
-        header_content = util.split(output, "\r\n\r\n")
+        header_content, ends_with_delimiter = util.split(output, "\r\n\r\n")
+        skip_last_4 = #header_content > 1 and ends_with_delimiter
         bytes = 0
-        for _, content in pairs(header_content) do
+        for i, content in ipairs(header_content) do
           if bytes == 0 and content:find('Content%-Length: %d+') then
-            bytes =  tonumber(content:match("Content%-Length: (%d+)"))
+            bytes = tonumber(content:match("Content%-Length: (%d+)"))
+            if i == #header_content and skip_last_4 then
+              bytes = bytes - 4
+            end
           elseif bytes and #content >= bytes then
             local data = string.sub(content, 1, bytes)
             table.insert(responses, data)
@@ -1273,6 +1280,10 @@ function Server:read_responses(timeout)
           output = header_content[2]
         else
           output = ""
+        end
+
+        if skip_last_4 then
+          bytes = bytes - 4
         end
 
         -- read again to retrieve full response content
@@ -1305,7 +1316,7 @@ function Server:read_responses(timeout)
   end
 
   if #responses > 0 then
-    for index,data in pairs(responses) do
+    for index, data in ipairs(responses) do
       data = json.decode(data)
       if data ~= false then
         responses[index] = data
