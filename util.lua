@@ -95,16 +95,24 @@ end
 ---@param delimeter string Delimeter without lua patterns
 ---@param delimeter_pattern? string Optional delimeter with lua patterns
 ---@return table
+---@return boolean ends_with_delimiter
 function util.split(s, delimeter, delimeter_pattern)
   if not delimeter_pattern then
     delimeter_pattern = delimeter
   end
 
-  local result = {};
-  for match in (s..delimeter):gmatch("(.-)"..delimeter_pattern) do
-    table.insert(result, match);
+  local last_idx = 1
+  local result = {}
+  for match_idx, afer_match_idx in s:gmatch("()"..delimeter_pattern.."()") do
+    table.insert(result, string.sub(s, last_idx, match_idx - 1))
+    last_idx = afer_match_idx
   end
-  return result;
+  if last_idx > #s then
+    return result, true
+  else
+    table.insert(result, string.sub(s, last_idx))
+    return result, false
+  end
 end
 
 ---Get the extension component of a filename.
