@@ -884,8 +884,7 @@ function Server:process_raw()
     -- first send the header
     if
       not self:send_data(string.format(
-        'Content-Length: %d\r\n\r\n',
-        #raw.raw_data + 2 -- last \r\n
+        'Content-Length: %d\r\n\r\n', #raw.raw_data
       ))
     then
       break
@@ -897,7 +896,7 @@ function Server:process_raw()
 
     -- send content in chunks
     local chunks = 10 * 1024
-    raw.raw_data = raw.raw_data .. "\r\n"
+    raw.raw_data = raw.raw_data
 
     while #raw.raw_data > 0 do
       if not self.proc or not self.proc:running() then
@@ -1219,7 +1218,7 @@ function Server:read_responses(timeout)
       end
     end
 
-    if output:find('^Content%-Length: %d+\r\n') then
+    if output:find('^Content%-Length: %d+\r\n\r\n') then
       bytes = tonumber(output:match("%d+"))
 
       local header_content, ends_with_delimiter = util.split(output, "\r\n\r\n")
@@ -1401,8 +1400,8 @@ function Server:write_request(data)
   -- WARNING: send_data performs yielding which can pontentially cause a
   -- race condition, in case of future issues this may be the root cause.
   return self:send_data(string.format(
-    'Content-Length: %d\r\n\r\n%s\r\n',
-    #data + 2,
+    'Content-Length: %d\r\n\r\n%s',
+    #data,
     data
   ))
 end
