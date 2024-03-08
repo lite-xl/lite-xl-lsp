@@ -185,6 +185,18 @@ lspconfig.cssls = add_lsp {
   verbose = false
 }
 
+---# D
+--- __Status__: Works
+--- __Site__: https://github.com/Pure-D/serve-d
+--- __Installation__: https://github.com/Pure-D/serve-d?tab=readme-ov-file#installation
+lspconfig.serve_d = add_lsp {
+  name = "serve_d",
+  language = "d",
+  file_patterns = { "%.di?$" },
+  command = { "serve-d" },
+  verbose = false
+}
+
 ---# dartls
 --- __Status__: Untested
 --- __Site__: https://github.com/dart-lang/sdk
