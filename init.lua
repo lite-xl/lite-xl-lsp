@@ -1731,7 +1731,7 @@ function lsp.request_references(doc, line, col)
               end
             })
           else
-            log(server, "No references found.")
+            core.log("[LSP] No references found.")
           end
         end
       })
@@ -2099,7 +2099,7 @@ function lsp.goto_symbol(doc, line, col, implementation)
         local location = response.result
 
         if not location or not location.uri and #location == 0 then
-          log(server, "No %s found", method)
+          core.log("[LSP] No %s found.", method)
           return
         end
 
