@@ -263,6 +263,7 @@ function Server:new(options)
   self.raw_list = {}
   self.command = options.command
   self.write_fails = 0
+  self.fatal_error = false
   self.snippets = options.snippets
   self.fake_snippets = options.fake_snippets or false
   -- TODO: We may need to lower this but tests so far show that some servers
@@ -286,6 +287,8 @@ function Server:new(options)
   self.capabilities = nil
   self.yield_on_reads = false
   self.incremental_changes = options.incremental_changes or false
+
+  self.read_responses_coroutine = nil
 end
 
 ---Starts the LSP server process, any listeners should be registered before
@@ -1171,7 +1174,7 @@ function Server:pop_request(id)
   return nil
 end
 
----Try to fetch a server rsponses, notifications or requests
+---Try to fetch a server responses, notifications or requests
 ---in a specific amount of time.
 ---@param timeout integer Time in seconds, set to 0 to not wait
 ---@return table[]|boolean Responses list or false if failed
@@ -1181,152 +1184,113 @@ function Server:read_responses(timeout)
     return false
   end
 
-  timeout = timeout or Server.DEFAULT_TIMEOUT
-  local inside_coroutine = self.yield_on_reads and coroutine.running() or false
+  if not self.read_responses_coroutine then
+    self.read_responses_coroutine = coroutine.create(function()
+      local buffer = ""
+      while true do
+        -- Read out all the headers
+        local output = buffer .. (proc:read_stdout(Server.BUFFER_SIZE) or "")
+        local content_start = output:match("\r\n\r\n()")
+        local buf = output
+        while not content_start do
+          if #output > 1024 then
+            -- After a kilobyte, still no end in sight for headers. Error out.
+            return error(string.format("Can't find headers delimiter after %d bytes. "..
+                                       "Something wrong with the server configuration?\nGot:\n%s", #output, output))
+          end
+          coroutine.yield(#buf > 0)
+          buf = proc:read_stdout(Server.BUFFER_SIZE)
+          if not buf then
+            -- If we stopped in the middle of a read, error out
+            if #output > 0 then
+              return error(string.format("Can't continue reading stdout:\n%s", output))
+            end
+            return
+          end
+          if #buf > 0 then
+            output = output .. buf
+            content_start = output:match("\r\n\r\n()")
+          end
+        end
 
-  local max_time = os.time() + timeout
-  if timeout == 0 then max_time = max_time + 1 end
-  local output = ""
-  while max_time > os.time() and output == "" do
-    output = proc:read_stdout(Server.BUFFER_SIZE)
-    if timeout == 0 then break end
-    if output == "" and inside_coroutine then
-      coroutine.yield()
-    end
+        -- Parse headers
+        local headers_data = output:sub(1, content_start - 4 - 1)
+        local content_length = 0
+        local headers = util.split(headers_data, "\r\n")
+        for _, header in ipairs(headers) do
+          -- We only care for Content-Length for now
+          local length = header:match("^Content%-Length: (%d+)$")
+          if length then
+            content_length = tonumber(length)
+            break
+          end
+        end
+        if not content_length then
+          return error(string.format("Bad header content:\n%s\n", headers_data))
+        end
+
+        -- Read all the expected content data
+        local content_data_t = { output:sub(content_start) }
+        buf = content_data_t[1]
+        local content_read_length = #buf
+        while content_read_length < content_length do
+          coroutine.yield(#buf > 0)
+          buf = proc:read_stdout(Server.BUFFER_SIZE)
+          if not buf then
+            return error(string.format("Can't continue reading stdout. Stopped at %d/%d.\n%s",
+                                       content_read_length, content_length, table.concat(content_data_t)))
+          end
+          content_read_length = content_read_length + #buf
+          table.insert(content_data_t, buf)
+        end
+        local content_data = table.concat(content_data_t)
+        -- We only need content_length bytes, so queue the rest for the next loop
+        buffer = content_data:sub(content_length + 1)
+        content_data = content_data:sub(1, content_length)
+
+        if self.verbose then
+          self:log("Got data.\nHeaders:\n%s\n\nContent:\n%s", headers_data, content_data)
+        end
+
+        coroutine.yield(#buffer > 0, content_data)
+      end
+    end)
   end
 
-  if output == nil then
+  if coroutine.status(self.read_responses_coroutine) == "dead" then
+    self.fatal_error = true
+    self:shutdown_if_needed()
     return false
   end
 
+  timeout = timeout or Server.DEFAULT_TIMEOUT
+  local max_time = timeout == 0 and math.huge or system.get_time() + timeout
+
   local responses = {}
-  local readmode = ""
-
-  local bytes = 0;
-  if output ~= "" then
-    -- Make sure we retrieve everything
-    local more_output = nil
-    while more_output ~= "" do
-      more_output = proc:read_stdout(Server.BUFFER_SIZE)
-      if more_output ~= "" then
-        if more_output == nil then
-          break
-        end
-        output = output .. more_output
-        if inside_coroutine then
-          coroutine.yield()
-        end
-      end
+  repeat
+    local status, has_more_data, response = coroutine.resume(self.read_responses_coroutine)
+    if response then table.insert(responses, response) end
+    if not status then
+      local error_msg = has_more_data
+      self:log("Disconnecting from server:\n%s", error_msg)
+      self.fatal_error = true
+      self:shutdown_if_needed()
+      return false
     end
-
-    if output:find('^Content%-Length: %d+\r\n\r\n') then
-      bytes = tonumber(output:match("%d+"))
-
-      local header_content, ends_with_delimiter = util.split(output, "\r\n\r\n")
-      -- Some LSP servers send \r\n\r\n after the response and count that in Content-Length.
-      -- Because we split it away, reduce the expected number of bytes.
-      local skip_last_4 = #header_content > 1 and ends_with_delimiter
-
-      -- in case the response sent both header and content or
-      -- more than one response at the same time
-      if #header_content > 1 and #header_content[2] >= bytes then
-        -- retrieve rest of output
-        local new_output = nil
-        while new_output ~= "" do
-          new_output = proc:read_stdout(Server.BUFFER_SIZE)
-          if new_output ~= "" then
-            if new_output == nil then
-              break
-            end
-            output = output .. new_output
-            if inside_coroutine then
-              coroutine.yield()
-            end
-          end
-        end
-
-        -- iterate every output
-        header_content, ends_with_delimiter = util.split(output, "\r\n\r\n")
-        skip_last_4 = #header_content > 1 and ends_with_delimiter
-        bytes = 0
-        for i, content in ipairs(header_content) do
-          if bytes == 0 and content:find('Content%-Length: %d+') then
-            bytes = tonumber(content:match("Content%-Length: (%d+)"))
-            if i == #header_content and skip_last_4 then
-              bytes = bytes - 4
-            end
-          elseif bytes and #content >= bytes then
-            local data = string.sub(content, 1, bytes)
-            table.insert(responses, data)
-            if content:find('Content%-Length: %d+') then
-              bytes =  tonumber(content:match("Content%-Length: (%d+)"))
-            else
-              bytes = 0
-            end
-          end
-        end
-
-        readmode = "Response header and content received at once:\n"
-
-        if self.verbose then
-          self:log(
-            readmode .. "%s",
-            output
-          )
-        end
-      else
-        -- store partial content if available
-        if #header_content > 1 and #header_content[2] > 0 then
-          output = header_content[2]
-        else
-          output = ""
-        end
-
-        if skip_last_4 then
-          bytes = bytes - 4
-        end
-
-        -- read again to retrieve full response content
-        while #output < bytes do
-          local chars = proc:read_stdout(bytes - #output)
-          if #chars > 0 then
-            output = output .. chars
-          end
-          if inside_coroutine then
-            coroutine.yield()
-          end
-        end
-
-        table.insert(responses, output)
-
-        readmode = "Response header and content received separately:\n"
-
-        if self.verbose then
-          self:log(
-            readmode .. "%s",
-            output
-          )
-        end
-      end
-    elseif #output > 0 then
-      if self.verbose then
-        self:log("Output without header:\n%s", output)
-      end
-    end
-  end
+  until not has_more_data or (timeout > 0 and system.get_time() >= max_time)
 
   if #responses > 0 then
     for index, data in ipairs(responses) do
-      data = json.decode(data)
-      if data ~= false then
-        responses[index] = data
+      local json_data = json.decode(data)
+      if json_data ~= false then
+        responses[index] = json_data
       else
         responses[index] = nil
         self:log(
           "JSON Parser Error: %s\n%s\n%s",
           json.last_error(),
-          readmode,
-          output
+          "-----",
+          data
         )
         return false
       end
@@ -1554,6 +1518,8 @@ function Server:shutdown_if_needed()
     self.write_fails >= self.write_fails_before_shutdown
     or
     (self.proc and not self.proc:running())
+    or
+    self.fatal_error
   then
     self:stop()
     self:on_shutdown()
