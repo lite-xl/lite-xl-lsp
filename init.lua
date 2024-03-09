@@ -935,6 +935,8 @@ function lsp.start_server(filename, project_directory)
               log_func = "warn"
             elseif params.type == Server.message_type.Info then
               log_func = "log"
+            elseif params.type == Server.message_type.Debug then
+              log_func = "log_quiet"
             end
             core[log_func]("["..server.name.."] message: %s", params.message)
           end
@@ -1731,7 +1733,7 @@ function lsp.request_references(doc, line, col)
               end
             })
           else
-            log(server, "No references found.")
+            core.log("[LSP] No references found.")
           end
         end
       })
@@ -2099,7 +2101,7 @@ function lsp.goto_symbol(doc, line, col, implementation)
         local location = response.result
 
         if not location or not location.uri and #location == 0 then
-          log(server, "No %s found", method)
+          core.log("[LSP] No %s found.", method)
           return
         end
 
