@@ -432,7 +432,7 @@ lspconfig.kotlin_language_server = add_lsp {
 ---# Julia - LanguageServer.jl
 --- __Status__: Works ?
 --- __Site__: https://github.com/julia-vscode/LanguageServer.jl/
---- __Installation__: Install the Julia language on your system with the LanguageServer.jl package.
+--- __Installation__: Install julia on your system, then enter the julia console with 'julia', then install the julia lsp server with 'Import Pkg; Pkg.add("LanguageServer")'
 lspconfig.julia_lsp = add_lsp {
   name = "julia_ls",
   language = "julia",
