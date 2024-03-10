@@ -185,6 +185,18 @@ lspconfig.cssls = add_lsp {
   verbose = false
 }
 
+---# D
+--- __Status__: Works
+--- __Site__: https://github.com/Pure-D/serve-d
+--- __Installation__: https://github.com/Pure-D/serve-d?tab=readme-ov-file#installation
+lspconfig.serve_d = add_lsp {
+  name = "serve_d",
+  language = "d",
+  file_patterns = { "%.di?$" },
+  command = { "serve-d" },
+  verbose = false
+}
+
 ---# dartls
 --- __Status__: Untested
 --- __Site__: https://github.com/dart-lang/sdk
@@ -822,20 +834,26 @@ lspconfig.vimls = add_lsp {
   verbose = false
 }
 
+---# V
+--- __Status__: Works
+--- __Site__: https://github.com/vlang/v-analyzer
+--- __Installation__: https://github.com/vlang/v-analyzer?tab=readme-ov-file#installation
+lspconfig.v_analyzer = add_lsp {
+  name = "v_analyzer",
+  language = "v",
+  file_patterns = { "%.vv?$", "%.vsh$" },
+  command = { "v-analyzer", "--stdio" },
+  verbose = false
+}
+
 ---# vlang-vls
---- __Status__: Initializes but doesn't responds to completion requests
---- at least it helped improve lit-xl-lsp requests mechanism
+--- __Status__: doesn't respond to completion requests (no longer officially maintained in favor of v-analyzer)
 --- __Site__: https://github.com/vlang/vls
---- __Installation__:
---- ```sh
---- git clone https://github.com/vlang/vls.git vls && cd vls/
---- v -prod cmd/vls
---- mv cmd/vls vlang-vls
---- ```
+--- __Installation__: https://github.com/vlang/vls?tab=readme-ov-file#installation
 lspconfig.vls = add_lsp {
   name = "vlang-vls",
   language = "v",
-  file_patterns = { "%.v$" },
+  file_patterns = { "%.vv?$", "%.vsh$" },
   command = { 'vlang-vls' },
   verbose = false
 }
