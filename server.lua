@@ -491,12 +491,17 @@ function Server:add_event_listener(event_name, callback)
     )
   end
 
-  self.event_listeners[event_name] = callback
+  if not self.event_listeners[event_name] then
+    self.event_listeners[event_name] = {}
+  end
+  table.insert(self.event_listeners[event_name], callback)
 end
 
 function Server:send_event_signal(event_name, ...)
   if self.event_listeners[event_name] then
-    self.event_listeners[event_name](self, ...)
+    for _, l in ipairs(self.event_listeners[event_name]) do
+      l(self, ...)
+    end
   else
     self:on_event(event_name)
   end
@@ -1449,7 +1454,11 @@ function Server:add_request_listener(method, callback)
       method
     )
   end
-  self.request_listeners[method] = callback
+
+  if not self.request_listeners[method] then
+    self.request_listeners[method] = {}
+  end
+  table.insert(self.request_listeners[method], callback)
 end
 
 ---Call an apropriate signal handler for a given request.
@@ -1466,9 +1475,9 @@ function Server:send_request_signal(request)
   end
 
   if self.request_listeners[request.method] then
-    self.request_listeners[request.method](
-      self, request
-    )
+    for _, l in ipairs(self.request_listeners[request.method]) do
+      l(self, request)
+    end
   else
     self:on_request(request)
   end
@@ -1508,16 +1517,20 @@ function Server:add_message_listener(method, callback)
       method
     )
   end
-  self.message_listeners[method] = callback
+
+  if not self.message_listeners[method] then
+    self.message_listeners[method] = {}
+  end
+  table.insert(self.message_listeners[method], callback)
 end
 
 ---Call an apropriate signal handler for a given message or notification.
 ---@param message table
 function Server:send_message_signal(message)
   if self.message_listeners[message.method] then
-    self.message_listeners[message.method](
-      self, message.params
-    )
+    for _, l in ipairs(self.message_listeners[message.method]) do
+      l(self, message.params)
+    end
   else
     self:on_message(message.method, message.params)
   end
