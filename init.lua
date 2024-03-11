@@ -435,7 +435,7 @@ local function apply_edit(server, doc, text_edit, is_snippet, update_cursor_posi
 
   doc:insert(line1, col1, text)
   if update_cursor_position then
-    doc:move_to_cursor(doc.last_selection, #text)
+    doc:move_to_cursor(nil, #text)
   end
 
   return true

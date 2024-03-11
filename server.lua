@@ -14,6 +14,7 @@ local util = require "plugins.lsp.util"
 local Object = require "core.object"
 
 ---@alias lsp.server.callback fun(server: lsp.server, ...)
+---@alias lsp.server.timeoutcb fun(server: lsp.server, ...)
 ---@alias lsp.server.notificationcb fun(server: lsp.server, params: table)
 ---@alias lsp.server.responsecb fun(server: lsp.server, response: table, request?: lsp.server.request)
 
@@ -27,6 +28,8 @@ local Object = require "core.object"
 ---@field overwritten_callback lsp.server.responsecb | nil
 ---@field sending boolean
 ---@field raw_data string
+---@field timeout number
+---@field timeout_callback lsp.server.timeoutcb | nil
 ---@field timestamp number
 ---@field times_sent integer
 
@@ -197,12 +200,14 @@ Server.position_encoding_kind = {
 }
 
 ---@class lsp.server.requestoptions
----@field params table<string,any>
----@field data table @Optional data appended to request.
----@field callback lsp.server.responsecb @Default callback executed when a response is received.
----@field overwrite boolean @Substitute same previous request with new one if not sent.
----@field overwritten_callback lsp.server.responsecb @Executed in place of original response callback if the request should have been overwritten but was already sent.
----@field raw_data string @Request body used when sending a raw request.
+---@field params? table<string,any>
+---@field data? table @Optional data appended to request.
+---@field callback? lsp.server.responsecb @Default callback executed when a response is received.
+---@field overwrite? boolean @Substitute same previous request with new one if not sent.
+---@field overwritten_callback? lsp.server.responsecb @Executed in place of original response callback if the request should have been overwritten but was already sent.
+---@field raw_data? string @Request body used when sending a raw request.
+---@field timeout? number @Timeout in seconds to consider the request unanswered.
+---@field timeout_callback? lsp.server.timeoutcb @Callback executed when the request times out.
 
 ---Get a completion kind label from its id or empty string if not found.
 ---@param id integer
@@ -304,6 +309,7 @@ function Server:initialize(workspace, editor_name, editor_version)
   self.editor_version = editor_version or "0.1"
 
   self:push_request('initialize', {
+    timeout = 10,
     params = {
       processId = system["get_process_id"] and system.get_process_id() or nil,
       clientInfo = {
@@ -691,10 +697,7 @@ function Server:process_requests()
       end
 
       if written then
-        local time = 1
-        if request.id == 1 then
-          time = 10 -- give initialize enough time to respond
-        end
+        local time = request.timeout or 1
         request.timestamp = os.time() + time
 
         self.write_fails = 0
@@ -720,9 +723,12 @@ function Server:process_requests()
   end
 
   if remove_request then
-    table.remove(self.request_list, remove_request)
+    local request = table.remove(self.request_list, remove_request)
     if self.verbose then
       self:log("Request '%s' expired without response", remove_request)
+    end
+    if request.timeout_callback then
+      request.timeout_callback(request)
     end
   end
 
@@ -1000,8 +1006,8 @@ function Server:push_notification(method, options)
           self:log("Overwriting notification %s", tostring(method))
         end
         notification.params = options.params
-        notification.callback = options.callback or nil
-        notification.data = options.data or nil
+        notification.callback = options.callback
+        notification.data = options.data
         return
       end
     end
@@ -1029,8 +1035,8 @@ function Server:push_notification(method, options)
   table.insert(self.notification_list, {
     method = method,
     params = options.params,
-    callback = options.callback or nil,
-    data = options.data or nil
+    callback = options.callback,
+    data = options.data,
   })
 end
 
@@ -1057,9 +1063,11 @@ function Server:push_request(method, options)
           break
         else
           request.params = options.params
-          request.callback = options.callback or nil
-          request.overwritten_callback = options.overwritten_callback or nil
-          request.data = options.data or nil
+          request.callback = options.callback
+          request.overwritten_callback = options.overwritten_callback
+          request.data = options.data
+          request.timeout = options.timeout
+          request.timeout_callback = options.timeout_callback
           request.timestamp = 0
           if self.verbose then
             self:log("Overwriting request %s", tostring(method))
@@ -1092,9 +1100,11 @@ function Server:push_request(method, options)
     id = self.current_request,
     method = method,
     params = options.params,
-    callback = options.callback or nil,
-    overwritten_callback = options.overwritten_callback or nil,
-    data = options.data or nil,
+    callback = options.callback,
+    overwritten_callback = options.overwritten_callback,
+    data = options.data,
+    timeout = options.timeout,
+    timeout_callback = options.timeout_callback,
     timestamp = 0,
     times_sent = 0
   })
@@ -1141,8 +1151,8 @@ function Server:push_raw(name, options)
       if request.method == name then
         if not request.sending then
           request.raw_data = options.raw_data
-          request.callback = options.callback or nil
-          request.data = options.data or nil
+          request.callback = options.callback
+          request.data = options.data
           if self.verbose then
             self:log("Overwriting raw request %s", tostring(name))
           end
@@ -1161,8 +1171,8 @@ function Server:push_raw(name, options)
   table.insert(self.raw_list, {
     method = name,
     raw_data = options.raw_data,
-    callback = options.callback or nil,
-    data = options.data or nil
+    callback = options.callback,
+    data = options.data,
   })
 end
 
