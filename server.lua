@@ -71,6 +71,7 @@ local Server = Object:extend()
 ---@field env table<string, string>
 ---@field settings table
 ---@field init_options table
+---@field on_start? fun(server: lsp.server)
 ---@field requests_per_second number
 ---@field incremental_changes boolean
 ---@field id_not_extension boolean
@@ -85,21 +86,23 @@ Server.options = {
   command = {},
   ---On Windows, avoid running the LSP server with cmd.exe
   windows_skip_cmd = false,
-  ---Enviroment variables to set for the server command.
+  ---Enviroment variables to set for the server command
   env = {},
   ---Seconds before closing the server when not needed anymore
   quit_timeout = 60,
-  ---Optional table of settings to pass into the lsp
+  ---Optional table of settings to pass into the LSP
   ---Note that also having a settings.json or settings.lua in
   ---your workspace directory is supported
   settings = {},
   ---Optional table of initializationOptions for the LSP
   init_options = {},
+  ---Function called when the server has been started
+  on_start = nil,
   ---Set by default to 16 should only be modified if having issues with a server
   requests_per_second = 32,
   ---Some servers like bash language server support incremental changes
   ---which are more performant but don't advertise it, set to true to force
-  ---incremental changes even if server doesn't advertise them.
+  ---incremental changes even if server doesn't advertise them
   incremental_changes = false,
   ---True to debug the lsp client when developing it
   verbose = false,
@@ -289,6 +292,8 @@ function Server:new(options)
   self.incremental_changes = options.incremental_changes or false
 
   self.read_responses_coroutine = nil
+
+  if options.on_start then options.on_start(self) end
 end
 
 ---Starts the LSP server process, any listeners should be registered before
