@@ -53,19 +53,21 @@ end
 ---@field env table<string, string>
 ---Seconds before closing the server when not needed anymore.
 ---@field quit_timeout number
----Optional table of settings to pass into the lsp
+---Optional table of settings to pass into the LSP.
 ---Note that also having a settings.json or settings.lua in
 ---your workspace directory with a table of settings is supported.
 ---@field settings table<string,any>
 ---Optional table of initializationOptions for the LSP.
 ---@field init_options table<string,any>
+---Function called when the server has been started.
+---@field on_start? fun(server: lsp.server)
 ---Set by default to 16 should only be modified if having issues with a server.
 ---@field requests_per_second integer
 ---Some servers like bash language server support incremental changes
 ---which are more performant but don't advertise it, set to true to force
 ---incremental changes even if server doesn't advertise them.
 ---@field incremental_changes boolean
----Set to true to debug the lsp client when developing it
+---Set to true to debug the lsp client when developing it.
 ---@field verbose boolean
 
 ---@class lsp.config.server
