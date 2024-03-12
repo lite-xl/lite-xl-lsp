@@ -329,11 +329,10 @@ lspconfig.intelephense = add_lsp {
 ---# java
 --- __Status__: Works
 --- __Site__: https://github.com/eclipse/eclipse.jdt.ls
---- __Note__: You must have a native executable which runs the python files provided when using on windows
 lspconfig.jdtls = add_lsp {
   name = "jdtls",
   language = "java",
-  file_patterns = { "%.java$", "%.mvn$", "%.gradle$" },
+  file_patterns = { "%.java$" },
   command = { "jdtls" },
   verbose = false
 }
