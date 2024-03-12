@@ -409,6 +409,17 @@ lspconfig.intelephense = add_lsp {
   verbose = false
 }
 
+---# java
+--- __Status__: Works
+--- __Site__: https://github.com/eclipse/eclipse.jdt.ls
+lspconfig.jdtls = add_lsp {
+  name = "jdtls",
+  language = "java",
+  file_patterns = { "%.java$" },
+  command = { "jdtls" },
+  verbose = false
+}
+
 ---# vscode-json-languageserver
 --- __Status__: Works
 --- __Site__: https://www.npmjs.com/package/vscode-json-languageserver
