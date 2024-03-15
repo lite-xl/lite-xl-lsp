@@ -422,6 +422,18 @@ lspconfig.jdtls = add_lsp {
   verbose = false
 }
 
+---# Scala
+--- __Status__: Works
+--- __Site__: https://scalameta.org/metals/
+--- __Installation__: `paru -S metals`
+lspconfig.metals = add_lsp {
+  name = "metals",
+  language = "scala",
+  file_patterns = { "%.scala$" },
+  command = { "metals" },
+  verbose = false
+}
+
 ---# vscode-json-languageserver
 --- __Status__: Works
 --- __Site__: https://www.npmjs.com/package/vscode-json-languageserver
