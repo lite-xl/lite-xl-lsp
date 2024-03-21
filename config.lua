@@ -20,7 +20,13 @@ local snippets = pcall(require, "plugins.snippets") and config.plugins.lsp.snipp
 ---Name of server.
 ---@field name string
 ---Main language, eg: C.
----@field language string
+---Can be a string or a table.
+---If the table is empty, the file extension will be used instead.
+---The table should be an array of tables containing `id` and `pattern`.
+---The `pattern` will be matched with the file path.
+---Will use the `id` of the first `pattern` that matches.
+---If no pattern matches, the file extension will be used instead.
+---@field language string | lsp.server.languagematch[]
 ---File types that are supported by this server.
 ---@field file_patterns string[]
 ---LSP command and optional arguments.
@@ -82,7 +88,7 @@ local lspconfig = {}
 --- __Note__: also install `shellcheck` for linting
 lspconfig.bashls = add_lsp {
   name = "bash-language-server",
-  language = "shell",
+  language = "shellscript",
   file_patterns = { "%.sh$" },
   command = { "bash-language-server", "start" },
   incremental_changes = true,
@@ -95,7 +101,12 @@ lspconfig.bashls = add_lsp {
 --- __Installation__: https://github.com/MaskRay/ccls/wiki
 lspconfig.ccls = add_lsp {
   name = "ccls",
-  language = "c/cpp",
+  language = {
+    { id = "c",   pattern = "%.[ch]$"     },
+    { id = "cpp", pattern = "%.[ch]pp$"   },
+    { id = "cpp", pattern = "%.[CH]$"     },
+    { id = "cpp", pattern = "%.[ch]%+%+$" },
+  },
   file_patterns = {
     "%.c$", "%.h$", "%.inl$", "%.cpp$", "%.hpp$",
     "%.cc$", "%.C$", "%.cxx$", "%.c++$", "%.hh$",
@@ -112,7 +123,12 @@ lspconfig.ccls = add_lsp {
 --- __Note__: See https://clangd.llvm.org/installation.html#project-setup
 lspconfig.clangd = add_lsp {
   name = "clangd",
-  language = "c/cpp",
+  language = {
+    { id = "c",   pattern = "%.[ch]$"     },
+    { id = "cpp", pattern = "%.[ch]pp$"   },
+    { id = "cpp", pattern = "%.[CH]$"     },
+    { id = "cpp", pattern = "%.[ch]%+%+$" },
+  },
   file_patterns = {
     "%.c$", "%.h$", "%.inl$", "%.cpp$", "%.hpp$",
     "%.cc$", "%.C$", "%.cxx$", "%.c++$", "%.hh$",
@@ -197,10 +213,14 @@ lspconfig.dartls = add_lsp {
 --- __Installation__: Provided in Deno runtime
 lspconfig.deno = add_lsp {
   name = "deno",
-  language = "typescript",
-  file_patterns = { "%.ts$", "%.tsx$" },
+  language = {
+    { id = "javascript",      pattern = "%.js$"  },
+    { id = "javascriptreact", pattern = "%.jsx$" },
+    { id = "typescript",      pattern = "%.ts$"  },
+    { id = "typescriptreact", pattern = "%.tsx$" },
+  },
+  file_patterns = { "%.[tj]s$", "%.[tj]sx$" },
   command = { 'deno', 'lsp' },
-  id_not_extension = true,
   verbose = false,
   settings = {
     deno = {
@@ -327,10 +347,10 @@ lspconfig.fortls = add_lsp {
 --- __Site__: https://gleam.run/
 --- __Installation__: Included with the gleam compiler binary
 lspconfig.gleam = add_lsp {
-	name = 'gleam',
-	language = 'gleam',
-	file_patterns = { '%.gleam$' },
-	command = { 'gleam', 'lsp' },
+	name = "gleam",
+	language = "gleam",
+	file_patterns = { "%.gleam$" },
+	command = { "gleam", "lsp" },
 	verbose = false
 }
 
@@ -501,7 +521,7 @@ lspconfig.nillsp = add_lsp {
 --- __Installation__: `nimble install nimlsp`
 lspconfig.nimlsp = add_lsp {
   name = "nimlsp",
-  language = "Nim",
+  language = "nim",
   file_patterns = { "%.nim$" },
   command = { "nimlsp" },
   requests_per_second = 25,
@@ -518,7 +538,6 @@ lspconfig.ocaml_lsp = add_lsp {
   language = "ocaml",
   file_patterns = { "%.ml$", "%.mli$" },
   command = { "ocamllsp" },
-  id_not_extension = true,
   verbose = false
 }
 
@@ -540,7 +559,7 @@ lspconfig.odinls = add_lsp {
 --- __Installation__: See official website for instructions
 lspconfig.omnisharp = add_lsp {
   name = "omnisharp",
-  language = "c#",
+  language = "csharp",
   file_patterns = { "%.cs$" },
   command = { "omnisharp", "-lsp" },
   verbose = false
@@ -552,7 +571,7 @@ lspconfig.omnisharp = add_lsp {
 --- __Installation__: `paru -S perlnavigator`
 lspconfig.perlnavigator = add_lsp {
   name = "perlnavigator",
-  language = "Perl",
+  language = "perl",
   file_patterns = { "%.pl$", "%.pm$" },
   command = { "perlnavigator" },
   settings = {
@@ -609,9 +628,15 @@ lspconfig.pyright = add_lsp {
 --- __Installation__: Arch Linux: `yay -Syu quick-lint-js`
 lspconfig.quicklintjs = add_lsp {
   name = "quick-lint-js",
-  language = "javascript",
-  file_patterns = { "%.[mc]?js$" },
-  id_not_extension = true,
+  language = {
+    { id = "javascriptreact",      pattern = "%.jsx$"   },
+    { id = "javascript",           pattern = "%.js$"    },
+    { id = "typescriptdefinition", pattern = "%.d%.ts$" },
+    { id = "typescriptsource",     pattern = "%.ts$"    },
+    { id = "typescriptreact",      pattern = "%.tsx$"   },
+    { id = "typescript",           pattern = ".*"       },
+  },
+  file_patterns = { "%.[mc]?jsx?$", "%.tsx?$" },
   command = { "quick-lint-js", "--lsp-server" },
   verbose = false
 }
@@ -829,8 +854,13 @@ lspconfig.taplo = add_lsp {
 --- __Installation__: `npm install -g typescript-language-server typescript`
 lspconfig.tsserver = add_lsp {
   name = "typescript-language-server",
-  language = "javascript",
-  file_patterns = { "%.jsx?$", "%.cjs$", "%.mjs$", "%.tsx?$" },
+  language = {
+    { id = "javascript",      pattern = "%.[cm]?js$"  },
+    { id = "javascriptreact", pattern = "%.jsx$"      },
+    { id = "typescript",      pattern = "%.ts$"       },
+    { id = "typescriptreact", pattern = "%.tsx$"      },
+  },
+  file_patterns = { "%.jsx?$", "%.[cm]js$", "%.tsx?$" },
   command = { 'typescript-language-server', '--stdio' },
   verbose = false
 }

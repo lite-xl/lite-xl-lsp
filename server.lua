@@ -19,6 +19,10 @@ local Object = require "core.object"
 ---@alias lsp.server.notificationcb fun(server: lsp.server, params: table)
 ---@alias lsp.server.responsecb fun(server: lsp.server, response: table, request?: lsp.server.request)
 
+---@class lsp.server.languagematch
+---@field id string
+---@field pattern string
+
 ---@class lsp.server.request
 ---@field id integer
 ---@field method string
@@ -37,7 +41,7 @@ local Object = require "core.object"
 ---LSP Server communication library.
 ---@class lsp.server : core.object
 ---@field public name string
----@field public language string
+---@field public language string | lsp.server.languagematch[]
 ---@field public file_patterns table
 ---@field public current_request integer
 ---@field public init_options table
@@ -68,7 +72,7 @@ local Server = Object:extend()
 ---LSP Server constructor options
 ---@class lsp.server.options
 ---@field name string
----@field language string
+---@field language string | lsp.server.languagematch[]
 ---@field file_patterns table<integer, string>
 ---@field command table<integer, string>
 ---@field quit_timeout number
@@ -80,12 +84,17 @@ local Server = Object:extend()
 ---@field on_start? fun(server: lsp.server)
 ---@field requests_per_second number
 ---@field incremental_changes boolean
----@field id_not_extension boolean
 Server.options = {
   ---Name of the server
   name = "",
-  ---Programming language identifier
-  language = "",
+  ---Programming language identifier.
+  ---Can be a string or a table.
+  ---If the table is empty, the file extension will be used instead.
+  ---The table should be an array of tables containing `id` and `pattern`.
+  ---The `pattern` will be matched with the file path.
+  ---Will use the `id` of the first `pattern` that matches.
+  ---If no pattern matches, the file extension will be used instead.
+  language = {},
   ---Patterns to match the language files
   file_patterns = {},
   ---Command to launch LSP server and optional arguments
@@ -114,8 +123,6 @@ Server.options = {
   incremental_changes = false,
   ---True to debug the lsp client when developing it
   verbose = false,
-  ---
-  id_not_extension = false
 }
 
 ---Default timeout when sending a request to lsp server.
@@ -299,7 +306,6 @@ function Server:new(options)
 
   self.name = options.name
   self.language = options.language
-  self.id_not_extension = options.id_not_extension or false
   self.file_patterns = options.file_patterns
   self.current_request = 0
   self.init_options = options.init_options or {}
@@ -1574,6 +1580,22 @@ function Server:on_message(method, params)
       util.jsonprettify(json.encode(params))
     )
   end
+end
+
+---Return the languageId for the specified doc.
+---@param doc core.doc
+---@return string
+function Server:get_language_id(doc)
+  if type(self.language) == "string" then
+    return self.language
+  else
+    for _, l in ipairs(self.language) do
+      if string.match(doc.abs_filename, l.pattern) then
+        return l.id
+      end
+    end
+  end
+  return util.file_extension(doc.filename)
 end
 
 ---Kills the server process and deinitialize the server object state.
