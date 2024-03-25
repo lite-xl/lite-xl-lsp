@@ -37,6 +37,8 @@ local snippets = pcall(require, "plugins.snippets") and config.plugins.lsp.snipp
 ---@field settings table<string,any>
 ---Optional table of initializationOptions for the LSP.
 ---@field init_options table<string,any>
+---Optional table of capabilities that will be merged with our default one.
+---@field custom_capabilities table<string,any>
 ---Function called when the server has been started.
 ---@field on_start? fun(server: lsp.server)
 ---Set by default to 16 should only be modified if having issues with a server.
