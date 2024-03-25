@@ -10,31 +10,9 @@
 --
 
 local lsp = require "plugins.lsp"
+local util = require "plugins.lsp.util"
 local config = require "core.config"
 local snippets = pcall(require, "plugins.snippets") and config.plugins.lsp.snippets
-
-local function merge(a, b)
-  local t = {}
-  if a then
-    for k, v in pairs(a) do
-      if type(v) == "table" then
-        t[k] = merge(t[k], v)
-      else
-        t[k] = v
-      end
-    end
-  end
-  if b then
-    for k, v in pairs(b) do
-      if type(v) == "table" then
-        t[k] = merge(t[k], v)
-      else
-        t[k] = v
-      end
-    end
-  end
-  return t
-end
 
 ---Options that can be passed to a LSP server to overwrite the defaults.
 ---@class lsp.config.options
@@ -82,7 +60,7 @@ end
 local function add_lsp(options)
   return {
     setup = function(user_options)
-      local merged_options = merge(options, user_options)
+      local merged_options = util.deep_merge(options, user_options)
       lsp.add_server(merged_options)
     end,
     get_options = function()

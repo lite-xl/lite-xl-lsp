@@ -725,7 +725,7 @@ function lsp.get_workspace_settings(server, workspace)
         -- overwrite global settings by those specified in the server if any
         if position == 1 and server.settings then
           if settings_new then
-            util.table_merge(settings_new, server.settings)
+            settings_new = util.deep_merge(settings_new, server.settings)
           else
             settings_new = server.settings
           end
@@ -733,7 +733,7 @@ function lsp.get_workspace_settings(server, workspace)
 
         -- overwrite previous settings with new ones
         if settings_new then
-          util.table_merge(settings, settings_new)
+          settings = util.deep_merge(settings, settings_new)
         end
       end
 

@@ -365,22 +365,29 @@ function util.table_get_field(t, fieldset)
   return value
 end
 
----Merge the content of table2 into table1.
----Solution found here: https://stackoverflow.com/a/1283608
----@param t1 table
----@param t2 table
-function util.table_merge(t1, t2)
-  for k,v in pairs(t2) do
-    if type(v) == "table" then
-      if type(t1[k] or false) == "table" then
-        util.table_merge(t1[k] or {}, t2[k] or {})
-      else
-        t1[k] = v
+---Merge the content of the tables into a new one.
+---Arguments from the later tables take precedence.
+---Doesn't touch the original tables.
+---`nil` arguments are ignored.
+---@param ... table?
+---@return table
+function util.deep_merge(...)
+  local t = {}
+  local args = table.pack(...)
+  for i=1,args.n do
+    local other = args[i]
+    if other then
+      assert(type(other) == "table", string.format("Argument %d must be a table", i))
+      for k, v in pairs(other) do
+        if type(v) == "table" then
+          t[k] = util.deep_merge(t[k], v)
+        else
+          t[k] = v
+        end
       end
-    else
-      t1[k] = v
     end
   end
+  return t
 end
 
 ---Check if a table is really empty.
