@@ -20,7 +20,7 @@ local snippets = pcall(require, "plugins.snippets") and config.plugins.lsp.snipp
 ---Name of server.
 ---@field name string
 ---Main language, eg: C.
----@field language string
+---@field language string | lsp.server.languagematch[]
 ---File types that are supported by this server.
 ---@field file_patterns string[]
 ---LSP command and optional arguments.
@@ -80,7 +80,7 @@ local lspconfig = {}
 --- __Note__: also install `shellcheck` for linting
 lspconfig.bashls = add_lsp {
   name = "bash-language-server",
-  language = "shell",
+  language = "shellscript",
   file_patterns = { "%.sh$" },
   command = { "bash-language-server", "start" },
   incremental_changes = true,
@@ -195,10 +195,14 @@ lspconfig.dartls = add_lsp {
 --- __Installation__: Provided in Deno runtime
 lspconfig.deno = add_lsp {
   name = "deno",
-  language = "typescript",
-  file_patterns = { "%.ts$", "%.tsx$" },
+  language = {
+    { id = "javascript",      pattern = "%.js$"  },
+    { id = "javascriptreact", pattern = "%.jsx$" },
+    { id = "typescript",      pattern = "%.ts$"  },
+    { id = "typescriptreact", pattern = "%.tsx$" },
+  },
+  file_patterns = { "%.[tj]s$", "%.[tj]sx$" },
   command = { 'deno', 'lsp' },
-  id_not_extension = true,
   verbose = false,
   settings = {
     deno = {
@@ -492,7 +496,6 @@ lspconfig.ocaml_lsp = add_lsp {
   language = "ocaml",
   file_patterns = { "%.ml$", "%.mli$" },
   command = { "ocamllsp" },
-  id_not_extension = true,
   verbose = false
 }
 
@@ -583,9 +586,15 @@ lspconfig.pyright = add_lsp {
 --- __Installation__: Arch Linux: `yay -Syu quick-lint-js`
 lspconfig.quicklintjs = add_lsp {
   name = "quick-lint-js",
-  language = "javascript",
-  file_patterns = { "%.[mc]?js$" },
-  id_not_extension = true,
+  language = {
+    { id = "javascriptreact",      pattern = "%.jsx$"   },
+    { id = "javascript",           pattern = "%.js$"    },
+    { id = "typescriptdefinition", pattern = "%.d%.ts$" },
+    { id = "typescriptsource",     pattern = "%.ts$"    },
+    { id = "typescriptreact",      pattern = "%.tsx$"   },
+    { id = "typescript",           pattern = ".*"       },
+  },
+  file_patterns = { "%.[mc]?jsx?$", "%.tsx?$" },
   command = { "quick-lint-js", "--lsp-server" },
   verbose = false
 }
