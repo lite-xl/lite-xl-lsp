@@ -11,6 +11,7 @@
 
 local json = require "plugins.lsp.json"
 local util = require "plugins.lsp.util"
+local diagnostics = require "plugins.lsp.diagnostics"
 local Object = require "core.object"
 
 ---@alias lsp.server.callback fun(server: lsp.server, ...)
@@ -422,13 +423,18 @@ function Server:initialize(workspace, editor_name, editor_version)
           --  dynamicRegistration = false, -- not supported
           --  prepareSupport = false
           -- },
-          -- publishDiagnostics = {
-          -- relatedInformation = true,
-          --  tagSupport = {valueSet = {}},
-          --  versionSupport = true,
-          --  codeDescriptionSupport = true,
-          --  dataSupport = true
-          -- },
+          publishDiagnostics = {
+            relatedInformation = true,
+            tagSupport = {
+              valueSet = {
+                diagnostics.tag.UNNECESSARY,
+                diagnostics.tag.DEPRECATED
+              }
+            },
+            versionSupport = true,
+            codeDescriptionSupport = true,
+            dataSupport = false
+          },
           -- foldingRange = {
           --  dynamicRegistration = false, -- not supported
           --  rangeLimit = ?,
