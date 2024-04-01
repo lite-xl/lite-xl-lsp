@@ -1045,25 +1045,7 @@ function lsp.open_document(doc)
     doc.disable_symbols = true -- disable symbol parsing on autocomplete plugin
     for _, name in pairs(active_servers) do
       local server = lsp.servers_running[name]
-      if
-        server.capabilities.textDocumentSync
-        and
-        (
-          server.capabilities.textDocumentSync
-          ==
-          Server.text_document_sync_kind.Incremental
-          or
-          server.capabilities.textDocumentSync
-          ==
-          Server.text_document_sync_kind.Full
-          or
-          (
-            type(server.capabilities.textDocumentSync) == "table"
-            and
-            server.capabilities.textDocumentSync.openClose
-          )
-        )
-      then
+      if server.capabilities.textDocumentSync.openClose then
         if server.exit_timer then
           server.exit_timer:stop()
           server.exit_timer = nil
@@ -1127,19 +1109,10 @@ function lsp.save_document(doc)
   if #active_servers > 0 then
     for _, name in pairs(active_servers) do
       local server = lsp.servers_running[name]
-      if
-        server.capabilities.textDocumentSync
-        and
-        type(server.capabilities.textDocumentSync) == "table"
-        and
-        server.capabilities.textDocumentSync.save
-      then
+      local save = server.capabilities.textDocumentSync.save
+      if save then
         -- Send document content only if required by lsp server
-        if
-          type(server.capabilities.textDocumentSync.save) == "table"
-          and
-          server.capabilities.textDocumentSync.save.includeText
-        then
+        if save.includeText then
           -- If save should include file content then raw is faster for
           -- huge files that would take too much to encode.
           local text = table.concat(doc.lines)
@@ -1182,13 +1155,7 @@ function lsp.close_document(doc)
   if #active_servers > 0 then
     for _, name in pairs(active_servers) do
       local server = lsp.servers_running[name]
-      if
-        server.capabilities.textDocumentSync
-        and
-        type(server.capabilities.textDocumentSync) == "table"
-        and
-        server.capabilities.textDocumentSync.openClose
-      then
+      if server.capabilities.textDocumentSync.openClose then
         server:push_notification('textDocument/didClose', {
           params = {
             textDocument = {
@@ -1231,39 +1198,12 @@ function lsp.update_document(doc, request_completion)
 
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
+    local sync_kind = server.capabilities.textDocumentSync.change
     if
-      server.capabilities.textDocumentSync
-      and
-      (
-        (
-          type(server.capabilities.textDocumentSync) == "table"
-          and
-          server.capabilities.textDocumentSync.change
-          and
-          server.capabilities.textDocumentSync.change
-          ~=
-          Server.text_document_sync_kind.None
-        )
-        or
-        server.capabilities.textDocumentSync
-        ~=
-        Server.text_document_sync_kind.None
-      )
+      sync_kind ~= Server.text_document_sync_kind.None
       and
       server:can_push() -- ensure we don't loose incremental changes
     then
-      local sync_kind = Server.text_document_sync_kind.Incremental
-
-      if
-        type(server.capabilities.textDocumentSync) == "table"
-        and
-        server.capabilities.textDocumentSync.change
-      then
-        sync_kind = server.capabilities.textDocumentSync.change
-      elseif server.capabilities.textDocumentSync then
-        sync_kind = server.capabilities.textDocumentSync
-      end
-
       local completion_callback = nil
       if request_completion then
         completion_callback = function() request_signature_completion(doc) end

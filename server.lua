@@ -251,6 +251,40 @@ function Server.get_symbols_kind_list()
   return list
 end
 
+---Given a ServerCapabilities object, return a "normalized" version
+---that simplifies capabilities checks.
+---@param capabilities table
+---returns table
+function Server.normalize_server_capabilities(capabilities)
+  local cap = util.deep_merge({ }, capabilities)
+  local tds = {
+    openClose = false,
+    change = false,
+    willSave = false,
+    willSaveWaitUntil = false,
+    save = false
+  }
+  if cap.textDocumentSync then
+    if type(cap.textDocumentSync) ~= "table" then
+      -- Convert TextDocumentSyncKind into TextDocumentSyncOptions
+      tds = util.deep_merge(tds, {
+        openClose = true,
+        change = cap.textDocumentSync,
+        save = {
+          includeText = false
+        }
+      })
+      cap.textDocumentSync = nil
+    elseif type(cap.textDocumentSync.save) ~= "table" and cap.textDocumentSync.save then
+      tds.save = {
+        includeText = false
+      }
+    end
+  end
+  cap.textDocumentSync = util.deep_merge(cap.textDocumentSync, tds)
+  return cap
+end
+
 ---Instantiates a new LSP server.
 ---@param options lsp.server.options
 function Server:new(options)
@@ -478,7 +512,7 @@ function Server:initialize(workspace, editor_name, editor_version)
       end
       local result = response.result
       if result then
-        server.capabilities = result.capabilities
+        server.capabilities = Server.normalize_server_capabilities(result.capabilities)
         server.info = result.serverInfo
 
         if server.info then
