@@ -784,6 +784,18 @@ lspconfig.texlab = add_lsp {
   command = { 'texlab' }
 }
 
+---# TOML - Taplo
+--- __Status__: Works
+--- __Site__: https://github.com/tamasfe/taplo
+--- __Installation__: 'sudo pacman -S taplo-cli'
+lspconfig.taplo = add_lsp {
+  name = "taplo",
+  language = "toml",
+  file_patterns = { "%.toml$" },
+  command = { "taplo", "lsp", "stdio" },
+  verbose = true
+}
+
 ---# typescript-language-server
 --- __Status__: Works
 --- __Site__: https://github.com/typescript-language-server/typescript-language-server
