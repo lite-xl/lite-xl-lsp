@@ -793,7 +793,7 @@ lspconfig.taplo = add_lsp {
   language = "toml",
   file_patterns = { "%.toml$" },
   command = { "taplo", "lsp", "stdio" },
-  verbose = true
+  verbose = false
 }
 
 ---# typescript-language-server
