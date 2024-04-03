@@ -310,6 +310,18 @@ lspconfig.flow = add_lsp {
   verbose = false
 }
 
+---# Fortran - fortls
+--- __Status__: Works
+--- __Site__: https://fortls.fortran-lang.org/index.html
+--- __Installation__: `paru -S fortls`
+lspconfig.fortls = add_lsp {
+  name = "fortls",
+  language = "fortran",
+  file_patterns = { "%.f$", "%.f90$", "%.f95$", "%.F$" },
+  command = { "fortls", "--notify_init" },
+  verbose = false
+}
+
 ---# gopls
 --- __Status__: Works
 --- __Site__: https://pkg.go.dev/golang.org/x/tools/gopls
