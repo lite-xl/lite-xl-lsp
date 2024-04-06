@@ -329,7 +329,7 @@ lspconfig.fortls = add_lsp {
 lspconfig.gleam = add_lsp {
 	name = 'gleam',
 	language = 'gleam',
-	file_patterns = { '%.gleam' },
+	file_patterns = { '%.gleam$' },
 	command = { 'gleam', 'lsp' },
 	verbose = true
 }
