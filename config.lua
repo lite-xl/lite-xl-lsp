@@ -326,7 +326,7 @@ lspconfig.fortls = add_lsp {
 --- __Status__: Works (the gleam lsp itself acts kinda weird)
 --- __Site__: https://gleam.run/
 --- __Installation__: Included with the gleam compiler binary
-lsp.add_server {
+lspconfig.gleam = add_lsp {
 	name = 'gleam',
 	language = 'gleam',
 	file_patterns = { '%.gleam' },
