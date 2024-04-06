@@ -330,7 +330,8 @@ lspconfig.gleam = add_lsp {
 	name = 'gleam',
 	language = 'gleam',
 	file_patterns = { '%.gleam' },
-	command = { 'gleam', 'lsp' }
+	command = { 'gleam', 'lsp' },
+	verbose = true
 }
 
 ---# gopls
