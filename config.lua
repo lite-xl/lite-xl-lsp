@@ -322,6 +322,18 @@ lspconfig.fortls = add_lsp {
   verbose = false
 }
 
+---# Gleam
+--- __Status__: Works (the gleam lsp itself acts kinda weird)
+--- __Site__: https://gleam.run/
+--- __Installation__: Included with the gleam compiler binary
+lspconfig.gleam = add_lsp {
+	name = 'gleam',
+	language = 'gleam',
+	file_patterns = { '%.gleam$' },
+	command = { 'gleam', 'lsp' },
+	verbose = true
+}
+
 ---# gopls
 --- __Status__: Works
 --- __Site__: https://pkg.go.dev/golang.org/x/tools/gopls
