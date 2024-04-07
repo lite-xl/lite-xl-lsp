@@ -380,7 +380,11 @@ function util.deep_merge(...)
       assert(type(other) == "table", string.format("Argument %d must be a table", i))
       for k, v in pairs(other) do
         if type(v) == "table" then
-          t[k] = util.deep_merge(t[k], v)
+          if type(t[k]) == "table" then
+            t[k] = util.deep_merge(t[k], v)
+          else
+            t[k] = util.deep_merge({}, v)
+          end
         else
           t[k] = v
         end
