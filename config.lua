@@ -26,29 +26,29 @@ local snippets = pcall(require, "plugins.snippets") and config.plugins.lsp.snipp
 ---LSP command and optional arguments.
 ---@field command table<integer,string|table>
 ---On Windows, avoid running the LSP server with cmd.exe.
----@field windows_skip_cmd boolean
+---@field windows_skip_cmd? boolean
 ---Enviroment variables to set for the server command.
----@field env table<string, string>
+---@field env? table<string, string>
 ---Seconds before closing the server when not needed anymore.
----@field quit_timeout number
+---@field quit_timeout? number
 ---Optional table of settings to pass into the LSP.
 ---Note that also having a settings.json or settings.lua in
 ---your workspace directory with a table of settings is supported.
----@field settings table<string,any>
+---@field settings? table<string,any>
 ---Optional table of initializationOptions for the LSP.
----@field init_options table<string,any>
+---@field init_options? table<string,any>
 ---Optional table of capabilities that will be merged with our default one.
----@field custom_capabilities table<string,any>
+---@field custom_capabilities? table<string,any>
 ---Function called when the server has been started.
 ---@field on_start? fun(server: lsp.server)
 ---Set by default to 16 should only be modified if having issues with a server.
----@field requests_per_second integer
+---@field requests_per_second? integer
 ---Some servers like bash language server support incremental changes
 ---which are more performant but don't advertise it, set to true to force
 ---incremental changes even if server doesn't advertise them.
----@field incremental_changes boolean
+---@field incremental_changes? boolean
 ---Set to true to debug the lsp client when developing it.
----@field verbose boolean
+---@field verbose? boolean
 
 ---@class lsp.config.server
 ---Register the lsp server for usage.
@@ -331,7 +331,7 @@ lspconfig.gleam = add_lsp {
 	language = 'gleam',
 	file_patterns = { '%.gleam$' },
 	command = { 'gleam', 'lsp' },
-	verbose = true
+	verbose = false
 }
 
 ---# gopls
