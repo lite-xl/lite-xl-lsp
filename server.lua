@@ -279,10 +279,13 @@ function Server.normalize_server_capabilities(capabilities)
         }
       })
       cap.textDocumentSync = nil
-    elseif type(cap.textDocumentSync.save) ~= "table" and cap.textDocumentSync.save then
-      tds.save = {
-        includeText = false
-      }
+    else
+      tds = util.deep_merge(tds, cap.textDocumentSync)
+      if type(tds.save) ~= "table" and tds.save then
+        tds.save = {
+          includeText = false
+        }
+      end
     end
   end
   cap.textDocumentSync = util.deep_merge(cap.textDocumentSync, tds)
