@@ -875,6 +875,18 @@ lspconfig.v_analyzer = add_lsp {
   verbose = false
 }
 
+---# Vala - vala-language-server
+--- __Status__: Works
+--- __Site__: https://github.com/vala-lang/vala-language-server
+--- __Installation__: `paru -S vala-language-server`
+lspconfig.vala_ls = add_lsp {
+  name = "vala_ls",
+  language = "vala",
+  file_patterns = { "%.vala$" },
+  command = { "vala-language-server" },
+  verbose = false
+}
+
 ---# vlang-vls
 --- __Status__: doesn't respond to completion requests (no longer officially maintained in favor of v-analyzer)
 --- __Site__: https://github.com/vlang/vls
