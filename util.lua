@@ -398,12 +398,7 @@ end
 ---@param t table
 ---@return boolean
 function util.table_empty(t)
-  local found = false
-  for _, _ in pairs(t) do
-    found = true
-    break
-  end
-  return not found
+  return next(t) == nil
 end
 
 ---Convert markdown to plain text.
