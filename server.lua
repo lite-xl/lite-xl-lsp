@@ -672,6 +672,7 @@ function Server:process_notifications()
   if not self.initialized then return end
 
   for index, request in ipairs(self.notification_list) do
+    request.sending = true
     local message = {
       jsonrpc = '2.0',
       method = request.method,
@@ -1060,7 +1061,7 @@ function Server:push_notification(method, options)
 
   if options.overwrite then
     for _, notification in ipairs(self.notification_list) do
-      if notification.method == method then
+      if notification.method == method and not notification.sending then
         if self.verbose then
           self:log("Overwriting notification %s", tostring(method))
         end
