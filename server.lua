@@ -399,7 +399,7 @@ function Server:initialize(workspace, editor_name, editor_version)
               -- preselectSupport = true
               -- tagSupport = {valueSet = {}},
               insertReplaceSupport = true,
-              resolveSupport = {properties = {'documentation', 'detail'}},
+              resolveSupport = {properties = {'documentation', 'detail', 'additionalTextEdits'}},
               -- insertTextModeSupport = {valueSet = {}}
             },
             completionItemKind = {
