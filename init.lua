@@ -562,15 +562,6 @@ end
 -- Public functions
 --
 
----Get a language server languageId from language identifier or file extension
----depending on the "id_not_extension" property of the server.
-function lsp.get_language_id(server, doc)
-  if server.id_not_extension then
-    return server.language
-  end
-  return util.file_extension(doc.filename)
-end
-
 ---Open a document location returned by LSP
 ---@param location table
 function lsp.goto_location(location)
@@ -1056,7 +1047,7 @@ function lsp.open_document(doc)
             params = {
               textDocument = {
                 uri = util.touri(doc_path),
-                languageId = lsp.get_language_id(server, doc),
+                languageId = server:get_language_id(doc),
                 version = doc.clean_change_id,
                 text = table.concat(doc.lines)
               }
@@ -1079,7 +1070,7 @@ function lsp.open_document(doc)
             .. '"params": {\n'
             .. '"textDocument": {\n'
             .. '"uri": "'..util.touri(doc_path)..'",\n'
-            .. '"languageId": "'..lsp.get_language_id(server, doc)..'",\n'
+            .. '"languageId": "'..server:get_language_id(doc)..'",\n'
             .. '"version": '..doc.clean_change_id..',\n'
             .. '"text": "'..text..'"\n'
             .. '}\n'
@@ -1160,7 +1151,7 @@ function lsp.close_document(doc)
           params = {
             textDocument = {
               uri = util.touri(core.project_absolute_path(doc.filename)),
-              languageId = lsp.get_language_id(server, doc),
+              languageId = server:get_language_id(doc),
               version = doc.clean_change_id
             }
           }

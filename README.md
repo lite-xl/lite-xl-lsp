@@ -119,6 +119,12 @@ lsp.add_server {
   name = "intelephense",
   -- Main language
   language = "PHP",
+  -- If the server supports multiple languages:
+  -- language = {
+  --   { id = "javascript", pattern = "%.js$" },
+  --   { id = "typescript", pattern = "%.ts$" },
+  -- }
+  -- If no pattern matches, the file extension is used instead.
   -- File types that are supported by this server
   file_patterns = { "%.php$" },
   -- LSP command and optional arguments
