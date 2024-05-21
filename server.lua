@@ -671,7 +671,13 @@ end
 function Server:process_notifications()
   if not self.initialized then return end
 
+  -- Clone table as we remove elements while iterating it
+  local notifications = {}
   for index, request in ipairs(self.notification_list) do
+    notifications[index] = request
+  end
+
+  for index, request in ipairs(notifications) do
     request.sending = true
     local message = {
       jsonrpc = '2.0',
