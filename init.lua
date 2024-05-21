@@ -529,7 +529,7 @@ local function autocomplete_onselect(index, item)
         local char = dv.doc:get_char(line, col-1)
         local char_prev = dv.doc:get_char(line, col-2)
         if char:match("%p") or (char == " " and char_prev:match("%p")) then
-          if #dv.doc.lsp_changes > 0 then
+          if not util.table_empty(dv.doc.lsp_changes) then
             lsp.update_document(dv.doc, true)
           else
             lsp.request_completion(dv.doc, line, col, true)
@@ -1183,12 +1183,15 @@ end
 ---@param doc core.doc
 ---@param request_completion? boolean
 function lsp.update_document(doc, request_completion)
-  if not doc.lsp_open or not doc.lsp_changes or #doc.lsp_changes <= 0 then
+  if not doc.lsp_open or not doc.lsp_changes or util.table_empty(doc.lsp_changes) then
     return
   end
 
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
+    if not doc.lsp_changes[server] or #doc.lsp_changes[server] <= 0 then
+      goto continue
+    end
     local sync_kind = server.capabilities.textDocumentSync.change
     if
       sync_kind ~= Server.text_document_sync_kind.None
@@ -1228,7 +1231,7 @@ function lsp.update_document(doc, request_completion)
           .. '}\n'
           .. '}\n',
           callback = function()
-            doc.lsp_changes = {}
+            doc.lsp_changes[server] = nil
             if completion_callback then
               completion_callback()
             end
@@ -1242,10 +1245,10 @@ function lsp.update_document(doc, request_completion)
               uri = util.touri(core.project_absolute_path(doc.filename)),
               version = doc.lsp_version,
             },
-            contentChanges = doc.lsp_changes
+            contentChanges = doc.lsp_changes[server]
           },
           callback = function()
-            doc.lsp_changes = {}
+            doc.lsp_changes[server] = nil
             if completion_callback then
               completion_callback()
             end
@@ -1253,6 +1256,7 @@ function lsp.update_document(doc, request_completion)
         })
       end
     end
+    ::continue::
   end
 end
 
@@ -2207,7 +2211,13 @@ local function add_change(self, text, line1, col1, line2, col2)
   change.range["start"] = {line = line1-1, character = col1-1}
   change.range["end"] = {line = line2-1, character = col2-1}
 
-  table.insert(self.lsp_changes, change)
+  for _, name in pairs(lsp.get_active_servers(self.filename, true)) do
+    local server = lsp.servers_running[name]
+    if not self.lsp_changes[server] then
+      self.lsp_changes[server] = {}
+    end
+    table.insert(self.lsp_changes[server], change)
+  end
 
   -- TODO: this should not be needed but changing documents rapidly causes this
   if type(self.lsp_version) ~= 'nil' then
