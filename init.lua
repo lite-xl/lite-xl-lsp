@@ -491,6 +491,9 @@ local function autocomplete_onhover(index, item)
           item.desc = item.desc:gsub("[%s\n]+$", "")
             :gsub("^[%s\n]+", "")
             :gsub("\n\n\n+", "\n\n")
+          if symbol.additionalTextEdits then
+            completion_item.additionalTextEdits = symbol.additionalTextEdits
+          end
 
           if server.verbose then
             server:log(
@@ -512,11 +515,12 @@ end
 local function autocomplete_onselect(index, item)
   local completion = item.data.completion_item
   local dv = get_active_docview()
+  local edit_applied = false
   if completion.textEdit then
     if dv then
       local is_snippet = completion.insertTextFormat
         and completion.insertTextFormat == Server.insert_text_format.Snippet
-      local edit_applied = apply_edit(item.data.server, dv.doc, completion.textEdit, is_snippet, true)
+      edit_applied = apply_edit(item.data.server, dv.doc, completion.textEdit, is_snippet, true)
       if edit_applied then
         -- Retrigger code completion if last char is a trigger
         -- this is useful for example with clangd when autocompleting
@@ -536,7 +540,6 @@ local function autocomplete_onselect(index, item)
           end
         end
       end
-      return edit_applied
     end
   elseif
     dv and snippets_found and config.plugins.lsp.snippets
@@ -552,10 +555,21 @@ local function autocomplete_onselect(index, item)
       local line1, col1 = doc:position_offset(line2, col2, translate.start_of_word)
       doc:set_selection(line1, col1, line2, col2)
       snippets.execute {format = 'lsp', template = completion.insertText}
-      return true
+      edit_applied = true
     end
   end
-  return false
+  if edit_applied and completion.additionalTextEdits and #completion.additionalTextEdits > 0 then
+    -- TODO: do we need to sort this? Or is it expected to be already sorted?
+    -- TODO: are the edit ranges considered as if the "main" textEdit was applied already?
+
+    -- Apply the edits in reverse order, so that their ranges are not shifted
+    -- around by previous edits
+    for i=#completion.additionalTextEdits,1,-1 do
+      local edit = completion.additionalTextEdits[i]
+      apply_edit(item.data.server, dv.doc, edit, false, false)
+    end
+  end
+  return edit_applied
 end
 
 --
