@@ -14,15 +14,12 @@ local util = {}
 ---Check if the given file is currently opened on the editor.
 ---@param abs_filename string
 function util.doc_is_open(abs_filename)
-  -- make path separator consistent
-  abs_filename = abs_filename:gsub("\\", "/")
+  -- Normalize path format to the one used by normal docs
+  abs_filename = common.normalize_path(abs_filename) or abs_filename
   for _, doc in ipairs(core.docs) do
     ---@cast doc core.doc
-    if doc.abs_filename then
-      local doc_path = doc.abs_filename:gsub("\\", "/")
-      if doc_path == abs_filename then
-        return true;
-      end
+    if doc.abs_filename == abs_filename then
+      return true;
     end
   end
   return false
