@@ -490,6 +490,19 @@ lspconfig.kotlin_language_server = add_lsp {
   verbose = false
 }
 
+---# Julia - LanguageServer.jl
+--- __Status__: Works
+--- __Site__: https://github.com/julia-vscode/LanguageServer.jl
+--- __Installation__: Install julia on your system, enter the julia console with 'julia', then install the julia lsp server with ']add LanguageServer'
+lspconfig.julia_lsp = add_lsp {
+  name = "julia_ls",
+  language = "julia",
+  file_patterns = { "%.jl$", "%.julia$" },
+  command = { "julia", "--startup-file=no", "--history-file=no", "--quiet", "-e", "using LanguageServer; runserver()" },
+  quit_timeout = 60,
+  verbose = true
+}
+
 ---# XML
 --- __Status__: Works
 --- __Site__: https://github.com/eclipse/lemminx
