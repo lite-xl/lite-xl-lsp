@@ -1723,7 +1723,6 @@ end
 ---@param new_name string
 function lsp.request_symbol_rename(doc, line, col, new_name)
   if not doc.lsp_open then return end
-
   local servers_found = false
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     servers_found = true
@@ -1736,12 +1735,25 @@ function lsp.request_symbol_rename(doc, line, col, new_name)
         callback = function(server, response)
           if response.result and #response.result.changes then
             for file_uri, changes in pairs(response.result.changes) do
-              core.log(file_uri .. " " .. #changes)
-              -- TODO: Finish implement textDocument/rename
+              file_uri = string.sub(file_uri, 8)
+              local buff = core.open_doc(file_uri)
+              core.root_view:open_doc(buff)
+              for i, change in ipairs(changes) do
+                local l1, c1 = change.range.start.line + 1, change.range.start.character + 1
+                local l2, c2 = change.range['end'].line + 1, change.range['end'].character + 1
+                if #buff.selections > 1 then
+                  buff:add_selection(l1, c1, l2, c2)
+                else
+                  buff:set_selection(l1, c1, l2, c2)
+                end
+              end
+              for i, change in ipairs(changes) do
+                local l1, c1 = change.range.start.line + 1, change.range.start.character + 1
+                local l2, c2 = change.range['end'].line + 1, change.range['end'].character + 1
+                buff:replace_cursor(i, l1, c1, l2, c2, function(old) return new_name, true end)
+              end
             end
           end
-
-          core.log("%s", json.prettify(json.encode(response)))
         end
       })
       return
@@ -2469,18 +2481,22 @@ command.add(
   end,
 
   ["lsp:rename-symbol"] = function(doc)
-    local symbol = doc:get_text(doc:get_selection())
-    local line1, col1, line2 = doc:get_selection()
-    if #symbol > 0 and line1 == line2 then
-      core.command_view:enter("New Symbol Name", {
-        text = symbol,
-        submit = function(new_name)
-          lsp.request_symbol_rename(doc, line1, col1, new_name)
-        end
-      })
-    else
-      core.log("Please select a symbol on the document to rename.")
-    end
+      local symbol = doc:get_text(doc:get_selection())
+      local line1, col1, line2, col2 = doc:get_selection()
+      if #symbol == 0 then
+        line1, col1, line2, col2 = get_token_range(doc, line1, col1)
+        symbol = doc:get_text(line1, col1, line2, col2)
+      end
+      if #symbol > 0 and line1 == line2 then
+        core.command_view:enter("New Symbol Name", {
+          text = symbol,
+          submit = function(new_name)
+            lsp.request_symbol_rename(doc, line1, col1, new_name)
+          end
+        })
+      else
+        core.log("Please select a symbol on the document to rename.")
+      end
   end,
 
   ["lsp:find-references"] = function(doc)
