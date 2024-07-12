@@ -1716,6 +1716,25 @@ function lsp.request_call_hierarchy(doc, line, col)
   core.log("[LSP] Call hierarchy not supported.")
 end
 
+local function parse_rename_result(result) 
+  local changes = {}
+  if result.changes then
+    for uri, doc_change_list in pairs(result.changes) do
+      
+      changes[util.tofilename(uri)]= doc_change_list
+    end
+  elseif result.documentChanges then
+    for _, obj in ipairs(result.documentChanges) do 
+      if obj.edits and obj.textDocument and obj.textDocument.uri then
+        changes[util.tofilename(obj.textDocument.uri)]= obj.edits
+      end
+    end
+  else
+    core.warning("LSP symbol rename result is not supported")
+  end
+  return changes
+end
+
 ---Sends a request to applicable LSP servers to rename a symbol.
 ---@param doc core.doc
 ---@param line integer
@@ -1733,24 +1752,13 @@ function lsp.request_symbol_rename(doc, line, col, new_name)
       server:push_request('textDocument/rename', {
         params = request_params,
         callback = function(server, response)
-          if response.result and #response.result.changes then
-            for file_uri, changes in pairs(response.result.changes) do
-              file_uri = string.sub(file_uri, 8)
-              local buff = core.open_doc(file_uri)
+          if response.result then
+            local changes = parse_rename_result(response.result)
+            for file_path, edits in pairs(changes) do
+              local buff = core.open_doc(file_path)
               core.root_view:open_doc(buff)
-              for i, change in ipairs(changes) do
-                local l1, c1 = change.range.start.line + 1, change.range.start.character + 1
-                local l2, c2 = change.range['end'].line + 1, change.range['end'].character + 1
-                if #buff.selections > 1 then
-                  buff:add_selection(l1, c1, l2, c2)
-                else
-                  buff:set_selection(l1, c1, l2, c2)
-                end
-              end
-              for i, change in ipairs(changes) do
-                local l1, c1 = change.range.start.line + 1, change.range.start.character + 1
-                local l2, c2 = change.range['end'].line + 1, change.range['end'].character + 1
-                buff:replace_cursor(i, l1, c1, l2, c2, function(old) return new_name, true end)
+              for i = #edits, 1, -1 do
+                apply_edit(server, buff, edits[i], false, false) 
               end
             end
           end
