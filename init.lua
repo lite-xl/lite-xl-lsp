@@ -2410,6 +2410,28 @@ if autocomplete.add_icon then
   end
 end
 
+local function get_current_symbol_info(doc)
+  local line1, col1, line2, col2 = doc:get_selection()
+  local symbol = doc:get_text(line1, col1, line2,col2)
+  if #symbol == 0 then
+    line1, col1, line2, col2 = get_token_range(doc, line1, col1)
+    if line1 ~= line2 then 
+      core.error("Impossible to get current symbol")
+      return nil, line1, col1, line2, col2
+    end
+    symbol = doc:get_text(line1, col1, line2, col2)
+    while #symbol > 0 and string.byte(symbol, 1) == 32 do
+      symbol = string.sub(symbol, 2)
+      col1 = col1 + 1
+    end
+    while #symbol > 0 and string.byte(symbol, #symbol) == 32 do
+      symbol = string.sub(symbol, 1, #symbol-1)
+      col2 = col2 -1
+    end
+  end
+  return symbol, line1, col1, line2, col2
+end
+
 --
 -- Commands
 --
@@ -2481,12 +2503,7 @@ command.add(
   end,
 
   ["lsp:rename-symbol"] = function(doc)
-      local symbol = doc:get_text(doc:get_selection())
-      local line1, col1, line2, col2 = doc:get_selection()
-      if #symbol == 0 then
-        line1, col1, line2, col2 = get_token_range(doc, line1, col1)
-        symbol = doc:get_text(line1, col1, line2, col2)
-      end
+      local symbol, line1, col1, line2, _ = get_current_symbol_info(doc)
       if #symbol > 0 and line1 == line2 then
         core.command_view:enter("New Symbol Name", {
           text = symbol,
