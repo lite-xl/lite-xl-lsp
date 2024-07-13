@@ -2512,7 +2512,7 @@ command.add(
 
   ["lsp:rename-symbol"] = function(doc)
       local symbol, line1, col1, line2, _ = get_current_symbol_info(doc)
-      if #symbol > 0 and line1 == line2 then
+      if symbol and #symbol > 0 and line1 == line2 then
         core.command_view:enter("New Symbol Name", {
           text = symbol,
           submit = function(new_name)
