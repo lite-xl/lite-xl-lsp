@@ -2423,19 +2423,15 @@ local function get_current_symbol_info(doc)
   local symbol = doc:get_text(line1, col1, line2,col2)
   if #symbol == 0 then
     line1, col1, line2, col2 = get_token_range(doc, line1, col1)
-    if line1 ~= line2 then 
+    if line1 ~= line2 then
       core.error("Impossible to get current symbol")
       return nil, line1, col1, line2, col2
     end
     symbol = doc:get_text(line1, col1, line2, col2)
-    while #symbol > 0 and string.byte(symbol, 1) == 32 do
-      symbol = string.sub(symbol, 2)
-      col1 = col1 + 1
-    end
-    while #symbol > 0 and string.byte(symbol, #symbol) == 32 do
-      symbol = string.sub(symbol, 1, #symbol-1)
-      col2 = col2 -1
-    end
+    local space_start, space_end = '',''
+    space_start, symbol, space_end = string.match(symbol, "^(%s*)(.-)(%s*)$")
+    col1 = col1 + #space_start
+    col2 = col2 - #space_end
   end
   return symbol, line1, col1, line2, col2
 end
