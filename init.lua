@@ -1765,6 +1765,7 @@ function lsp.request_symbol_rename(doc, line, col, new_name)
         end
       })
       return
+      else core.log("[LSP] ".. "Server does not have rename capabilty")
     end
   end
 
@@ -2629,7 +2630,8 @@ if menu_found then
     { text = "Show Symbol Info in Tab", command = "lsp:show-symbol-info-in-tab" },
     { text = "Goto Definition",         command = "lsp:goto-definition" },
     { text = "Goto Implementation",     command = "lsp:goto-implementation" },
-    { text = "Find References",         command = "lsp:find-references" }
+    { text = "Find References",         command = "lsp:find-references" },
+    { text = "Rename Symbol",           command = "lsp:rename-symbol" },
   })
 
   menu:register(lsp_predicate, {
