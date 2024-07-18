@@ -1762,6 +1762,9 @@ function lsp.request_symbol_rename(doc, line, col, new_name)
               end
             end
           end
+          if response.error then
+            log(server, "Error renaming symbol: " .. response.error.message)
+          end
         end
       })
       return
