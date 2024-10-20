@@ -1,4 +1,4 @@
---- mod-version:3
+--- mod-version:4
 --
 -- LSP client for lite-xl
 -- @copyright Jefferson Gonzalez
@@ -2136,7 +2136,7 @@ function Doc:load(...)
   if self.filename and config.plugins.lsp.autostart_server then
     diagnostics.lintplus_init_doc(self)
     core.add_thread(function()
-      lsp.start_server(self.filename, core.project_dir)
+      lsp.start_server(self.filename, core.root_project().path)
       lsp.open_document(self)
     end)
   end
