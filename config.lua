@@ -81,6 +81,19 @@ end
 ---@class lsp.config
 local lspconfig = {}
 
+---# Markdown - Markdown Oxide
+--- __Status__: Untested
+--- __Site__: https://github.com/bscan/PerlNavigator
+--- __Installation__: `paru -S markdown-oxide-git`
+--- __Note: https://oxide.md/Home
+lspconfig.markdown_oxide_ls = add_lsp {
+  name = "markdown_oxide_ls",
+  language = "markdown",
+  file_patterns = { "%.md$" },
+  command = { "markdown-oxide" },
+  verbose = true
+}
+
 ---# bash-language-server
 --- __Status__: Works
 --- __Site__: https://github.com/bash-lsp/bash-language-server
