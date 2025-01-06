@@ -165,7 +165,7 @@ local function get_suggestions_rect(active_view)
   x = x - padding_x
   y = y - padding_y
 
-  local win_w = system.get_window_size()
+  local win_w = system.get_window_size(core.window)
   if (width/win_w*100) >= 85 and (width+style.padding.x*4) < win_w then
     x = win_w - width - style.padding.x*2
   elseif width > (win_w - x) then
@@ -340,7 +340,7 @@ end
 ---@param position? lsp.listbox.position
 function listbox.show_text(text, position)
   if text and type("text") == "string" then
-    local win_w = system.get_window_size() - style.padding.x * 6
+    local win_w = system.get_window_size(core.window) - style.padding.x * 6
     text = util.wrap_text(text, style.font, win_w)
 
     local items = {}
