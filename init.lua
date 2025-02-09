@@ -620,17 +620,19 @@ function lsp.add_server(options)
     return false
   end
 
-  -- some lsp servers may be installed with different binary names
-  -- so if command name is a list, search for one that exists
-  if type(options.command[1]) == "table" then
-    options.command[1] = util.get_best_executable(options.command[1])
-  end
-
   -- On Windows using cmd.exe allows us to take advantage of its ability to run
   -- the correct executable, as well as running scripts.
   if PLATFORM == "Windows" and not options.windows_skip_cmd then
-    table.insert(options.command, 1, "/C")
-    table.insert(options.command, 1, "cmd.exe")
+    local escaped_commands = { }
+    if type(options.command) == "string" then
+      options.command = { options.command }
+    end
+    -- We need to escape `"` as `"""`
+    for _, v in ipairs(options.command) do
+      table.insert(escaped_commands, '"' .. string.gsub(v, '"', '"""') .. '"')
+    end
+    -- The result should be something like `cmd.exe /C ""first" "second" "third""`
+    options.command = 'cmd.exe /C "' .. table.concat(escaped_commands, " ") .. '"'
   end
 
   if config.plugins.lsp.force_verbosity_off then
@@ -758,27 +760,16 @@ end
 --- @param filename string
 --- @param project_directory string
 function lsp.start_server(filename, project_directory)
-  local server_started = false
-  local server_registered = false
-  local servers_not_found = {}
   for name, server in pairs(lsp.servers) do
     if common.match_pattern(filename, server.file_patterns) then
-      server_registered = true
-      if lsp.servers_running[name] then
-        server_started = true
-      end
-
-      local command_exists = false
-      if util.command_exists(server.command[1]) then
-        command_exists = true
-      else
-        table.insert(servers_not_found, name)
-      end
-
-      if not lsp.servers_running[name] and command_exists then
-        core.log("[LSP] starting " .. name)
-        ---@type lsp.server
-        local client = Server(server)
+      if not lsp.servers_running[name] then
+        core.log("[LSP]: Starting " .. name)
+        ---@type boolean, lsp.server
+        local success, client = pcall(function() return Server(server) end)
+        if not success then
+          core.error("[LSP]: Unable to start %s:\nCommand: %s\nError: %s", name, common.serialize(server.command), client)
+          goto continue
+        end
         client.yield_on_reads = config.plugins.lsp.more_yielding
 
         lsp.servers_running[name] = client
@@ -975,16 +966,7 @@ function lsp.start_server(filename, project_directory)
         client:initialize(project_directory, "Lite XL", VERSION)
       end
     end
-  end
-
-  if server_registered and not server_started then
-    for _,_ in pairs(servers_not_found) do
-      core.error(
-        "[LSP] servers registered but not installed: %s",
-        table.concat(servers_not_found, ", ")
-      )
-      break
-    end
+    ::continue::
   end
 end
 
