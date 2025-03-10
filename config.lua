@@ -565,6 +565,30 @@ lspconfig.omnisharp = add_lsp {
   verbose = false
 }
 
+---# F# - fsharp-language-server
+--- __Status__: Works ?
+--- __Site__: https://github.com/fsprojects/fsharp-language-server
+--- __Installation__: https://github.com/fsprojects/fsharp-language-server?tab=readme-ov-file#installation
+lspconfig.fsharp_ls = add_lsp {
+  name = "fsharp_ls",
+  language = "F#",
+  file_patterns = { "%.fs$", "%.fsh$" },
+  command = { "dotnet", "fsharp-language-server" },
+  verbose = true
+}
+
+---# F# - fsautocomplete
+--- __Status__: Works ?
+--- __Site__: https://github.com/ionide/FsAutoComplete
+--- __Installation__: `dotnet tool install -g fsautocomplete`
+-- lspconfig.fsautocomplete = add_lsp {
+--   name = "fsautocomplete",
+--   language = "F#",
+--   file_patterns = { "%.fsh?$" },
+--   command = { "fsautocomplete" },
+--   verbose = true
+-- }
+
 ---# PerlNavigator - Perl
 --- __Status__: Works
 --- __Site__: https://github.com/bscan/PerlNavigator
