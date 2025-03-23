@@ -81,11 +81,10 @@ end
 ---@class lsp.config
 local lspconfig = {}
 
----# bash-language-server
+---# Bash - bash-language-server
 --- __Status__: Works
 --- __Site__: https://github.com/bash-lsp/bash-language-server
---- __Installation__: `npm i -g bash-language-server`
---- __Note__: also install `shellcheck` for linting
+--- __Installation__: https://github.com/bash-lsp/bash-language-server?tab=readme-ov-file#installation
 lspconfig.bashls = add_lsp {
   name = "bash-language-server",
   language = "shellscript",
@@ -95,10 +94,10 @@ lspconfig.bashls = add_lsp {
   verbose = false
 }
 
----# ccls
+---# C/C++ - ccls
 --- __Status__: Works
 --- __Site__: https://github.com/MaskRay/ccls/
---- __Installation__: https://github.com/MaskRay/ccls/wiki
+--- __Installation__: https://github.com/MaskRay/ccls/wiki/Install
 lspconfig.ccls = add_lsp {
   name = "ccls",
   language = {
@@ -116,7 +115,7 @@ lspconfig.ccls = add_lsp {
   verbose = false
 }
 
----# clangd
+---# C/C++ - clangd
 --- __Status__: Works
 --- __Site__: https://clangd.llvm.org/
 --- __Installation__: install the clang software package on your system
@@ -138,8 +137,8 @@ lspconfig.clangd = add_lsp {
   verbose = false
 }
 
----# Clojure
---- __Status__: Untested
+---# Clojure - clojure-lsp
+--- __Status__: Works
 --- __Site__: https://clojure-lsp.github.io/
 --- __Installation__: https://clojure-lsp.github.io/clojure-lsp/installation/
 lspconfig.clojure_lsp = add_lsp {
@@ -150,10 +149,10 @@ lspconfig.clojure_lsp = add_lsp {
   verbose = false
 }
 
----# Crystal
+---# Crystal - crystalline
 --- __Status__: Works
 --- __Site__: https://github.com/elbywan/crystalline
---- __Installation__: 'paru -S crystalline-bin'
+--- __Installation__: https://github.com/elbywan/crystalline?tab=readme-ov-file#installation
 lspconfig.crystalline = add_lsp {
   name = "crystalline",
   language = "crystal",
@@ -162,11 +161,10 @@ lspconfig.crystalline = add_lsp {
   verbose = false
 }
 
----# vscode-css-languageserver
+---# CSS - vscode-css-languageserver
 --- __Status__: Works
 --- __Site__: https://github.com/vscode-langservers/vscode-css-languageserver-bin
---- __Installation__: `npm install -g vscode-css-languageserver-bin`
----                   or `pacman -S vscode-css-languageserver`
+--- __Installation__: https://github.com/vscode-langservers/vscode-css-languageserver-bin?tab=readme-ov-file#installing
 lspconfig.cssls = add_lsp {
   name = "css-languageserver",
   language = "css",
@@ -183,7 +181,19 @@ lspconfig.cssls = add_lsp {
   verbose = false
 }
 
----# D
+---# C# - omnisharp
+--- __Status__: Works but, freeze on large projects (https://github.com/ppy/osu.git)
+--- __Site__: https://github.com/OmniSharp/omnisharp-roslyn
+--- __Installation__: https://github.com/OmniSharp/omnisharp-roslyn?tab=readme-ov-file#downloading-omnisharp
+lspconfig.omnisharp = add_lsp {
+  name = "omnisharp",
+  language = "csharp",
+  file_patterns = { "%.cs$" },
+  command = { "omnisharp", "-lsp" },
+  verbose = false
+}
+
+---# D - serve-d
 --- __Status__: Works
 --- __Site__: https://github.com/Pure-D/serve-d
 --- __Installation__: https://github.com/Pure-D/serve-d?tab=readme-ov-file#installation
@@ -195,8 +205,8 @@ lspconfig.serve_d = add_lsp {
   verbose = false
 }
 
----# dartls
---- __Status__: Untested
+---# Dart - dartls
+--- __Status__: Works
 --- __Site__: https://github.com/dart-lang/sdk
 --- __Installation__: Provided in dart sdk
 lspconfig.dartls = add_lsp {
@@ -253,10 +263,10 @@ lspconfig.deno = add_lsp {
   }
 }
 
----# Dockerfile
+---# Dockerfile - dockerfile-language-server-nodejs
 --- __Status__: Untested
 --- __Site__: https://github.com/rcjsuen/dockerfile-language-server-nodejs
---- __Installation__: `npm install -g dockerfile-language-server-nodejs`
+--- __Installation__: https://github.com/rcjsuen/dockerfile-language-server?tab=readme-ov-file#installation-instructions
 lspconfig.dockerls = add_lsp {
   name = "docker-langserver",
   language = "dockerfile",
@@ -265,10 +275,11 @@ lspconfig.dockerls = add_lsp {
   verbose = false
 }
 
----# Elixir
+---# Elixir - elixir-ls
 --- __Status__: Works
 --- __Site__: https://github.com/elixir-lsp/elixir-ls
 --- __Installation__: 'paru -S elixir-ls'
+--- __Note: https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=elixir-ls
 lspconfig.elixirls = add_lsp {
   name = "elixirls",
   language = "elixir",
@@ -277,10 +288,10 @@ lspconfig.elixirls = add_lsp {
   verbose = false
 }
 
----# Elm
---- __Status__: Untested
+---# Elm - elm-language-server
+--- __Status__: Works
 --- __Site__: https://github.com/elm-tooling/elm-language-server
---- __Installation__: `paru -S elm-language-server`
+--- __Installation__: https://github.com/elm-tooling/elm-language-server?tab=readme-ov-file#installation
 lspconfig.elmls = add_lsp {
   name = "elmls",
   language = "elm",
@@ -289,10 +300,10 @@ lspconfig.elmls = add_lsp {
   verbose = false
 }
 
----# Erlang
---- __Status__: Untested
+---# Erlang - erlang_ls
+--- __Status__: Works
 --- __Site__: https://github.com/erlang-ls/erlang_ls
---- __Installation__: ?
+--- __Installation__: https://github.com/erlang-ls/erlang_ls?tab=readme-ov-file#quickstart
 lspconfig.erlangls = add_lsp {
   name = "erlangls",
   language = "erlang",
@@ -301,15 +312,10 @@ lspconfig.erlangls = add_lsp {
   verbose = false
 }
 
----# fennel-ls
---- __Status__: Untested
+---# Fennel - fennel-ls
+--- __Status__: Works
 --- __Site__: https://git.sr.ht/~xerool/fennel-ls
---- __Installation__:
---- ```sh
---- git clone https://git.sr.ht/~xerool/fennel-ls
---- make -C fennel-ls
---- sudo make -C fennel-ls install
---- ```
+--- __Installation__: https://git.sr.ht/~xerool/fennel-ls/tree/main/docs/manual.md#installation
 lspconfig.fennells = add_lsp {
   name = "fennel-ls",
   language = "fennel",
@@ -318,22 +324,10 @@ lspconfig.fennells = add_lsp {
   verbose = false
 }
 
----# Flow - JavaScript
---- __Status__: Untested
---- __Site__: https://flow.org/
---- __Installation__: `npm install -g flow-bin`
-lspconfig.flow = add_lsp {
-  name = "flow",
-  language = "javascript",
-  file_patterns = { "%.js$", "%.jsx$" },
-  command = { "flow", "lsp" },
-  verbose = false
-}
-
 ---# Fortran - fortls
 --- __Status__: Works
 --- __Site__: https://fortls.fortran-lang.org/index.html
---- __Installation__: `paru -S fortls`
+--- __Installation__: https://fortls.fortran-lang.org/quickstart.html
 lspconfig.fortls = add_lsp {
   name = "fortls",
   language = "fortran",
@@ -354,10 +348,10 @@ lspconfig.gleam = add_lsp {
 	verbose = false
 }
 
----# gopls
+---# Go - gopls
 --- __Status__: Works
 --- __Site__: https://pkg.go.dev/golang.org/x/tools/gopls
---- __Installation__: `go get -u golang.org/x/tools/gopls`
+--- __Installation__: https://pkg.go.dev/golang.org/x/tools/gopls#readme-installation
 lspconfig.gopls = add_lsp {
   name = "gopls",
   language = "go",
@@ -366,7 +360,7 @@ lspconfig.gopls = add_lsp {
   verbose = false
 }
 
----# groovy-language-server
+---# Groovy - groovy-language-server
 --- __Status__: Untested
 --- __Site__: https://github.com/prominic/groovy-language-server
 --- __Installation__:
@@ -386,11 +380,10 @@ lspconfig.groovyls = add_lsp {
   verbose = false
 }
 
----# haskell-language-server
+---# Haskell - haskell-language-server
 --- __Status__: Untested
 --- __Site__: https://github.com/haskell/haskell-language-server
---- __Installation__: `ghcup install hls`
---- or https://github.com/haskell/haskell-language-server#installation
+--- __Installation__: https://haskell-language-server.readthedocs.io/en/latest/installation.html
 lspconfig.hls = add_lsp {
   name = "haskell-language-server",
   language = "haskell",
@@ -399,11 +392,10 @@ lspconfig.hls = add_lsp {
   verbose = false
 }
 
----# vscode-html-languageserver
+---# HTML - vscode-html-languageserver
 --- __Status__: Works
 --- __Site__: https://github.com/vscode-langservers/vscode-html-languageserver-bin
---- __Installation__: `npm install --global vscode-html-languageserver-bin`
----                   or `pacman -S vscode-html-languageserver`
+--- __Installation__: https://github.com/vscode-langservers/vscode-html-languageserver-bin?tab=readme-ov-file#installing
 lspconfig.html = add_lsp {
   name = "html-languageserver",
   language = "html",
@@ -419,23 +411,7 @@ lspconfig.html = add_lsp {
   verbose = false
 }
 
----# intelephense
---- __Status__: Works
---- __Site__: https://github.com/bmewburn/intelephense-docs
---- __Installation__: `npm -g install intelephense`
---- __Note__: Set your license and storage by passing the init_options as follows:
---- ```lua
---- init_options = { licenceKey = "...", storagePath = "/some/path"}
---- ```
-lspconfig.intelephense = add_lsp {
-  name = "intelephense",
-  language = "php",
-  file_patterns = { "%.php$" },
-  command = { "intelephense", "--stdio" },
-  verbose = false
-}
-
----# java
+---# Java - jdtls
 --- __Status__: Works
 --- __Site__: https://github.com/eclipse/eclipse.jdt.ls
 lspconfig.jdtls = add_lsp {
@@ -446,186 +422,22 @@ lspconfig.jdtls = add_lsp {
   verbose = false
 }
 
----# Scala
---- __Status__: Works
---- __Site__: https://scalameta.org/metals/
---- __Installation__: `paru -S metals`
-lspconfig.metals = add_lsp {
-  name = "metals",
-  language = "scala",
-  file_patterns = { "%.scala$" },
-  command = { "metals" },
-  verbose = false
-}
-
----# vscode-json-languageserver
---- __Status__: Works
---- __Site__: https://www.npmjs.com/package/vscode-json-languageserver
---- __Installation__: `npm install -g vscode-json-languageserver`
----                   or `pacman -S vscode-json-languageserver`
-lspconfig.jsonls = add_lsp {
-  name = "json-languageserver",
-  language = "json",
-  file_patterns = { "%.json$", "%.jsonc$" },
-  command = {
-    {
-      'vscode-json-languageserver',
-      'vscode-json-language-server',
-      'json-languageserver',
-    },
-    '--stdio'
-  },
-  verbose = false
-}
-
----# kotlin-language-server
+---# Javascript - flow
 --- __Status__: Untested
---- __Site__: https://github.com/fwcd/kotlin-language-server
---- __Installation__: https://github.com/fwcd/kotlin-language-server/releases
-lspconfig.kotlin_language_server = add_lsp {
-  name = "kotlin-language-server",
-  language = "kotlin",
-  file_patterns = { "%.kt$", "%.kts$", "%.ktm$" },
-  command = { 'kotlin-language-server' },
+--- __Site__: https://flow.org/
+--- __Installation__: `npm install -g flow-bin`
+lspconfig.flow = add_lsp {
+  name = "flow",
+  language = "javascript",
+  file_patterns = { "%.js$", "%.jsx$" },
+  command = { "flow", "lsp" },
   verbose = false
 }
 
----# XML
---- __Status__: Works
---- __Site__: https://github.com/eclipse/lemminx
---- __Installation__: 'paru -S lemminx'
-lspconfig.lemminx = add_lsp {
-  name = "lemminx",
-  language = "xml",
-  file_patterns = { "%.xml$" },
-  command = { "lemminx" },
-  verbose = false
-}
-
----# nil
---- __Status__:       Works
---- __Site__:         https://github.com/oxalica/nil
---- __Installation__: cargo install --git https://github.com/oxalica/nil nil
---- __Note__:         nix >= 2.4 needs to be installed
-lspconfig.nillsp = add_lsp {
-  name = "nil",
-  language = "nix",
-  file_patterns = { "%.nix$" },
-  command = { "nil" },
-  verbose = false
-}
-
----# nimlsp
---- __Status__: Works
---- __Site__: https://github.com/PMunch/nimlsp
---- __Installation__: `nimble install nimlsp`
-lspconfig.nimlsp = add_lsp {
-  name = "nimlsp",
-  language = "nim",
-  file_patterns = { "%.nim$" },
-  command = { "nimlsp" },
-  requests_per_second = 25,
-  incremental_changes = false,
-  verbose = false
-}
-
----# ocaml-lsp
---- __Status__: Reported working on https://github.com/jgmdev/lite-xl-lsp/issues/17
---- __Site__: https://github.com/ocaml/ocaml-lsp
---- __Installation__: https://github.com/ocaml/ocaml-lsp#installation
-lspconfig.ocaml_lsp = add_lsp {
-  name = "ocaml-lsp",
-  language = "ocaml",
-  file_patterns = { "%.ml$", "%.mli$" },
-  command = { "ocamllsp" },
-  verbose = false
-}
-
----# Odin
---- __Status__: Works
---- __Site__: https://github.com/DanielGavin/ols
---- __Installation__: `paru -S odinls`
-lspconfig.odinls = add_lsp {
-  name = "odinls",
-  language = "odin",
-  file_patterns = { "%.odin$" },
-  command = { "ols" },
-  verbose = false
-}
-
----# omnisharp
---- __Status__: Works but, freeze on large projects (https://github.com/ppy/osu.git)
---- __Site__: https://github.com/OmniSharp/omnisharp-roslyn
---- __Installation__: See official website for instructions
-lspconfig.omnisharp = add_lsp {
-  name = "omnisharp",
-  language = "csharp",
-  file_patterns = { "%.cs$" },
-  command = { "omnisharp", "-lsp" },
-  verbose = false
-}
-
----# PerlNavigator - Perl
---- __Status__: Works
---- __Site__: https://github.com/bscan/PerlNavigator
---- __Installation__: `paru -S perlnavigator`
-lspconfig.perlnavigator = add_lsp {
-  name = "perlnavigator",
-  language = "perl",
-  file_patterns = { "%.pl$", "%.pm$" },
-  command = { "perlnavigator" },
-  settings = {
-    perlnavigator = {
-      -- The following setting is only needed if you want to set a custom perl path. It already defaults to "perl"
-      perlPath = "perl"
-    }
-  }
-}
-
----# python-language-server
---- __Status__: Works (deprecated in favor of python-lsp-server)
---- __Site__: https://github.com/palantir/python-language-server
---- __Installation__: `pip install python-language-server`
---- __Note__: Also don't forget to install any additional optional dependencies
---- for additional features (see official site for details).
-lspconfig.pyls = add_lsp {
-  name = "pyls",
-  language = "python",
-  file_patterns = { "%.py$" },
-  command = { 'pyls' },
-  verbose = false
-}
-
----# python-lsp-server
---- __Status__: Works
---- __Site__: https://github.com/python-lsp/python-lsp-server
---- __Installation__: `pip install python-lsp-server`
---- __Note__: Also don't forget to install any additional optional dependencies
---- for additional features (see official site for details).
-lspconfig.pylsp = add_lsp {
-  name = "pylsp",
-  language = "python",
-  file_patterns = { "%.py$" },
-  command = { 'pylsp' },
-  verbose = false
-}
-
---# pyright
---- __Status__: Works
---- __Site__: https://github.com/microsoft/pyright
---- __Installation__: `pip install pyright`  or `npm install -g pyright`
-lspconfig.pyright = add_lsp {
-  name = "pyright",
-  language = "python",
-  file_patterns = { "%.py$" },
-  command = { "pyright-langserver",  "--stdio" },
-  verbose = false
-}
-
----# quick-lint-js
+---# Javascript - quick-lint-js
 --- __Status__: Works
 --- __Site__: https://github.com/quick-lint/quick-lint-js
---- __Installation__: Arch Linux: `yay -Syu quick-lint-js`
+--- __Installation__: https://github.com/quick-lint/quick-lint-js?tab=readme-ov-file#installing
 lspconfig.quicklintjs = add_lsp {
   name = "quick-lint-js",
   language = {
@@ -641,104 +453,49 @@ lspconfig.quicklintjs = add_lsp {
   verbose = false
 }
 
----# R
--- __Status__: Works
--- __Site__:https://github.com/REditorSupport/languageserver#installation
--- __Installation__: `paru -S r-languageserver`
-lspconfig.rlanguageserver = add_lsp {
-  name = "rlanguageserver",
-  language = "r",
-  file_patterns = { "%.r$", "%.R$" },
-  command = {'R', '--slave', '-e', 'languageserver::run()'},
-  verbose = false
-}
-
----# Rust Language Server
+---# JSON - vscode-json-languageserver
 --- __Status__: Works
---- __Site__: https://github.com/rust-lang/rls
---- __Installation__: Install rust on your system
-lspconfig.rls = add_lsp {
-  name = "rust-language-server",
-  language = "rust",
-  file_patterns = { "%.rs$" },
-  command = { 'rls' },
-  verbose = false
-}
-
----# Ruby LSP
---- __Status__: Untested
---- __Site__: https://github.com/Shopify/ruby-lsp
---- __Instalation__: gem install ruby-lsp
---- __Note__: Also don't forget to install any additional optional dependecies
---- for additional features (see official site for details).
-lspconfig.ruby_lsp = add_lsp {
-  name = "ruby-lsp",
-  language = "ruby",
-  file_patterns = { "%.rb$" },
-  command = { 'ruby-lsp' },
-  -- Override command to one below if You want to use it with bundler
-  -- command = { 'bundle', 'exec', 'ruby-lsp'},
-  incremental_changes = true,
-  init_options = {
-    enabledFeatures = {
-      "codeActions",
-      "diagnostics",
-      -- semanticHighlighting should be use only when running with bundle at the moment
-      --"semanticHighlighting",
-      "documentHighlights",
-      "documentLink",
-      "documentSymbols",
-      "foldingRanges",
-      "formatting",
-      "hover",
-      "inlayHint",
-      "onTypeFormatting",
-      "selectionRanges",
-      "completion"
-      },
-    -- enableExperimentalFeatures = true,
-    -- rubyVersionManager = "",
+--- __Site__: https://www.npmjs.com/package/vscode-json-languageserver
+--- __Installation__: `npm install vscode-json-languageserver`
+lspconfig.jsonls = add_lsp {
+  name = "json-languageserver",
+  language = "json",
+  file_patterns = { "%.json$", "%.jsonc$" },
+  command = {
+    {
+      'vscode-json-languageserver',
+      'vscode-json-language-server',
+      'json-languageserver',
+    },
+    '--stdio'
   },
   verbose = false
 }
 
----# Rust Analyzer
+---# Kotlin - kotlin-language-server
 --- __Status__: Works
---- __Site__: https://rust-analyzer.github.io/
---- __Installation__: See official website for instructions
-lspconfig.rust_analyzer = add_lsp {
-  name = "rust-analyzer",
-  language = "rust",
-  file_patterns = { "%.rs$" },
-  command = { 'rust-analyzer' },
+--- __Site__: https://github.com/fwcd/kotlin-language-server
+--- __Installation__: 'paru -S kotlin-language-server'
+lspconfig.kotlin_language_server = add_lsp {
+  name = "kotlin-language-server",
+  language = "kotlin",
+  file_patterns = { "%.kt$", "%.kts$", "%.ktm$" },
+  command = { 'kotlin-language-server' },
   verbose = false
 }
 
----# Solargraph
---- __Status__: Untested
---- __Site__: https://github.com/castwide/solargraph
---- __Installation__: `gem install solargraph`
-lspconfig.solargraph = add_lsp {
-  name = "solargraph",
-  language = "ruby",
-  file_patterns = { "%.rb$" },
-  command = { 'solargraph', 'stdio' },
-  verbose = false
-}
-
----# sql-language-server
+---# LaTeX - texlab
 --- __Status__: Works
---- __Site__: https://github.com/joe-re/sql-language-server
---- __Installation__: `npm i -g sql-language-server`
-lspconfig.sqlls = add_lsp {
-  name = "sql-language-server",
-  language = "sql",
-  file_patterns = { "%.sql$" },
-  command = { 'sql-language-server', 'up', '--method', 'stdio' },
-  verbose = false
+--- __Site__: https://github.com/latex-lsp/texlab
+--- __Installation__: https://github.com/latex-lsp/texlab?tab=readme-ov-file#requirements
+lspconfig.texlab = add_lsp {
+  name = "texlab",
+  language = "latex",
+  file_patterns = { "%.tex$", "%.bib$" , "%.dtx$", "%.sty$", "%.ins$", "%.cls$" },
+  command = { 'texlab' }
 }
 
----# lua-language-server
+---# Lua - lua-language-server
 --- __Status__: Works
 --- __Site__: https://github.com/sumneko/lua-language-server
 --- __Installation__: https://github.com/sumneko/lua-language-server/wiki/Build-and-Run-(Standalone)
@@ -797,7 +554,233 @@ lspconfig.sumneko_lua = add_lsp {
   }
 }
 
----# svelte-language-server
+---# Nix - nil
+--- __Status__: Works
+--- __Site__: https://github.com/oxalica/nil
+--- __Installation__: https://github.com/oxalica/nil?tab=readme-ov-file#installation
+lspconfig.nillsp = add_lsp {
+  name = "nil",
+  language = "nix",
+  file_patterns = { "%.nix$" },
+  command = { "nil" },
+  verbose = false
+}
+
+---# Nim - nimlsp
+--- __Status__: Works
+--- __Site__: https://github.com/PMunch/nimlsp
+--- __Installation__: https://github.com/PMunch/nimlsp?tab=readme-ov-file#installing-nimlsp
+lspconfig.nimlsp = add_lsp {
+  name = "nimlsp",
+  language = "nim",
+  file_patterns = { "%.nim$" },
+  command = { "nimlsp" },
+  requests_per_second = 25,
+  incremental_changes = false,
+  verbose = false
+}
+
+---# Ocaml - ocaml-lsp
+--- __Status__: Reported working on https://github.com/jgmdev/lite-xl-lsp/issues/17
+--- __Site__: https://github.com/ocaml/ocaml-lsp
+--- __Installation__: https://github.com/ocaml/ocaml-lsp#installation
+lspconfig.ocaml_lsp = add_lsp {
+  name = "ocaml-lsp",
+  language = "ocaml",
+  file_patterns = { "%.ml$", "%.mli$" },
+  command = { "ocamllsp" },
+  verbose = false
+}
+
+---# Odin - ols
+--- __Status__: Works
+--- __Site__: https://github.com/DanielGavin/ols
+--- __Installation__: https://github.com/DanielGavin/ols?tab=readme-ov-file#installation
+lspconfig.odinls = add_lsp {
+  name = "odinls",
+  language = "odin",
+  file_patterns = { "%.odin$" },
+  command = { "ols" },
+  verbose = false
+}
+
+---# Perl - PerlNavigator
+--- __Status__: Works
+--- __Site__: https://github.com/bscan/PerlNavigator
+--- __Installation__: https://github.com/bscan/PerlNavigator?tab=readme-ov-file#installation-for-other-editors
+lspconfig.perlnavigator = add_lsp {
+  name = "perlnavigator",
+  language = "perl",
+  file_patterns = { "%.pl$", "%.pm$" },
+  command = { "perlnavigator" },
+  settings = {
+    perlnavigator = {
+      -- The following setting is only needed if you want to set a custom perl path. It already defaults to "perl"
+      perlPath = "perl"
+    }
+  }
+}
+
+---# PHP - intelephense
+--- __Status__: Works
+--- __Site__: https://github.com/bmewburn/intelephense-docs
+--- __Installation__: `npm -g install intelephense`
+--- __Note__: Set your license and storage by passing the init_options as follows:
+--- ```lua
+--- init_options = { licenceKey = "...", storagePath = "/some/path"}
+--- ```
+lspconfig.intelephense = add_lsp {
+  name = "intelephense",
+  language = "php",
+  file_patterns = { "%.php$" },
+  command = { "intelephense", "--stdio" },
+  verbose = false
+}
+
+---# Python - python-language-server
+--- __Status__: Works (deprecated in favor of python-lsp-server)
+--- __Site__: https://github.com/palantir/python-language-server
+--- __Installation__: https://github.com/palantir/python-language-server?tab=readme-ov-file#installation
+lspconfig.pyls = add_lsp {
+  name = "pyls",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { 'pyls' },
+  verbose = false
+}
+
+---# Python - python-lsp-server
+--- __Status__: Works
+--- __Site__: https://github.com/python-lsp/python-lsp-server
+--- __Installation__: https://github.com/python-lsp/python-lsp-server?tab=readme-ov-file#installation
+lspconfig.pylsp = add_lsp {
+  name = "pylsp",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { 'pylsp' },
+  verbose = false
+}
+
+--# Python - pyright
+--- __Status__: Works
+--- __Site__: https://github.com/microsoft/pyright
+--- __Installation__: `pip install pyright`  or `npm install -g pyright`
+lspconfig.pyright = add_lsp {
+  name = "pyright",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { "pyright-langserver",  "--stdio" },
+  verbose = false
+}
+
+---# R
+-- __Status__: Works
+-- __Site__:https://github.com/REditorSupport/languageserver#installation
+-- __Installation__: `paru -S r-languageserver`
+lspconfig.rlanguageserver = add_lsp {
+  name = "rlanguageserver",
+  language = "r",
+  file_patterns = { "%.r$", "%.R$" },
+  command = {'R', '--slave', '-e', 'languageserver::run()'},
+  verbose = false
+}
+
+---# Ruby - ruby-lsp
+--- __Status__: Untested
+--- __Site__: https://github.com/Shopify/ruby-lsp
+--- __Instalation__: https://github.com/Shopify/ruby-lsp?tab=readme-ov-file#getting-started
+lspconfig.ruby_lsp = add_lsp {
+  name = "ruby-lsp",
+  language = "ruby",
+  file_patterns = { "%.rb$" },
+  command = { 'ruby-lsp' },
+  -- Override command to one below if You want to use it with bundler
+  -- command = { 'bundle', 'exec', 'ruby-lsp'},
+  incremental_changes = true,
+  init_options = {
+    enabledFeatures = {
+      "codeActions",
+      "diagnostics",
+      -- semanticHighlighting should be use only when running with bundle at the moment
+      --"semanticHighlighting",
+      "documentHighlights",
+      "documentLink",
+      "documentSymbols",
+      "foldingRanges",
+      "formatting",
+      "hover",
+      "inlayHint",
+      "onTypeFormatting",
+      "selectionRanges",
+      "completion"
+      },
+    -- enableExperimentalFeatures = true,
+    -- rubyVersionManager = "",
+  },
+  verbose = false
+}
+
+---# Rust - rls
+--- __Status__: Works
+--- __Site__: https://github.com/rust-lang/rls
+--- __Installation__: https://github.com/rust-lang/rls?tab=readme-ov-file#setup
+lspconfig.rls = add_lsp {
+  name = "rust-language-server",
+  language = "rust",
+  file_patterns = { "%.rs$" },
+  command = { 'rls' },
+  verbose = false
+}
+
+---# Rust - rust-analyzer
+--- __Status__: Works
+--- __Site__: https://rust-analyzer.github.io/
+--- __Installation__: https://rust-analyzer.github.io/manual.html#installation
+lspconfig.rust_analyzer = add_lsp {
+  name = "rust-analyzer",
+  language = "rust",
+  file_patterns = { "%.rs$" },
+  command = { 'rust-analyzer' },
+  verbose = false
+}
+
+---# Scala - metals
+--- __Status__: Works
+--- __Site__: https://scalameta.org/metals/
+--- __Installation__: https://scalameta.org/metals/docs#installation
+lspconfig.metals = add_lsp {
+  name = "metals",
+  language = "scala",
+  file_patterns = { "%.scala$" },
+  command = { "metals" },
+  verbose = false
+}
+
+---# Solargraph
+--- __Status__: Untested
+--- __Site__: https://github.com/castwide/solargraph
+--- __Installation__: `gem install solargraph`
+lspconfig.solargraph = add_lsp {
+  name = "solargraph",
+  language = "ruby",
+  file_patterns = { "%.rb$" },
+  command = { 'solargraph', 'stdio' },
+  verbose = false
+}
+
+---# SQL - sql-language-server
+--- __Status__: Works
+--- __Site__: https://github.com/joe-re/sql-language-server
+--- __Installation__: https://github.com/joe-re/sql-language-server?tab=readme-ov-file#installation--how-to-setup
+lspconfig.sqlls = add_lsp {
+  name = "sql-language-server",
+  language = "sql",
+  file_patterns = { "%.sql$" },
+  command = { 'sql-language-server', 'up', '--method', 'stdio' },
+  verbose = false
+}
+
+---# Svelte - svelte-language-server
 --- __Status__: Works
 --- __Site__: https://github.com/sveltejs/language-tools/tree/master/packages/language-server
 --- __Installation__: `npm install -g svelte-language-server`
@@ -824,19 +807,7 @@ lspconfig.tailwindcss = add_lsp {
   verbose = false
 }
 
----# LaTeX Texlab language server
---- __Status__: Works
---- __Site__: https://github.com/latex-lsp/texlab
---- __Installation__: git clone https://github.com/latex-lsp/texlab.git , then inside the texlab folder, run: cargo build --release
---- __Note__: Rust has to be installed
-lspconfig.texlab = add_lsp {
-  name = "texlab",
-  language = "latex",
-  file_patterns = { "%.tex$", "%.bib$" , "%.dtx$", "%.sty$", "%.ins$", "%.cls$" },
-  command = { 'texlab' }
-}
-
----# TOML - Taplo
+---# TOML - taplo
 --- __Status__: Works
 --- __Site__: https://github.com/tamasfe/taplo
 --- __Installation__: 'sudo pacman -S taplo-cli'
@@ -848,10 +819,10 @@ lspconfig.taplo = add_lsp {
   verbose = false
 }
 
----# typescript-language-server
+---# Typescript - typescript-language-server
 --- __Status__: Works
 --- __Site__: https://github.com/typescript-language-server/typescript-language-server
---- __Installation__: `npm install -g typescript-language-server typescript`
+--- __Installation__: https://github.com/typescript-language-server/typescript-language-server?tab=readme-ov-file#installing
 lspconfig.tsserver = add_lsp {
   name = "typescript-language-server",
   language = {
@@ -865,7 +836,7 @@ lspconfig.tsserver = add_lsp {
   verbose = false
 }
 
----# typst-lsp 
+---# Typst - typst-lsp 
 --- __Status: Works
 --- __Site__: https://github.com/nvarner/typst-lsp
 --- __Instalation__: `yay typst-lsp-bin`
@@ -881,19 +852,7 @@ lspconfig.typst_lsp = add_lsp {
   }
 }
 
----# vim-language-server
---- __Status__: Untested
---- __Site__: https://github.com/iamcco/vim-language-server
---- __Installation__: `npm install -g vim-language-server`
-lspconfig.vimls = add_lsp {
-  name = "vim-language-server",
-  language = "vim",
-  file_patterns = { "%.vim$" },
-  command = { 'vim-language-server', '--stdio' },
-  verbose = false
-}
-
----# V
+---# V - v-analyzer
 --- __Status__: Works
 --- __Site__: https://github.com/vlang/v-analyzer
 --- __Installation__: https://github.com/vlang/v-analyzer?tab=readme-ov-file#installation
@@ -905,19 +864,7 @@ lspconfig.v_analyzer = add_lsp {
   verbose = false
 }
 
----# Vala - vala-language-server
---- __Status__: Works
---- __Site__: https://github.com/vala-lang/vala-language-server
---- __Installation__: `paru -S vala-language-server`
-lspconfig.vala_ls = add_lsp {
-  name = "vala_ls",
-  language = "vala",
-  file_patterns = { "%.vala$" },
-  command = { "vala-language-server" },
-  verbose = false
-}
-
----# vlang-vls
+---# V - vlang-vls
 --- __Status__: doesn't respond to completion requests (no longer officially maintained in favor of v-analyzer)
 --- __Site__: https://github.com/vlang/vls
 --- __Installation__: https://github.com/vlang/vls?tab=readme-ov-file#installation
@@ -929,10 +876,46 @@ lspconfig.vls = add_lsp {
   verbose = false
 }
 
----# yaml-language-server
+---# Vala - vala-language-server
+--- __Status__: Works
+--- __Site__: https://github.com/vala-lang/vala-language-server
+--- __Installation__: https://github.com/vala-lang/vala-language-server?tab=readme-ov-file#installation
+lspconfig.vala_ls = add_lsp {
+  name = "vala_ls",
+  language = "vala",
+  file_patterns = { "%.vala$" },
+  command = { "vala-language-server" },
+  verbose = false
+}
+
+---# Vim - vim-language-server
+--- __Status__: Untested
+--- __Site__: https://github.com/iamcco/vim-language-server
+--- __Installation__: https://github.com/iamcco/vim-language-server?tab=readme-ov-file#install
+lspconfig.vimls = add_lsp {
+  name = "vim-language-server",
+  language = "vim",
+  file_patterns = { "%.vim$" },
+  command = { 'vim-language-server', '--stdio' },
+  verbose = false
+}
+
+---# XML - lemminx
+--- __Status__: Works
+--- __Site__: https://github.com/eclipse/lemminx
+--- __Installation__: 'paru -S lemminx'
+lspconfig.lemminx = add_lsp {
+  name = "lemminx",
+  language = "xml",
+  file_patterns = { "%.xml$" },
+  command = { "lemminx" },
+  verbose = false
+}
+
+---# YAML - yaml-language-server
 --- __Status__: Untested
 --- __Site__: https://github.com/redhat-developer/yaml-language-server
---- __Installation__: See official website for instructions
+--- __Installation__: 'sudo pacman -Syu yaml-language-server'
 lspconfig.yamlls = add_lsp {
   name = "yaml-language-server",
   language = "yaml",
@@ -941,10 +924,10 @@ lspconfig.yamlls = add_lsp {
   verbose = false
 }
 
----# Zig Language Server
+---# Zig - zls
 --- __Status__: Untested
 --- __Site__: https://github.com/zigtools/zls
---- __Installation__: See official website for instructions
+--- __Installation__: https://zigtools.org/zls/install/
 lspconfig.zls = add_lsp {
   name = "zls",
   language = "zig",
