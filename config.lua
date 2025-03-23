@@ -81,8 +81,6 @@ end
 ---@class lsp.config
 local lspconfig = {}
 
--- NOTE: the sorting will occur in the following order: prog_lang_name, LSP_server_name
-
 ---# Bash - bash-language-server
 --- __Status__: Works
 --- __Site__: https://github.com/bash-lsp/bash-language-server
