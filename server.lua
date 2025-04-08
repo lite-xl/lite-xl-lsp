@@ -74,7 +74,7 @@ local Server = Object:extend()
 ---@field name string
 ---@field language string | lsp.server.languagematch[]
 ---@field file_patterns table<integer, string>
----@field command table<integer, string>
+---@field string|command table<integer, string>
 ---@field quit_timeout number
 ---@field windows_skip_cmd boolean
 ---@field env table<string, string>
