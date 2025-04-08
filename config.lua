@@ -301,15 +301,10 @@ lspconfig.erlangls = add_lsp {
   verbose = false
 }
 
----# fennel-ls
---- __Status__: Untested
+---# Fennel - fennel-ls
+--- __Status__: Works
 --- __Site__: https://git.sr.ht/~xerool/fennel-ls
---- __Installation__:
---- ```sh
---- git clone https://git.sr.ht/~xerool/fennel-ls
---- make -C fennel-ls
---- sudo make -C fennel-ls install
---- ```
+--- __Installation__: https://git.sr.ht/~xerool/fennel-ls/tree/main/docs/manual.md#installation
 lspconfig.fennells = add_lsp {
   name = "fennel-ls",
   language = "fennel",
