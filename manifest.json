@@ -4,7 +4,7 @@
       "id": "lsp",
       "name": "Language Server Protocol",
       "description": "Provides intellisense by leveraging the LSP protocol.",
-      "version": "0.8",
+      "version": "0.9",
       "mod_version": "3",
       "dependencies": {
         "widget": { "version": ">=0.1" },
