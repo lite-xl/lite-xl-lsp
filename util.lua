@@ -161,6 +161,13 @@ end
 ---@param file_path string
 ---@return string
 function util.touri(file_path)
+  local function char_escape(char)
+    if string.match(char, "[_.~-]") then return char end
+    if char == "/" then return char end
+    return string.format("%%%02X", string.byte(char))
+  end
+
+  file_path = string.gsub(file_path, "([%W ])", char_escape)
   if PLATFORM ~= "Windows" then
     file_path = 'file://' .. file_path
   else
