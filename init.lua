@@ -1698,6 +1698,25 @@ function lsp.request_call_hierarchy(doc, line, col)
   core.log("[LSP] Call hierarchy not supported.")
 end
 
+local function parse_rename_result(result) 
+  local changes = {}
+  if result.changes then
+    for uri, doc_change_list in pairs(result.changes) do
+      
+      changes[util.tofilename(uri)]= doc_change_list
+    end
+  elseif result.documentChanges then
+    for _, obj in ipairs(result.documentChanges) do 
+      if obj.edits and obj.textDocument and obj.textDocument.uri then
+        changes[util.tofilename(obj.textDocument.uri)]= obj.edits
+      end
+    end
+  else
+    core.warning("LSP symbol rename result is not supported")
+  end
+  return changes
+end
+
 ---Sends a request to applicable LSP servers to rename a symbol.
 ---@param doc core.doc
 ---@param line integer
@@ -1705,7 +1724,6 @@ end
 ---@param new_name string
 function lsp.request_symbol_rename(doc, line, col, new_name)
   if not doc.lsp_open then return end
-
   local servers_found = false
   for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     servers_found = true
@@ -1716,17 +1734,23 @@ function lsp.request_symbol_rename(doc, line, col, new_name)
       server:push_request('textDocument/rename', {
         params = request_params,
         callback = function(server, response)
-          if response.result and #response.result.changes then
-            for file_uri, changes in pairs(response.result.changes) do
-              core.log(file_uri .. " " .. #changes)
-              -- TODO: Finish implement textDocument/rename
+          if response.result then
+            local changes = parse_rename_result(response.result)
+            for file_path, edits in pairs(changes) do
+              local buff = core.open_doc(file_path)
+              core.root_view:open_doc(buff)
+              for i = #edits, 1, -1 do
+                apply_edit(server, buff, edits[i], false, false) 
+              end
             end
           end
-
-          core.log("%s", json.prettify(json.encode(response)))
+          if response.error then
+            log(server, "Error renaming symbol: " .. response.error.message)
+          end
         end
       })
       return
+      else core.log("[LSP] ".. "Server does not have rename capabilty")
     end
   end
 
@@ -2380,6 +2404,24 @@ if autocomplete.add_icon then
   end
 end
 
+local function get_current_symbol_info(doc)
+  local line1, col1, line2, col2 = doc:get_selection()
+  local symbol = doc:get_text(line1, col1, line2,col2)
+  if #symbol == 0 then
+    line1, col1, line2, col2 = get_token_range(doc, line1, col1)
+    if line1 ~= line2 then
+      core.error("Impossible to get current symbol")
+      return nil, line1, col1, line2, col2
+    end
+    symbol = doc:get_text(line1, col1, line2, col2)
+    local space_start, space_end = '',''
+    space_start, symbol, space_end = string.match(symbol, "^(%s*)(.-)(%s*)$")
+    col1 = col1 + #space_start
+    col2 = col2 - #space_end
+  end
+  return symbol, line1, col1, line2, col2
+end
+
 --
 -- Commands
 --
@@ -2451,18 +2493,17 @@ command.add(
   end,
 
   ["lsp:rename-symbol"] = function(doc)
-    local symbol = doc:get_text(doc:get_selection())
-    local line1, col1, line2 = doc:get_selection()
-    if #symbol > 0 and line1 == line2 then
-      core.command_view:enter("New Symbol Name", {
-        text = symbol,
-        submit = function(new_name)
-          lsp.request_symbol_rename(doc, line1, col1, new_name)
-        end
-      })
-    else
-      core.log("Please select a symbol on the document to rename.")
-    end
+      local symbol, line1, col1, line2, _ = get_current_symbol_info(doc)
+      if symbol and #symbol > 0 and line1 == line2 then
+        core.command_view:enter("New Symbol Name", {
+          text = symbol,
+          submit = function(new_name)
+            lsp.request_symbol_rename(doc, line1, col1, new_name)
+          end
+        })
+      else
+        core.log("Please select a symbol on the document to rename.")
+      end
   end,
 
   ["lsp:find-references"] = function(doc)
@@ -2574,7 +2615,8 @@ if menu_found then
     { text = "Show Symbol Info in Tab", command = "lsp:show-symbol-info-in-tab" },
     { text = "Goto Definition",         command = "lsp:goto-definition" },
     { text = "Goto Implementation",     command = "lsp:goto-implementation" },
-    { text = "Find References",         command = "lsp:find-references" }
+    { text = "Find References",         command = "lsp:find-references" },
+    { text = "Rename Symbol",           command = "lsp:rename-symbol" },
   })
 
   menu:register(lsp_predicate, {
