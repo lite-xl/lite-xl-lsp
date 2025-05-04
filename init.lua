@@ -1307,6 +1307,8 @@ function lsp.request_completion(doc, line, col, forced)
         and
         not autocomplete.can_complete()
         and
+        not autocomplete.is_open()
+        and
         not forced
       then
         return false
