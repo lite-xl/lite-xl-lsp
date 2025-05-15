@@ -81,6 +81,8 @@ end
 ---@class lsp.config
 local lspconfig = {}
 
+-- NOTE: as of 15/05/2025, the LSP-server-specific naming conventions used here are described in https://github.com/neovim/nvim-lspconfig/blob/ac1dfbe3b60e5e23a2cff90e3bd6a3bc88031a57/CONTRIBUTING.md#walkthrough:~:text=When%20choosing%20a,(jsonnet_ls).
+
 ---# Bash - bash_ls
 --- __Status__: Works
 --- __Site__: https://github.com/bash-lsp/bash-language-server
@@ -208,7 +210,7 @@ lspconfig.serve_d = add_lsp {
 ---# Dart - dartls
 --- __Status__: Works
 --- __Site__: https://github.com/dart-lang/sdk
---- __Installation__: Provided in dart sdk
+--- __Installation__: Provided by dart sdk
 lspconfig.dartls = add_lsp {
   name = "dartls",
   language = "dart",
@@ -278,8 +280,7 @@ lspconfig.dockerfile_ls_nodejs = add_lsp {
 ---# Elixir - elixir_ls
 --- __Status__: Works
 --- __Site__: https://github.com/elixir-lsp/elixir-ls
---- __Installation__: 'paru -S elixir-ls'
---- __Note: https://aur.archlinux.org/cgit/aur.git/tree/PKGBUILD?h=elixir-ls
+--- __Installation__: https://github.com/elixir-lsp/elixir-ls?tab=readme-ov-file#detailed-installation-instructions
 lspconfig.elixir_ls = add_lsp {
   name = "elixir_ls",
   language = "elixir",
@@ -363,14 +364,8 @@ lspconfig.gopls = add_lsp {
 ---# Groovy - groovy_ls
 --- __Status__: Untested
 --- __Site__: https://github.com/prominic/groovy-language-server
---- __Installation__:
---- ```sh
---- mkdir ~/lsp
---- cd ~/lsp
---- git clone https://github.com/prominic/groovy-language-server.git
---- cd ~/lsp/groovy-language-server
---- ./gradlew build
---- ```
+--- __Installation__: either install from your OS's package manager or build from source
+--- __Note__: how to build from source: https://github.com/GroovyLanguageServer/groovy-language-server?tab=readme-ov-file#build
 lspconfig.groovy_ls = add_lsp {
   name = "groovy_ls",
   language = "groovy",
@@ -414,6 +409,7 @@ lspconfig.vscode_html_ls = add_lsp {
 ---# Java - jdtls
 --- __Status__: Works
 --- __Site__: https://github.com/eclipse/eclipse.jdt.ls
+--- __Installation__: https://github.com/eclipse-jdtls/eclipse.jdt.ls?tab=readme-ov-file#installation
 lspconfig.jdtls = add_lsp {
   name = "jdtls",
   language = "java",
@@ -425,7 +421,7 @@ lspconfig.jdtls = add_lsp {
 ---# Javascript - flow
 --- __Status__: Untested
 --- __Site__: https://flow.org/
---- __Installation__: `npm install -g flow-bin`
+--- __Installation__: https://flow.org/en/docs/install/
 lspconfig.flow = add_lsp {
   name = "flow",
   language = "javascript",
@@ -456,7 +452,7 @@ lspconfig.quick_lint_js = add_lsp {
 ---# JSON - vscode_json_ls
 --- __Status__: Works
 --- __Site__: https://www.npmjs.com/package/vscode-json-languageserver
---- __Installation__: `npm install vscode-json-languageserver`
+--- __Installation__: https://www.npmjs.com/package/vscode-json-languageserver#integrate
 lspconfig.vscode_json_ls = add_lsp {
   name = "vscode_json_ls",
   language = "json",
@@ -475,7 +471,7 @@ lspconfig.vscode_json_ls = add_lsp {
 ---# Kotlin - kotlin_ls
 --- __Status__: Works
 --- __Site__: https://github.com/fwcd/kotlin-language-server
---- __Installation__: 'paru -S kotlin-language-server'
+--- __Installation__: https://github.com/fwcd/kotlin-language-server?tab=readme-ov-file#getting-started
 lspconfig.kotlin_ls = add_lsp {
   name = "kotlin_ls",
   language = "kotlin",
@@ -636,11 +632,7 @@ lspconfig.perlnavigator = add_lsp {
 ---# PHP - intelephense
 --- __Status__: Works
 --- __Site__: https://github.com/bmewburn/intelephense-docs
---- __Installation__: `npm -g install intelephense`
---- __Note__: Set your license and storage by passing the init_options as follows:
---- ```lua
---- init_options = { licenceKey = "...", storagePath = "/some/path"}
---- ```
+--- __Installation__: https://github.com/bmewburn/intelephense-docs/blob/master/installation.md
 lspconfig.intelephense = add_lsp {
   name = "intelephense",
   language = "php",
@@ -676,7 +668,7 @@ lspconfig.python_ls = add_lsp {
 --# Python - pyright
 --- __Status__: Works
 --- __Site__: https://github.com/microsoft/pyright
---- __Installation__: `pip install pyright`  or `npm install -g pyright`
+--- __Installation__: https://microsoft.github.io/pyright/#/installation
 lspconfig.pyright = add_lsp {
   name = "pyright",
   language = "python",
@@ -687,8 +679,8 @@ lspconfig.pyright = add_lsp {
 
 ---# R - r_ls
 -- __Status__: Works
--- __Site__:https://github.com/REditorSupport/languageserver#installation
--- __Installation__: `paru -S r-languageserver`
+-- __Site__: https://github.com/REditorSupport/languageserver
+-- __Installation__: https://github.com/REditorSupport/languageserver#installation
 lspconfig.r_ls = add_lsp {
   name = "r_ls",
   language = "r",
@@ -700,7 +692,7 @@ lspconfig.r_ls = add_lsp {
 ---# Ruby - ruby_lsp
 --- __Status__: Untested
 --- __Site__: https://github.com/Shopify/ruby-lsp
---- __Instalation__: https://github.com/Shopify/ruby-lsp?tab=readme-ov-file#getting-started
+--- __Installation__: https://github.com/Shopify/ruby-lsp?tab=readme-ov-file#getting-started
 lspconfig.ruby_lsp = add_lsp {
   name = "ruby_lsp",
   language = "ruby",
@@ -735,7 +727,7 @@ lspconfig.ruby_lsp = add_lsp {
 ---# Ruby - solargraph
 --- __Status__: Untested
 --- __Site__: https://github.com/castwide/solargraph
---- __Installation__: `gem install solargraph`
+--- __Installation__: https://github.com/castwide/solargraph?tab=readme-ov-file#installation
 lspconfig.solargraph = add_lsp {
   name = "solargraph",
   language = "ruby",
@@ -796,8 +788,7 @@ lspconfig.sql_ls = add_lsp {
 --- __Status__: Works
 --- __Site__: https://github.com/sveltejs/language-tools/tree/master/packages/language-server
 --- __Installation__: `npm install -g svelte-language-server`
---- __Note__: Also don't forget to install any additional optional dependencies
---- for additional features (see official site for details).
+--- __Note__: https://github.com/sveltejs/language-tools/tree/master/packages/language-server#how-can-i-use-it
 lspconfig.svelte_ls = add_lsp {
   name = "svelte_ls",
   language = "svelte",
@@ -809,7 +800,7 @@ lspconfig.svelte_ls = add_lsp {
 ---# Tailwind CSS - tailwind_css_ls
 --- __Status__: Broken (freezes when writing class names inside html doc, requires new implementation of json.lua)
 --- __Site__: https://github.com/tailwindlabs/tailwindcss-intellisense
---- __Installation__: Arch Linux: `sudo pacman -S tailwindcss-language-server`
+--- __Installation__: https://github.com/tailwindlabs/tailwindcss-intellisense?tab=readme-ov-file#installation
 lspconfig.tailwind_css_ls = add_lsp {
   name = "tailwind_css_ls",
   language = "html",
@@ -822,7 +813,7 @@ lspconfig.tailwind_css_ls = add_lsp {
 ---# TOML - taplo
 --- __Status__: Works
 --- __Site__: https://github.com/tamasfe/taplo
---- __Installation__: 'sudo pacman -S taplo-cli'
+--- __Installation__: https://taplo.tamasfe.dev/cli/installation/binary.html
 lspconfig.taplo = add_lsp {
   name = "taplo",
   language = "toml",
@@ -851,7 +842,7 @@ lspconfig.typescript_ls = add_lsp {
 ---# Typst - typst_lsp
 --- __Status: Works
 --- __Site__: https://github.com/nvarner/typst-lsp
---- __Instalation__: `yay typst-lsp-bin`
+--- __Installation__: https://github.com/nvarner/typst-lsp?tab=readme-ov-file#installation-guide
 lspconfig.typst_lsp = add_lsp {
   name = "typst_lsp",
   language = "typst",
@@ -915,7 +906,7 @@ lspconfig.vim_ls = add_lsp {
 ---# XML - lemminx
 --- __Status__: Works
 --- __Site__: https://github.com/eclipse/lemminx
---- __Installation__: 'paru -S lemminx'
+--- __Installation__: https://github.com/eclipse-lemminx/lemminx?tab=readme-ov-file#generating-a-native-binary
 lspconfig.lemminx = add_lsp {
   name = "lemminx",
   language = "xml",
@@ -927,7 +918,7 @@ lspconfig.lemminx = add_lsp {
 ---# YAML - yaml_ls
 --- __Status__: Untested
 --- __Site__: https://github.com/redhat-developer/yaml-language-server
---- __Installation__: 'sudo pacman -Syu yaml-language-server'
+--- __Installation__: https://github.com/redhat-developer/yaml-language-server?tab=readme-ov-file#getting-started
 lspconfig.yaml_ls = add_lsp {
   name = "yaml_ls",
   language = "yaml",
