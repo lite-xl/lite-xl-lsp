@@ -161,6 +161,13 @@ end
 ---@param file_path string
 ---@return string
 function util.touri(file_path)
+  local function char_escape(char)
+    if string.match(char, "[_.~-]") then return char end
+    if char == "/" then return char end
+    return string.format("%%%02X", string.byte(char))
+  end
+
+  file_path = string.gsub(file_path, "([%W ])", char_escape)
   if PLATFORM ~= "Windows" then
     file_path = 'file://' .. file_path
   else
@@ -259,71 +266,6 @@ function util.intable(value, table_array)
   end
 
   return false
-end
-
----Check if a command exists on the system by inspecting the PATH envar.
----@param command string
----@return boolean
-function util.command_exists(command)
-  local command_win = nil
-
-  if PLATFORM == "Windows" then
-    if not command:find("%.exe$") then
-      command_win = command .. ".exe"
-    end
-  end
-
-  if
-    util.file_exists(command)
-    or
-    (command_win and util.file_exists(command_win))
-  then
-    return true
-  end
-
-  local env_path = os.getenv("PATH")
-  local path_list = {}
-
-  if PLATFORM ~= "Windows" then
-    path_list = util.split(env_path, ":")
-  else
-    path_list = util.split(env_path, ";")
-  end
-
-  -- Automatic support for brew, macports, etc...
-  if PLATFORM == "Mac OS X" then
-    if
-      system.get_file_info("/usr/local/bin")
-      and
-      not string.find(env_path, "/usr/local/bin", 1, true)
-    then
-      table.insert(path_list, 1, "/usr/local/bin")
-    end
-  end
-
-  for _, path in pairs(path_list) do
-    local path_fix = path:gsub("[/\\]$", "") .. PATHSEP
-    if util.file_exists(path_fix .. command) then
-      return true
-    elseif command_win and util.file_exists(path_fix .. command_win) then
-      return true
-    end
-  end
-
-  return false
-end
-
----From a list of executable names get the one that is installed
----on the system or first one if none of them exists.
----@param executables table<integer,string>
----@return string executable_name
-function util.get_best_executable(executables)
-  for _, executable in ipairs(executables) do
-    if util.command_exists(executable) then
-      return executable
-    end
-  end
-  return executables[1]
 end
 
 ---Remove by key from a table and returns a new

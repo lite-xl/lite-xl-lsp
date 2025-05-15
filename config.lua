@@ -554,6 +554,18 @@ lspconfig.sumneko_lua = add_lsp {
   }
 }
 
+---# Markdown - marksman
+--- __Status__: Works
+--- __Site__: https://github.com/artempyanykh/marksman
+--- __Installation__: https://github.com/artempyanykh/marksman/blob/main/docs/install.md
+lspconfig.marksman = add_lsp {
+  name = "marksman",
+  language = "Markdown",
+  file_patterns = { "%.md$" },
+  command = { "marksman" },
+  verbose = false
+}
+
 ---# Nix - nil
 --- __Status__: Works
 --- __Site__: https://github.com/oxalica/nil
