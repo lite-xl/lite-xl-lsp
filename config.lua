@@ -577,6 +577,18 @@ lspconfig.perlnavigator = add_lsp {
   }
 }
 
+---# PlantUML - plantuml_lsp
+--- __Status__: Works (no diagnostics)
+--- __Site__: https://github.com/ptdewey/plantuml-lsp
+--- __Installation__: https://github.com/ptdewey/plantuml-lsp?tab=readme-ov-file#installation
+lspconfig.plantuml_lsp = add_lsp {
+  name = "plantuml_lsp",
+  language = "plantuml",
+  file_patterns = { "%.puml$", "%.plantuml$", "%.pu$", "%.iuml$", "%.wsd$" },
+  command = { "plantuml-lsp" },
+  verbose = false
+}
+
 ---# python-language-server
 --- __Status__: Works (deprecated in favor of python-lsp-server)
 --- __Site__: https://github.com/palantir/python-language-server
