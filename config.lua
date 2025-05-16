@@ -349,6 +349,18 @@ lspconfig.gleam = add_lsp {
 	verbose = false
 }
 
+---# glsl - glsl_analyzer
+--- __Status__: Works
+--- __Site__: https://github.com/nolanderc/glsl_analyzer
+--- __Installation__: https://github.com/nolanderc/glsl_analyzer?tab=readme-ov-file#installation
+lspconfig.glsl_analyzer = add_lsp {
+  name = "glsl_analyzer",
+  language = "glsl",
+  file_patterns = { "%.glsl$" },
+  command = { "glsl_analyzer" },
+  verbose = true
+}
+
 ---# gopls
 --- __Status__: Works
 --- __Site__: https://pkg.go.dev/golang.org/x/tools/gopls
