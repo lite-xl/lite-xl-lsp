@@ -818,6 +818,18 @@ lspconfig.sveltels = add_lsp {
   verbose = false
 }
 
+-- System Verilog - svls
+--- __Status__: Works (no definitions)
+--- __Site__: https://github.com/dalance/svls
+--- __Installation__: https://github.com/dalance/svls?tab=readme-ov-file#installation
+lspconfig.svls = add_lsp {
+  name = "svls",
+  language = "system verilog",
+  file_patterns = { "%.svh?$" },
+  command = { "svls" },
+  verbose = false
+}
+
 ---# Tailwind CSS
 --- __Status__: Broken (freezes when writing class names inside html doc, requires new implementation of json.lua)
 --- __Site__: https://github.com/tailwindlabs/tailwindcss-intellisense
