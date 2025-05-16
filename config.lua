@@ -831,6 +831,18 @@ lspconfig.tailwindcss = add_lsp {
   verbose = false
 }
 
+---# Typst - tinymist
+--- __Status: Works
+--- __Site__: https://github.com/Myriad-Dreamin/tinymist
+--- __Instalation__: https://github.com/Myriad-Dreamin/tinymist?tab=readme-ov-file#installation
+lspconfig.tinymist = add_lsp {
+  name = "tinymist",
+  language = "typst",
+  file_patterns = { "%.typ$" },
+  command = { 'tinymist' },
+  verbose = false
+}
+
 ---# LaTeX Texlab language server
 --- __Status__: Works
 --- __Site__: https://github.com/latex-lsp/texlab
