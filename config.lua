@@ -358,7 +358,7 @@ lspconfig.glsl_analyzer = add_lsp {
   language = "glsl",
   file_patterns = { "%.glsl$" },
   command = { "glsl_analyzer" },
-  verbose = true
+  verbose = false
 }
 
 ---# gopls
