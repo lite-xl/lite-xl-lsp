@@ -660,26 +660,24 @@ lspconfig.rls = add_lsp {
   verbose = false
 }
 
----# Ruby LSP
---- __Status__: Untested
+---# Ruby - ruby_lsp
+--- __Status__: Works (configuration is not complete yet)
 --- __Site__: https://github.com/Shopify/ruby-lsp
---- __Instalation__: gem install ruby-lsp
---- __Note__: Also don't forget to install any additional optional dependecies
---- for additional features (see official site for details).
+--- __Installation__: Use `rvm` to install a version of ruby and then use `gem install ruby-lsp`
+--- __Note__: to ensure ruby-lsp works properly, read the following: https://shopify.github.io/ruby-lsp/editors.html
 lspconfig.ruby_lsp = add_lsp {
-  name = "ruby-lsp",
+  name = "ruby_lsp",
   language = "ruby",
   file_patterns = { "%.rb$" },
   command = { 'ruby-lsp' },
-  -- Override command to one below if You want to use it with bundler
-  -- command = { 'bundle', 'exec', 'ruby-lsp'},
+  -- Use command below if you want to run ruby_lsp with bundler
+  -- command = { 'bundler', 'exec', 'ruby-lsp'},
   incremental_changes = true,
   init_options = {
     enabledFeatures = {
       "codeActions",
+      "completion",
       "diagnostics",
-      -- semanticHighlighting should be use only when running with bundle at the moment
-      --"semanticHighlighting",
       "documentHighlights",
       "documentLink",
       "documentSymbols",
@@ -689,12 +687,14 @@ lspconfig.ruby_lsp = add_lsp {
       "inlayHint",
       "onTypeFormatting",
       "selectionRanges",
+      -- semanticHighlighting should be used only when running with bundler at the moment
+      -- "semanticHighlighting",
       "completion"
       },
     -- enableExperimentalFeatures = true,
     -- rubyVersionManager = "",
   },
-  verbose = false
+  verbose = true
 }
 
 ---# Rust Analyzer
