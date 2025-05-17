@@ -694,7 +694,7 @@ lspconfig.ruby_lsp = add_lsp {
     -- enableExperimentalFeatures = true,
     -- rubyVersionManager = "",
   },
-  verbose = true
+  verbose = false
 }
 
 ---# Rust Analyzer
