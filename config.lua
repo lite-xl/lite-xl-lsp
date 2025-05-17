@@ -232,7 +232,7 @@ lspconfig.deno_ls = add_lsp {
     { id = "typescriptreact", pattern = "%.tsx$" },
   },
   file_patterns = { "%.[tj]s$", "%.[tj]sx$" },
-  command = { 'deno', 'lsp' },
+  command = { "deno", "lsp" },
   verbose = false,
   settings = {
     deno = {
@@ -309,7 +309,7 @@ lspconfig.erlang_ls = add_lsp {
   name = "erlang_ls",
   language = "erlang",
   file_patterns = { "%.erl$", "%.hrl$" },
-  command = { 'Erlang', 'LS', '-t', 'stdio' },
+  command = { "Erlang", "LS", "-t", "stdio" },
   verbose = false
 }
 
@@ -383,7 +383,7 @@ lspconfig.haskell_ls = add_lsp {
   name = "haskell_ls",
   language = "haskell",
   file_patterns = { "%.hs$", "%.lhs$" },
-  command = { 'haskell-language-server-wrapper', '--lsp' },
+  command = { "haskell-language-server-wrapper", "--lsp" },
   verbose = false
 }
 
@@ -476,7 +476,7 @@ lspconfig.kotlin_ls = add_lsp {
   name = "kotlin_ls",
   language = "kotlin",
   file_patterns = { "%.kt$", "%.kts$", "%.ktm$" },
-  command = { 'kotlin-language-server' },
+  command = { "kotlin-language-server" },
   verbose = false
 }
 
@@ -488,7 +488,7 @@ lspconfig.texlab = add_lsp {
   name = "texlab",
   language = "latex",
   file_patterns = { "%.tex$", "%.bib$" , "%.dtx$", "%.sty$", "%.ins$", "%.cls$" },
-  command = { 'texlab' }
+  command = { "texlab" }
 }
 
 ---# Lua - lua_ls
@@ -499,7 +499,7 @@ lspconfig.lua_ls = add_lsp {
   name = "lua_ls",
   language = "lua",
   file_patterns = { "%.lua$" },
-  command = { 'lua-language-server' },
+  command = { "lua-language-server" },
   verbose = false,
   settings = {
     Lua = {
@@ -649,7 +649,7 @@ lspconfig.python_ls_palantir = add_lsp {
   name = "python_ls_palantir",
   language = "python",
   file_patterns = { "%.py$" },
-  command = { 'pyls' },
+  command = { "pyls" },
   verbose = false
 }
 
@@ -661,7 +661,7 @@ lspconfig.python_ls = add_lsp {
   name = "python_ls",
   language = "python",
   file_patterns = { "%.py$" },
-  command = { 'pylsp' },
+  command = { "pylsp" },
   verbose = false
 }
 
@@ -685,7 +685,7 @@ lspconfig.r_ls = add_lsp {
   name = "r_ls",
   language = "r",
   file_patterns = { "%.r$", "%.R$" },
-  command = {'R', '--slave', '-e', 'languageserver::run()'},
+  command = {"R", "--slave", "-e", "languageserver::run()"},
   verbose = false
 }
 
@@ -697,9 +697,9 @@ lspconfig.ruby_lsp = add_lsp {
   name = "ruby_lsp",
   language = "ruby",
   file_patterns = { "%.rb$" },
-  command = { 'ruby-lsp' },
+  command = { "ruby-lsp" },
   -- Override command to one below if You want to use it with bundler
-  -- command = { 'bundle', 'exec', 'ruby-lsp'},
+  -- command = { "bundle", "exec", "ruby-lsp"},
   incremental_changes = true,
   init_options = {
     enabledFeatures = {
@@ -732,7 +732,7 @@ lspconfig.solargraph = add_lsp {
   name = "solargraph",
   language = "ruby",
   file_patterns = { "%.rb$" },
-  command = { 'solargraph', 'stdio' },
+  command = { "solargraph", "stdio" },
   verbose = false
 }
 
@@ -744,7 +744,7 @@ lspconfig.rust_ls = add_lsp {
   name = "rust_ls",
   language = "rust",
   file_patterns = { "%.rs$" },
-  command = { 'rls' },
+  command = { "rls" },
   verbose = false
 }
 
@@ -756,7 +756,7 @@ lspconfig.rust_analyzer = add_lsp {
   name = "rust_analyzer",
   language = "rust",
   file_patterns = { "%.rs$" },
-  command = { 'rust-analyzer' },
+  command = { "rust-analyzer" },
   verbose = false
 }
 
@@ -780,7 +780,7 @@ lspconfig.sql_ls = add_lsp {
   name = "sql_ls",
   language = "sql",
   file_patterns = { "%.sql$" },
-  command = { 'sql-language-server', 'up', '--method', 'stdio' },
+  command = { "sql-language-server", "up", "--method", "stdio" },
   verbose = false
 }
 
@@ -793,7 +793,7 @@ lspconfig.svelte_ls = add_lsp {
   name = "svelte_ls",
   language = "svelte",
   file_patterns = { "%.svelte$" },
-  command = { 'svelteserver', '--stdio' },
+  command = { "svelteserver", "--stdio" },
   verbose = false
 }
 
@@ -805,7 +805,7 @@ lspconfig.tailwind_css_ls = add_lsp {
   name = "tailwind_css_ls",
   language = "html",
   file_patterns = { "%.html$"},
-  command = {'tailwindcss-language-server', '--stdio'},
+  command = {"tailwindcss-language-server", "--stdio"},
   fake_snippets = true,
   verbose = false
 }
@@ -835,7 +835,7 @@ lspconfig.typescript_ls = add_lsp {
     { id = "typescriptreact", pattern = "%.tsx$"      },
   },
   file_patterns = { "%.jsx?$", "%.[cm]js$", "%.tsx?$" },
-  command = { 'typescript-language-server', '--stdio' },
+  command = { "typescript-language-server", "--stdio" },
   verbose = false
 }
 
@@ -847,7 +847,7 @@ lspconfig.typst_lsp = add_lsp {
   name = "typst_lsp",
   language = "typst",
   file_patterns = { "%.typ$" },
-  command = { 'typst-lsp' },
+  command = { "typst-lsp" },
   verbose = false,
   settings = {
     exportPdf = "never", -- Choose onType, onSave or never.
@@ -875,7 +875,7 @@ lspconfig.v_ls = add_lsp {
   name = "v_ls",
   language = "v",
   file_patterns = { "%.vv?$", "%.vsh$" },
-  command = { 'vlang-vls' },
+  command = { "vlang-vls" },
   verbose = false
 }
 
@@ -899,7 +899,7 @@ lspconfig.vim_ls = add_lsp {
   name = "vim_ls",
   language = "vim",
   file_patterns = { "%.vim$" },
-  command = { 'vim-language-server', '--stdio' },
+  command = { "vim-language-server", "--stdio" },
   verbose = false
 }
 
@@ -923,7 +923,7 @@ lspconfig.yaml_ls = add_lsp {
   name = "yaml_ls",
   language = "yaml",
   file_patterns = { "%.yml$", "%.yaml$" },
-  command = { 'yaml-language-server', '--stdio' },
+  command = { "yaml-language-server", "--stdio" },
   verbose = false
 }
 
@@ -935,7 +935,7 @@ lspconfig.zls = add_lsp {
   name = "zls",
   language = "zig",
   file_patterns = { "%.zig$" },
-  command = { 'zls' },
+  command = { "zls" },
   verbose = false
 }
 
