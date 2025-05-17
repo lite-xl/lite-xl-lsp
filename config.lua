@@ -839,7 +839,7 @@ lspconfig.tinymist = add_lsp {
   name = "tinymist",
   language = "typst",
   file_patterns = { "%.typ$" },
-  command = { 'tinymist' },
+  command = { "tinymist" },
   verbose = false
 }
 
