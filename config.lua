@@ -688,8 +688,7 @@ lspconfig.ruby_lsp = add_lsp {
       "onTypeFormatting",
       "selectionRanges",
       -- semanticHighlighting should be used only when running with bundler at the moment
-      -- "semanticHighlighting",
-      "completion"
+      -- "semanticHighlighting"
       },
     -- enableExperimentalFeatures = true,
     -- rubyVersionManager = "",
