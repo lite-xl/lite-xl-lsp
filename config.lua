@@ -81,6 +81,18 @@ end
 ---@class lsp.config
 local lspconfig = {}
 
+---# Markdown - markdown_oxide_ls
+--- __Status__: Untested
+--- __Site__: https://github.com/Feel-ix-343/markdown-oxide
+--- __Installation__: https://github.com/Feel-ix-343/markdown-oxide?tab=readme-ov-file#quick-start
+lspconfig.markdown_oxide_ls = add_lsp {
+  name = "markdown_oxide_ls",
+  language = "markdown",
+  file_patterns = { "%.md$" },
+  command = { "markdown-oxide" },
+  verbose = true
+}
+
 ---# bash-language-server
 --- __Status__: Works
 --- __Site__: https://github.com/bash-lsp/bash-language-server
