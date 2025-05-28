@@ -142,7 +142,7 @@ lspconfig.clangd = add_lsp {
 --- __Status__: Works partially
 --- __Site__: https://github.com/neocmakelsp/neocmakelsp
 --- __Installation__: https://github.com/neocmakelsp/neocmakelsp?tab=readme-ov-file#installation
-lsp.add_server {
+lspconfig.neocmakelsp = add_lsp {
   name = "neocmakelsp",
   language = "cmake",
   file_patterns = { "%.cmake$", "CMakeLists.txt$", "cmakelists.txt$" },
@@ -820,7 +820,7 @@ lspconfig.marksman = add_lsp {
 --- __Status__: Untested
 --- __Site__: https://github.com/JCWasmx86/mesonlsp
 --- __Installation__: https://github.com/JCWasmx86/mesonlsp?tab=readme-ov-file#installation
-lsp.add_server {
+lspconfig.mesonlsp = add_lsp {
   name = "mesonlsp",
   language = "meson",
   file_patterns = { "meson%.build$", "meson_options%.txt$" },
