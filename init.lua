@@ -815,21 +815,23 @@ function lsp.start_server(filename, project_directory)
             local settings_list = {}
             for _, item in pairs(request.params.items) do
               local value = nil
-              -- No workspace was specified so we return from default settings
-              if not item.scopeUri then
-                value = util.table_get_field(settings_default, item.section)
-              -- A workspace was specified so we return from that workspace
-              else
-                local settings_workspace = lsp.get_workspace_settings(
-                  server, util.tofilename(item.scopeUri)
-                )
-                value = util.table_get_field(settings_workspace, item.section)
-              end
+              if item.section then
+                -- No workspace was specified so we return from default settings
+                if not item.scopeUri then
+                  value = util.table_get_field(settings_default, item.section)
+                -- A workspace was specified so we return from that workspace
+                else
+                  local settings_workspace = lsp.get_workspace_settings(
+                    server, util.tofilename(item.scopeUri)
+                  )
+                  value = util.table_get_field(settings_workspace, item.section)
+                end
 
-              if not value then
-                server:log("Asking for '%s' config but not set", item.section)
-              else
-                server:log("Asking for '%s' config", item.section)
+                if not value then
+                  server:log("Asking for '%s' config but not set", item.section)
+                else
+                  server:log("Asking for '%s' config", item.section)
+                end
               end
 
               table.insert(settings_list, value or json.null)
