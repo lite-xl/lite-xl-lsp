@@ -61,15 +61,15 @@ diagnostics.tag = {
 
 ---A diagnostic message.
 ---@class lsp.diagnostics.message
----@field filename string
 ---@field range lsp.diagnostics.position
----@field severity lsp.diagnostics.severity_code | integer
----@field code integer | string
----@field codeDescription lsp.diagnostics.code_description
----@field source string
+---@field severity? lsp.diagnostics.severity_code | integer
+---@field code? integer | string
+---@field codeDescription? lsp.diagnostics.code_description
+---@field source? string
 ---@field message string
----@field tags lsp.diagnostics.tag_code[]
----@field relatedInformation lsp.diagnostics.related_information
+---@field tags? lsp.diagnostics.tag_code[]
+---@field relatedInformation? lsp.diagnostics.related_information[]
+---@field data? any
 
 ---A diagnostic item.
 ---@class lsp.diagnostics.item
