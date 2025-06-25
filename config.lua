@@ -625,7 +625,31 @@ lspconfig.pyright = add_lsp {
   name = "pyright",
   language = "python",
   file_patterns = { "%.py$" },
-  command = { "pyright-langserver",  "--stdio" },
+  command = { "pyright-langserver", "--stdio" },
+  verbose = false
+}
+
+--# basedpyright
+--- __Status__: Works
+--- __Site__: https://github.com/DetachHead/basedpyright
+--- __Installation__: `pip install basedpyright`  or `npm install -g basedpyright`
+lspconfig.basedpyright = add_lsp {
+  name = "basedpyright",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { "basedpyright-langserver", "--stdio" },
+  verbose = false
+}
+
+--# ruff
+--- __Status__: Works
+--- __Site__: https://github.com/astral-sh/ruff
+--- __Installation__: `pip install ruff` or `uv tool install ruff`
+lspconfig.ruff = add_lsp {
+  name = "ruff",
+  language = "python",
+  file_patterns = { "%.py$" },
+  command = { "ruff", "server" },
   verbose = false
 }
 
