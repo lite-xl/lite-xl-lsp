@@ -103,7 +103,9 @@ diagnostics.lintplus_found = lintplus_found
 ---@param a lsp.diagnostics.message
 ---@param b lsp.diagnostics.message
 local function sort_helper(a, b)
-  return a.severity < b.severity
+  local a_severity = a.severity or diagnostics.severity.ERROR
+  local b_severity = b.severity or diagnostics.severity.ERROR
+  return a_severity < b_severity
 end
 
 ---Helper to catch some trange occurances where nil is given as filename
@@ -149,7 +151,9 @@ function diagnostics.get(filename, severity)
 
       local results = {}
       for _, message in ipairs(diagnostic.messages) do
-        if message.severity == severity then table.insert(results, message) end
+        if (message.severity or diagnostics.severity.ERROR) == severity then
+          table.insert(results, message)
+        end
       end
 
       return #results > 0 and results or nil
@@ -206,7 +210,9 @@ function diagnostics.get_messages_count(filename, severity)
 
   local count = 0
   for _, message in ipairs(diagnostics.list[index].messages) do
-    if message.severity == severity then count = count + 1 end
+    if (message.severity or diagnostics.severity.ERROR) == severity then
+      count = count + 1
+    end
   end
 
   return count
@@ -257,7 +263,7 @@ function diagnostics.lintplus_populate(filename)
         for _, message in pairs(diagnostic.messages) do
           local line, col = util.toselection(message.range)
           local text = message.message
-          local kind = lintplus_kinds[message.severity]
+          local kind = lintplus_kinds[message.severity or diagnostics.severity.ERROR]
 
           lintplus.add_message(fname, line, col, kind, text)
         end
@@ -268,7 +274,7 @@ function diagnostics.lintplus_populate(filename)
         for _, message in pairs(messages) do
           local line, col = util.toselection(message.range)
           local text = message.message
-          local kind = lintplus_kinds[message.severity]
+          local kind = lintplus_kinds[message.severity or diagnostics.severity.ERROR]
 
           lintplus.add_message(
             core.normalize_to_project_dir(filename),

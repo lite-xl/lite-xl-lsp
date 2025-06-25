@@ -1920,7 +1920,7 @@ function lsp.view_document_diagnostics(doc)
   local indexes, captions = {}, {}
   for index, diagnostic in pairs(diagnostic_messages) do
     local line1, col1 = util.toselection(diagnostic.range)
-    local label = diagnostic_labels[diagnostic.severity]
+    local label = diagnostic_labels[diagnostic.severity or diagnostics.severity.ERROR]
       .. ": " .. diagnostic.message .. " "
       .. tostring(line1) .. ":" .. tostring(col1)
     captions[index] = label
@@ -1941,7 +1941,7 @@ function lsp.view_document_diagnostics(doc)
         local diagnostic = diagnostic_messages[indexes[name]]
         local line1, col1 = util.toselection(diagnostic.range)
         res[i] = {
-          text = diagnostics.lintplus_kinds[diagnostic.severity]
+          text = diagnostics.lintplus_kinds[diagnostic.severity or diagnostics.severity.ERROR]
             .. ": " .. diagnostic.message,
           info = tostring(line1) .. ":" .. tostring(col1),
           index = indexes[name]
