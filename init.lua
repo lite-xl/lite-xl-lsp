@@ -2225,8 +2225,8 @@ local function add_change(self, text, line1, col1, line2, col2)
   end
 end
 
-function Doc:raw_insert(line, col, text, undo_stack, time)
-  doc_raw_insert(self, line, col, text, undo_stack, time)
+function Doc:raw_insert(line, col, text, undo_stack, time, ...)
+  doc_raw_insert(self, line, col, text, undo_stack, time, ...)
 
   -- skip new files
   if not self.filename then return end
@@ -2241,11 +2241,11 @@ function Doc:raw_insert(line, col, text, undo_stack, time)
   end
 end
 
-function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time)
+function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time, ...)
   local lcol1 = util.doc_utf8_to_utf16(self, line1, col1)
   local lcol2 = util.doc_utf8_to_utf16(self, line2, col2)
 
-  doc_raw_remove(self, line1, col1, line2, col2, undo_stack, time)
+  doc_raw_remove(self, line1, col1, line2, col2, undo_stack, time, ...)
 
   -- skip new files
   if not self.filename then return end
