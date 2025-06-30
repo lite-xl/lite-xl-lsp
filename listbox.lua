@@ -102,7 +102,7 @@ local function get_suggestions_rect(active_view)
   if settings.line then
     line, col = settings.line, settings.col
   else
-    line, col = active_view.doc:get_selection()
+    line, col = active_view:get_selection()
   end
 
   -- Validate line against current view because there can be cases
@@ -327,7 +327,7 @@ function listbox.show(is_list, position)
   local active_view = get_active_view()
   if active_view then
     settings.active_view = active_view
-    settings.last_line, settings.last_col = active_view.doc:get_selection()
+    settings.last_line, settings.last_col = active_view:get_selection()
     if settings.items and #settings.items > 0 then
       settings.is_list = is_list or false
       settings.shown_items = settings.items
@@ -492,7 +492,7 @@ RootView.update = function(...)
   local active_view = get_active_view()
   if active_view then
     -- reset suggestions if caret was moved or not same active view
-    local line, col = active_view.doc:get_selection()
+    local line, col = active_view:get_selection()
     if
       settings.active_view ~= active_view
       or
