@@ -388,7 +388,7 @@ end
 ---@param is_snippet boolean
 ---@param update_cursor_position boolean
 ---@return boolean True on success
-local function apply_edit(server, doc, text_edit, is_snippet, update_cursor_position)
+local function apply_edit(server, dv, text_edit, is_snippet, update_cursor_position)
   local range = nil
 
   if text_edit.range then
@@ -410,7 +410,7 @@ local function apply_edit(server, doc, text_edit, is_snippet, update_cursor_posi
     or
     server.capabilities.positionEncoding == Server.position_encoding_kind.UTF16
   then
-    line1, col1, line2, col2 = util.toselection(range, doc)
+    line1, col1, line2, col2 = util.toselection(range, dv.doc)
   else
     line1, col1, line2, col2 = util.toselection(range)
     core.error(
@@ -420,22 +420,22 @@ local function apply_edit(server, doc, text_edit, is_snippet, update_cursor_posi
   end
 
   if lsp.in_trigger then
-    local cline2, ccol2 = doc:get_selection()
-    local cline1, ccol1 = doc:position_offset(line2, col2, translate.start_of_word)
-    current_text = doc:get_text(cline1, ccol1, cline2, ccol2)
+    local cline2, ccol2 = dv:get_selection()
+    local cline1, ccol1 = dv:position_offset(line2, col2, translate.start_of_word)
+    current_text = dv.doc:get_text(cline1, ccol1, cline2, ccol2)
   end
 
-  doc:remove(line1, col1, line2, col2+#current_text)
+  dv.doc:remove(line1, col1, line2, col2+#current_text)
 
   if is_snippet and snippets_found and config.plugins.lsp.snippets then
-    doc:set_selection(line1, col1, line1, col1)
+    dv:set_selection(line1, col1, line1, col1)
     snippets.execute {format = 'lsp', template = text}
     return true
   end
 
-  doc:insert(line1, col1, text)
+  dv.doc:insert(line1, col1, text)
   if update_cursor_position then
-    doc:move_to_cursor(nil, #text)
+    dv:move_to_cursor(nil, #text)
   end
 
   return true
@@ -520,7 +520,7 @@ local function autocomplete_onselect(index, item)
     if dv then
       local is_snippet = completion.insertTextFormat
         and completion.insertTextFormat == Server.insert_text_format.Snippet
-      edit_applied = apply_edit(item.data.server, dv.doc, completion.textEdit, is_snippet, true)
+      edit_applied = apply_edit(item.data.server, dv, completion.textEdit, is_snippet, true)
       if edit_applied then
         -- Retrigger code completion if last char is a trigger
         -- this is useful for example with clangd when autocompleting
@@ -529,14 +529,14 @@ local function autocomplete_onselect(index, item)
         -- autocompletion will be retriggered to show a list of
         -- header files that belong to that directory.
         lsp.in_trigger = false
-        local line, col = dv.doc:get_selection()
+        local line, col = dv:get_selection()
         local char = dv.doc:get_char(line, col-1)
         local char_prev = dv.doc:get_char(line, col-2)
         if char:match("%p") or (char == " " and char_prev:match("%p")) then
           if not util.table_empty(dv.doc.lsp_changes) then
-            lsp.update_document(dv.doc, true)
+            lsp.update_document(dv, true)
           else
-            lsp.request_completion(dv.doc, line, col, true)
+            lsp.request_completion(dv, line, col, true)
           end
         end
       end
@@ -551,9 +551,9 @@ local function autocomplete_onselect(index, item)
     ---@type core.doc
     local doc = dv.doc
     if dv then
-      local line2, col2 = doc:get_selection()
+      local line2, col2 = dv:get_selection()
       local line1, col1 = doc:position_offset(line2, col2, translate.start_of_word)
-      doc:set_selection(line1, col1, line2, col2)
+      dv:set_selection(line1, col1, line2, col2)
       snippets.execute {format = 'lsp', template = completion.insertText}
       edit_applied = true
     end
@@ -566,7 +566,7 @@ local function autocomplete_onselect(index, item)
     -- around by previous edits
     for i=#completion.additionalTextEdits,1,-1 do
       local edit = completion.additionalTextEdits[i]
-      apply_edit(item.data.server, dv.doc, edit, false, false)
+      apply_edit(item.data.server, dv, edit, false, false)
     end
   end
   return edit_applied
@@ -589,7 +589,7 @@ function lsp.goto_location(location)
   local line1, col1 = util.toselection(
     location.range or location.targetRange, doc_view.doc
   )
-  doc_view.doc:set_selection(line1, col1, line1, col1)
+  doc_view:set_selection(line1, col1, line1, col1)
 end
 
 lsp.get_location_preview = get_location_preview
@@ -1161,14 +1161,14 @@ end
 
 --- Helper for lsp.update_document
 ---@param doc core.doc
-local function request_signature_completion(doc)
-  local line1, col1, line2, col2 = doc:get_selection()
+local function request_signature_completion(dv)
+  local line1, col1, line2, col2 = dv:get_selection()
 
   if line1 == line2 and col1 == col2 then
     -- First try to display a function signatures and if not possible
     -- do normal code autocomplete
     lsp.request_signature(
-      doc,
+      dv,
       line1,
       col1,
       false,
@@ -1180,14 +1180,14 @@ end
 ---Send document updates to applicable running LSP servers.
 ---@param doc core.doc
 ---@param request_completion? boolean
-function lsp.update_document(doc, request_completion)
-  if not doc.lsp_open or not doc.lsp_changes or util.table_empty(doc.lsp_changes) then
+function lsp.update_document(dv, request_completion)
+  if not dv.doc.lsp_open or not dv.doc.lsp_changes or util.table_empty(dv.doc.lsp_changes) then
     return
   end
 
-  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+  for _, name in pairs(lsp.get_active_servers(dv.doc.filename, true)) do
     local server = lsp.servers_running[name]
-    if not doc.lsp_changes[server] or #doc.lsp_changes[server] <= 0 then
+    if not dv.doc.lsp_changes[server] or #dv.doc.lsp_changes[server] <= 0 then
       goto continue
     end
     local sync_kind = server.capabilities.textDocumentSync.change
@@ -1198,7 +1198,7 @@ function lsp.update_document(doc, request_completion)
     then
       local completion_callback = nil
       if request_completion then
-        completion_callback = function() request_signature_completion(doc) end
+        completion_callback = function() request_signature_completion(dv) end
       end
 
       if
@@ -1208,7 +1208,7 @@ function lsp.update_document(doc, request_completion)
       then
         -- If sync should be done by sending full file content then lets do
         -- it raw which is faster for big files.
-        local text = table.concat(doc.lines)
+        local text = table.concat(dv.doc.lines)
           :gsub('\\', '\\\\'):gsub("\n", "\\n"):gsub("\r", "\\r")
           :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
           :gsub('\f', '\\f')
@@ -1220,8 +1220,8 @@ function lsp.update_document(doc, request_completion)
           .. '"method": "textDocument/didChange",\n'
           .. '"params": {\n'
           .. '"textDocument": {\n'
-          .. '"uri": "'..util.touri(core.project_absolute_path(doc.filename))..'",\n'
-          .. '"version": '..doc.lsp_version .. "\n"
+          .. '"uri": "'..util.touri(core.project_absolute_path(dv.doc.filename))..'",\n'
+          .. '"version": '..dv.doc.lsp_version .. "\n"
           .. '},\n'
           .. '"contentChanges": [\n'
           .. '{"text": "'..text..'"}\n'
@@ -1240,13 +1240,13 @@ function lsp.update_document(doc, request_completion)
           overwrite = true,
           params = {
             textDocument = {
-              uri = util.touri(core.project_absolute_path(doc.filename)),
-              version = doc.lsp_version,
+              uri = util.touri(core.project_absolute_path(dv.doc.filename)),
+              version = dv.doc.lsp_version,
             },
-            contentChanges = doc.lsp_changes[server]
+            contentChanges = dv.doc.lsp_changes[server]
           },
           callback = function()
-            doc.lsp_changes[server] = nil
+            dv.doc.lsp_changes[server] = nil
             if completion_callback then
               completion_callback()
             end
@@ -1272,19 +1272,19 @@ function lsp.toggle_diagnostics()
 end
 
 --- Send to applicable LSP servers a request for code completion
-function lsp.request_completion(doc, line, col, forced)
-  if lsp.in_trigger or not doc.lsp_open then
+function lsp.request_completion(dv, line, col, forced)
+  if lsp.in_trigger or not dv.doc.lsp_open then
     return
   end
 
-  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+  for _, name in pairs(lsp.get_active_servers(dv.doc.filename, true)) do
     local server = lsp.servers_running[name]
     if server.capabilities.completionProvider then
       local capabilities = lsp.servers_running[name].capabilities
-      local char = doc:get_char(line, col-1)
+      local char = dv.doc:get_char(line, col-1)
       local trigger_char = false
 
-      local request = get_buffer_position_params(doc, line, col)
+      local request = get_buffer_position_params(dv.doc, line, col)
 
       -- without providing context some language servers like the
       -- lua-language-server behave poorly and return garbage.
@@ -1321,7 +1321,7 @@ function lsp.request_completion(doc, line, col, forced)
           lsp.user_typed = false
 
           -- don't autocomplete if caret position changed
-          local cline, cchar = doc:get_selection()
+          local cline, cchar = dv:get_selection()
           if cline ~= line or cchar ~= col then
             return
           end
@@ -1455,12 +1455,12 @@ end
 
 --- Send to applicable LSP servers a request for info about a function
 --- signatures and display them on a tooltip.
-function lsp.request_signature(doc, line, col, forced, fallback)
-  if not doc.lsp_open then return end
+function lsp.request_signature(dv, line, col, forced, fallback)
+  if not dv.doc.lsp_open then return end
 
-  local char = doc:get_char(line, col-1)
-  local prev_char = doc:get_char(line, col-2) -- to support ', '
-  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+  local char = dv.doc:get_char(line, col-1)
+  local prev_char = dv.doc:get_char(line, col-2) -- to support ', '
+  for _, name in pairs(lsp.get_active_servers(dv.doc.filename, true)) do
     local server = lsp.servers_running[name]
     if
       server.capabilities.signatureHelpProvider
@@ -1487,11 +1487,11 @@ function lsp.request_signature(doc, line, col, forced, fallback)
       )
     then
       server:push_request('textDocument/signatureHelp', {
-        params = get_buffer_position_params(doc, line, col),
+        params = get_buffer_position_params(dv.doc, line, col),
         overwrite = true,
         callback = function(server, response)
           -- don't show signature if caret position changed
-          local cline, cchar = doc:get_selection()
+          local cline, cchar = dv:get_selection()
           if cline ~= line or cchar ~= col then
             return
           end
@@ -1507,13 +1507,13 @@ function lsp.request_signature(doc, line, col, forced, fallback)
             listbox.show_signatures(response.result)
             lsp.user_typed  = false
           elseif fallback then
-            fallback(doc, line, col)
+            fallback(dv, line, col)
           end
         end
       })
       break
     elseif fallback then
-      fallback(doc, line, col)
+      fallback(dv, line, col)
     end
   end
 end
@@ -1780,12 +1780,12 @@ end
 
 --- Request a list of symbols for the given document for easy document
 -- navigation and displays them using core.command_view:enter()
-function lsp.request_document_symbols(doc)
-  if not doc.lsp_open then return end
+function lsp.request_document_symbols(dv)
+  if not dv.doc.lsp_open then return end
 
   local servers_found = false
   local symbols_retrieved = false
-  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+  for _, name in pairs(lsp.get_active_servers(dv.doc.filename, true)) do
     servers_found = true
     local server = lsp.servers_running[name]
     if server.capabilities.documentSymbolProvider then
@@ -1793,7 +1793,7 @@ function lsp.request_document_symbols(doc)
       server:push_request('textDocument/documentSymbol', {
         params = {
           textDocument = {
-            uri = util.touri(core.project_absolute_path(doc.filename)),
+            uri = util.touri(core.project_absolute_path(dv.doc.filename)),
           }
         },
         callback = function(server, response)
@@ -1808,8 +1808,8 @@ function lsp.request_document_symbols(doc)
                   -- the symbol it self.
                   symbol = symbol.location and symbol.location or symbol
                   if not symbol.uri then
-                    local line1, col1 = util.toselection(symbol.range, doc)
-                    doc:set_selection(line1, col1, line1, col1)
+                    local line1, col1 = util.toselection(symbol.range, dv.doc)
+                    dvoc:set_selection(line1, col1, line1, col1)
                   else
                     lsp.goto_location(symbol)
                   end
@@ -1843,12 +1843,12 @@ function lsp.request_document_symbols(doc)
 end
 
 --- Format current document if supported by one of the running lsp servers.
-function lsp.request_document_format(doc)
-  if not doc.lsp_open then return end
+function lsp.request_document_format(dv)
+  if not dv.doc.lsp_open then return end
 
   local servers_found = false
   local format_executed = false
-  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+  for _, name in pairs(lsp.get_active_servers(dv.doc.filename, true)) do
     servers_found = true
     local server = lsp.servers_running[name]
     if server.capabilities.documentFormattingProvider then
@@ -1890,7 +1890,7 @@ function lsp.request_document_format(doc)
             -- If there are servers that don't sort their TextEdits,
             -- we'll add sorting code.
             for i=#response.result,1,-1 do
-              apply_edit(server, doc, response.result[i], false, false)
+              apply_edit(server, dv, response.result[i], false, false)
             end
             log(server, "Formatted document")
           else
@@ -1910,8 +1910,8 @@ function lsp.request_document_format(doc)
   end
 end
 
-function lsp.view_document_diagnostics(doc)
-  local diagnostic_messages = diagnostics.get(core.project_absolute_path(doc.filename))
+function lsp.view_document_diagnostics(dv)
+  local diagnostic_messages = diagnostics.get(core.project_absolute_path(dv.doc.filename))
   if not diagnostic_messages or #diagnostic_messages <= 0 then
     core.log("[LSP] %s", "No diagnostic messages found.")
     return
@@ -1933,8 +1933,8 @@ function lsp.view_document_diagnostics(doc)
     submit = function(text, item)
       if item then
         local diagnostic = diagnostic_messages[item.index]
-        local line1, col1 = util.toselection(diagnostic.range, doc)
-        doc:set_selection(line1, col1, line1, col1)
+        local line1, col1 = util.toselection(diagnostic.range, dv.doc)
+        dv:set_selection(line1, col1, line1, col1)
       end
     end,
     suggest = function(text)
@@ -1998,10 +1998,10 @@ end
 
 --- Jumps to the definition or implementation of the symbol where the cursor
 -- is placed if the LSP server supports it
-function lsp.goto_symbol(doc, line, col, implementation)
-  if not doc.lsp_open then return end
+function lsp.goto_symbol(dv, line, col, implementation)
+  if not dv.doc.lsp_open then return end
 
-  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
+  for _, name in pairs(lsp.get_active_servers(dv.doc.filename, true)) do
     local server = lsp.servers_running[name]
 
     local method = ""
@@ -2026,7 +2026,7 @@ function lsp.goto_symbol(doc, line, col, implementation)
     end
 
     -- Send document updates first
-    lsp.update_document(doc)
+    lsp.update_document(dv)
 
     server:push_request("textDocument/" .. method, {
       params = get_buffer_position_params(doc, line, col),
@@ -2150,11 +2150,13 @@ function Doc:save(...)
     -- seems to be a new document so we send open notification
     diagnostics.lintplus_init_doc(self)
     core.add_thread(function()
-      lsp.open_document(self)
+      lsp.open_document(dv)
     end)
   else
     core.add_thread(function()
-      lsp.update_document(self)
+      for i, dv in ipairs(core.get_views_referencing_doc(self)) do
+        lsp.update_document(dv)
+      end
       lsp.save_document(self)
     end)
   end
@@ -2235,7 +2237,9 @@ function Doc:raw_insert(line, col, text, undo_stack, time, ...)
 
   if self.lsp_open then
     add_change(self, text, line, col, line, col)
-    lsp.update_document(self)
+    for i, dv in ipairs(core.get_views_referencing_doc(self)) do
+      lsp.update_document(dv)
+    end
   elseif #lsp.get_active_servers(self.filename, true) > 0 then
     add_change(self, text, line, col, line, col)
   end
@@ -2252,7 +2256,9 @@ function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time, ...)
 
   if self.lsp_open then
     add_change(self, "", line1, lcol1, line2, lcol2)
-    lsp.update_document(self)
+    for i, dv in ipairs(core.get_views_referencing_doc(self)) do
+      lsp.update_document(dv)
+    end
   elseif #lsp.get_active_servers(self.filename, true) > 0 then
     add_change(self, "", line1, lcol1, line2, lcol2)
   end
@@ -2267,7 +2273,7 @@ function RootView:on_text_input(text)
 
   if av then
     lsp.user_typed = true
-    lsp.update_document(av.doc, true)
+    lsp.update_document(av, true)
   end
 end
 
@@ -2388,78 +2394,81 @@ end
 command.add(
   function()
     local dv = get_active_docview()
-    return dv ~= nil and dv.doc.lsp_open, dv and dv.doc or nil
+    if dv ~= nil and dv.doc.lsp_open then 
+      return true, dv.doc, dv 
+    end
+    return false
   end, {
 
-  ["lsp:complete"] = function(doc)
-    local line1, col1, line2, col2 = doc:get_selection()
+  ["lsp:complete"] = function(doc, dv)
+    local line1, col1, line2, col2 = dv:get_selection()
     if line1 == line2 and col1 == col2 then
       lsp.request_completion(doc, line1, col1, true)
     end
   end,
 
-  ["lsp:goto-definition"] = function(doc)
-    local line1, col1, line2 = doc:get_selection()
+  ["lsp:goto-definition"] = function(doc, dv)
+    local line1, col1, line2 = dv:get_selection()
     if line1 == line2 then
       lsp.goto_symbol(doc, line1, col1)
     end
   end,
 
-  ["lsp:goto-implementation"] = function(doc)
-    local line1, col1, line2 = doc:get_selection()
+  ["lsp:goto-implementation"] = function(doc, dv)
+    local line1, col1, line2 = dv:get_selection()
     if line1 == line2 then
       lsp.goto_symbol(doc, line1, col1, true)
     end
   end,
 
-  ["lsp:show-signature"] = function(doc)
-    local line1, col1, line2, col2 = doc:get_selection()
+  ["lsp:show-signature"] = function(doc, dv)
+    local line1, col1, line2, col2 = dv:get_selection()
     if line1 == line2 and col1 == col2 then
-      lsp.request_signature(doc, line1, col1, true)
+      lsp.request_signature(dv, line1, col1, true)
     end
   end,
 
-  ["lsp:show-symbol-info"] = function(doc)
-    local line1, col1, line2 = doc:get_selection()
+  ["lsp:show-symbol-info"] = function(doc, dv)
+    local line1, col1, line2 = dv:get_selection()
     if line1 == line2 then
       lsp.request_hover(doc, line1, col1)
     end
   end,
 
-  ["lsp:show-symbol-info-in-tab"] = function(doc)
-    local line1, col1, line2 = doc:get_selection()
+  ["lsp:show-symbol-info-in-tab"] = function(doc, dv)
+    local line1, col1, line2 = dv:get_selection()
     if line1 == line2 then
       lsp.request_hover(doc, line1, col1, true)
     end
   end,
 
-  ["lsp:view-call-hierarchy"] = function(doc)
-    local line1, col1, line2 = doc:get_selection()
+  ["lsp:view-call-hierarchy"] = function(doc, dv)
+    local line1, col1, line2 = dv:get_selection()
     if line1 == line2 then
       lsp.request_call_hierarchy(doc, line1, col1)
     end
   end,
 
-  ["lsp:view-document-symbols"] = function(doc)
-    lsp.request_document_symbols(doc)
+  ["lsp:view-document-symbols"] = function(doc, dv)
+    lsp.request_document_symbols(dv)
   end,
 
-  ["lsp:format-document"] = function(doc)
-    lsp.request_document_format(doc)
+  ["lsp:format-document"] = function(doc, dv)
+    lsp.request_document_format(dv)
   end,
 
-  ["lsp:view-document-diagnostics"] = function(doc)
-    lsp.view_document_diagnostics(doc)
+  ["lsp:view-document-diagnostics"] = function(doc, dv)
+    lsp.view_document_diagnostics(dv)
   end,
 
-  ["lsp:rename-symbol"] = function(doc)
-    local symbol = doc:get_text(doc:get_selection())
-    local line1, col1, line2 = doc:get_selection()
+  ["lsp:rename-symbol"] = function(doc, dv)
+    local symbol = doc:get_text(dv:get_selection())
+    local line1, col1, line2 = dv:get_selection()
     if #symbol > 0 and line1 == line2 then
       core.command_view:enter("New Symbol Name", {
         text = symbol,
         submit = function(new_name)
-          lsp.request_symbol_rename(doc, line1, col1, new_name)
+          lsp.request_symbol_rename(dv, line1, col1, new_name)
         end
       })
     else
@@ -2467,10 +2476,10 @@ command.add(
     end
   end,
 
-  ["lsp:find-references"] = function(doc)
-    local line1, col1, line2 = doc:get_selection()
+  ["lsp:find-references"] = function(doc, dv)
+    local line1, col1, line2 = dv:get_selection()
     if line1 == line2 then
-      lsp.request_references(doc, line1, col1)
+      lsp.request_references(dv, line1, col1)
     end
   end
 })
@@ -2550,12 +2559,12 @@ local function lsp_predicate(_, _, also_in_symbol)
     end
 
     -- Make sure the cursor is place near a document symbol (word)
-    local linem, colm = doc:get_selection()
-    local linel, coll = doc:position_offset(linem, colm, translate.start_of_word)
-    local liner, colr = doc:position_offset(linem, colm, translate.end_of_word)
+    local linem, colm = dv:get_selection()
+    local linel, coll = dv:position_offset(linem, colm, translate.start_of_word)
+    local liner, colr = dv:position_offset(linem, colm, translate.end_of_word)
 
-    local word_left = doc:get_text(linel, coll, linem, colm)
-    local word_right = doc:get_text(linem, colm, liner, colr)
+    local word_left = dv.doc:get_text(linel, coll, linem, colm)
+    local word_right = dv.doc:get_text(linem, colm, liner, colr)
 
     if #word_left > 0 or #word_right > 0 then
       return true
