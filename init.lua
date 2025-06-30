@@ -534,7 +534,7 @@ local function autocomplete_onselect(index, item)
         local char_prev = dv.doc:get_char(line, col-2)
         if char:match("%p") or (char == " " and char_prev:match("%p")) then
           if not util.table_empty(dv.doc.lsp_changes) then
-            lsp.update_document(dv, true)
+            lsp.update_document(dv.doc, true)
           else
             lsp.request_completion(dv, line, col, true)
           end
@@ -1180,14 +1180,14 @@ end
 ---Send document updates to applicable running LSP servers.
 ---@param doc core.doc
 ---@param request_completion? boolean
-function lsp.update_document(dv, request_completion)
-  if not dv.doc.lsp_open or not dv.doc.lsp_changes or util.table_empty(dv.doc.lsp_changes) then
+function lsp.update_document(doc, dv, request_completion)
+  if not doc.lsp_open or not doc.lsp_changes or util.table_empty(doc.lsp_changes) then
     return
   end
 
-  for _, name in pairs(lsp.get_active_servers(dv.doc.filename, true)) do
+  for _, name in pairs(lsp.get_active_servers(doc.filename, true)) do
     local server = lsp.servers_running[name]
-    if not dv.doc.lsp_changes[server] or #dv.doc.lsp_changes[server] <= 0 then
+    if not doc.lsp_changes[server] or #doc.lsp_changes[server] <= 0 then
       goto continue
     end
     local sync_kind = server.capabilities.textDocumentSync.change
@@ -1208,7 +1208,7 @@ function lsp.update_document(dv, request_completion)
       then
         -- If sync should be done by sending full file content then lets do
         -- it raw which is faster for big files.
-        local text = table.concat(dv.doc.lines)
+        local text = table.concat(doc.lines)
           :gsub('\\', '\\\\'):gsub("\n", "\\n"):gsub("\r", "\\r")
           :gsub("\t", "\\t"):gsub('"', '\\"'):gsub('\b', '\\b')
           :gsub('\f', '\\f')
@@ -1220,8 +1220,8 @@ function lsp.update_document(dv, request_completion)
           .. '"method": "textDocument/didChange",\n'
           .. '"params": {\n'
           .. '"textDocument": {\n'
-          .. '"uri": "'..util.touri(core.project_absolute_path(dv.doc.filename))..'",\n'
-          .. '"version": '..dv.doc.lsp_version .. "\n"
+          .. '"uri": "'..util.touri(core.project_absolute_path(doc.filename))..'",\n'
+          .. '"version": '..doc.lsp_version .. "\n"
           .. '},\n'
           .. '"contentChanges": [\n'
           .. '{"text": "'..text..'"}\n'
@@ -1240,13 +1240,13 @@ function lsp.update_document(dv, request_completion)
           overwrite = true,
           params = {
             textDocument = {
-              uri = util.touri(core.project_absolute_path(dv.doc.filename)),
-              version = dv.doc.lsp_version,
+              uri = util.touri(core.project_absolute_path(doc.filename)),
+              version = doc.lsp_version,
             },
-            contentChanges = dv.doc.lsp_changes[server]
+            contentChanges = doc.lsp_changes[server]
           },
           callback = function()
-            dv.doc.lsp_changes[server] = nil
+            doc.lsp_changes[server] = nil
             if completion_callback then
               completion_callback()
             end
@@ -2026,10 +2026,10 @@ function lsp.goto_symbol(dv, line, col, implementation)
     end
 
     -- Send document updates first
-    lsp.update_document(dv)
+    lsp.update_document(dv.doc)
 
     server:push_request("textDocument/" .. method, {
-      params = get_buffer_position_params(doc, line, col),
+      params = get_buffer_position_params(dv.doc, line, col),
       callback = function(server, response)
         local location = response.result
 
@@ -2154,9 +2154,7 @@ function Doc:save(...)
     end)
   else
     core.add_thread(function()
-      for i, dv in ipairs(core.get_views_referencing_doc(self)) do
-        lsp.update_document(dv)
-      end
+      lsp.update_document(self)
       lsp.save_document(self)
     end)
   end
@@ -2237,9 +2235,7 @@ function Doc:raw_insert(line, col, text, undo_stack, time, ...)
 
   if self.lsp_open then
     add_change(self, text, line, col, line, col)
-    for i, dv in ipairs(core.get_views_referencing_doc(self)) do
-      lsp.update_document(dv)
-    end
+    lsp.update_document(self)
   elseif #lsp.get_active_servers(self.filename, true) > 0 then
     add_change(self, text, line, col, line, col)
   end
@@ -2256,9 +2252,7 @@ function Doc:raw_remove(line1, col1, line2, col2, undo_stack, time, ...)
 
   if self.lsp_open then
     add_change(self, "", line1, lcol1, line2, lcol2)
-    for i, dv in ipairs(core.get_views_referencing_doc(self)) do
-      lsp.update_document(dv)
-    end
+    lsp.update_document(self)
   elseif #lsp.get_active_servers(self.filename, true) > 0 then
     add_change(self, "", line1, lcol1, line2, lcol2)
   end
@@ -2273,7 +2267,7 @@ function RootView:on_text_input(text)
 
   if av then
     lsp.user_typed = true
-    lsp.update_document(av, true)
+    lsp.update_document(av.doc, av, true)
   end
 end
 
@@ -2410,14 +2404,14 @@ command.add(
   ["lsp:goto-definition"] = function(doc, dv)
     local line1, col1, line2 = dv:get_selection()
     if line1 == line2 then
-      lsp.goto_symbol(doc, line1, col1)
+      lsp.goto_symbol(dv, line1, col1)
     end
   end,
 
   ["lsp:goto-implementation"] = function(doc, dv)
     local line1, col1, line2 = dv:get_selection()
     if line1 == line2 then
-      lsp.goto_symbol(doc, line1, col1, true)
+      lsp.goto_symbol(dv, line1, col1, true)
     end
   end,
 
