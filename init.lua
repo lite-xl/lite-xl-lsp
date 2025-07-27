@@ -20,7 +20,21 @@ local command = require "core.command"
 local style = require "core.style"
 local keymap = require "core.keymap"
 local translate = require "core.doc.translate"
-local autocomplete = require "plugins.autocomplete"
+
+-- Respect autocomplete setting, use no-op autocomplete mock if disabled
+-- since require "plugins.autocomplete" will force enable autocomplete.
+local autocomplete
+if config.plugins.autocomplete ~= false then
+  autocomplete = require "plugins.autocomplete"
+else
+  autocomplete = {
+    complete = function() end,
+    can_complete = function() return false end,
+    close = function() end,
+    add_icon = function() end
+  }
+end
+
 local Doc = require "core.doc"
 local DocView = require "core.docview"
 local StatusView = require "core.statusview"
