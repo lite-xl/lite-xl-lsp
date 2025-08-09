@@ -1573,14 +1573,16 @@ function lsp.request_hover(doc, line, col, in_tab)
                 text = content.value
                 if content.kind then kind = content.kind end
               else
+                local texts = {}
                 for _, element in pairs(content) do
                   if type(element) == "string" then
-                    text = text .. element
+                    table.insert(texts, element)
                   elseif type(element) == "table" and element.value then
-                    text = text .. element.value
+                    table.insert(texts, element.value)
                     if not kind and element.kind then kind = element.kind end
                   end
                 end
+                text = table.concat(texts, "\n\n")
               end
             else -- content should be a string
               text = content
