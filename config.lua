@@ -465,6 +465,18 @@ lspconfig.metals = add_lsp {
   verbose = false
 }
 
+---# Scheme - scheme_lsp_server
+--- __Status__: Untested
+--- __Site__: https://codeberg.org/rgherdt/scheme-lsp-server
+--- __Installation__: https://codeberg.org/rgherdt/scheme-lsp-server#a-name-user-content-installing-a-installing
+lspconfig.scheme_lsp_server = add_lsp {
+  name = "scheme_lsp_server",
+  language = "scheme",
+  file_patterns = { "%.ss$" },
+  command = { "chicken-lsp-server" },
+  verbose = false
+}
+
 ---# vscode-json-languageserver
 --- __Status__: Works
 --- __Site__: https://www.npmjs.com/package/vscode-json-languageserver
