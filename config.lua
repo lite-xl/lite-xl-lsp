@@ -544,7 +544,7 @@ lspconfig.ocaml_lsp = add_lsp {
   name = "ocaml-lsp",
   language = "ocaml",
   file_patterns = { "%.ml$", "%.mli$" },
-  command = { "ocamllsp" },
+  command = { string.gsub("/home/__USER__/.opam/default/bin/ocamllsp", "__USER__", os.getenv("USER")), "--stdio" }, -- The full exec file path is required
   verbose = false
 }
 
