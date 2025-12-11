@@ -536,6 +536,21 @@ lspconfig.nimlsp = add_lsp {
   verbose = false
 }
 
+---# nixd
+--- __Status__:      Works
+--- __Site__:        https://github.com/nix-community/nixd
+--- __installation__:nix profile install github:nix-community/nixd
+--- __Note__:        flake options must be configured via user module per the nixd user guide
+
+lspconfig.nixdlsp = add_lsp {
+  name = "nixd",
+  language = "nix",
+  file_patterns = { "%.nix$" },
+  requests_per_second = 10,
+  incremental_changes = true,
+  command = { "nixd" },
+}
+
 ---# ocaml-lsp
 --- __Status__: Reported working on https://github.com/jgmdev/lite-xl-lsp/issues/17
 --- __Site__: https://github.com/ocaml/ocaml-lsp
