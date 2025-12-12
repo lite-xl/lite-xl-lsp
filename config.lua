@@ -139,7 +139,7 @@ lspconfig.clangd = add_lsp {
 }
 
 ---# CMake - neocmakelsp
---- __Status__: Works partially
+--- __Status__: Works, needs fixing
 --- __Site__: https://github.com/neocmakelsp/neocmakelsp
 --- __Installation__: https://github.com/neocmakelsp/neocmakelsp?tab=readme-ov-file#installation
 lspconfig.neocmakelsp = add_lsp {
@@ -147,6 +147,15 @@ lspconfig.neocmakelsp = add_lsp {
   language = "cmake",
   file_patterns = { "%.cmake$", "CMakeLists.txt$", "cmakelists.txt$" },
   command = { "neocmakelsp", "--stdio" },
+  init_options = {
+    format = {
+      enable = true
+    },
+    lint = {
+      enable = true
+    },
+    scan_cmake_in_package = true
+  },
   verbose = true
 }
 
