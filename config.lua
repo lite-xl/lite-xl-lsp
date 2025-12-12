@@ -138,6 +138,27 @@ lspconfig.clangd = add_lsp {
   verbose = false
 }
 
+---# CMake - neocmakelsp
+--- __Status__: Works, needs fixing
+--- __Site__: https://github.com/neocmakelsp/neocmakelsp
+--- __Installation__: https://github.com/neocmakelsp/neocmakelsp?tab=readme-ov-file#installation
+lspconfig.neocmakelsp = add_lsp {
+  name = "neocmakelsp",
+  language = "cmake",
+  file_patterns = { "%.cmake$", "CMakeLists.txt$", "cmakelists.txt$" },
+  command = { "neocmakelsp", "--stdio" },
+  init_options = {
+    format = {
+      enable = true
+    },
+    lint = {
+      enable = true
+    },
+    scan_cmake_in_package = true
+  },
+  verbose = true
+}
+
 ---# Clojure
 --- __Status__: Untested
 --- __Site__: https://clojure-lsp.github.io/
@@ -837,6 +858,18 @@ lspconfig.marksman = add_lsp {
   file_patterns = { "%.md$" },
   command = { "marksman" },
   verbose = false
+}
+
+---# Meson - mesonlsp
+--- __Status__: Untested
+--- __Site__: https://github.com/JCWasmx86/mesonlsp
+--- __Installation__: https://github.com/JCWasmx86/mesonlsp?tab=readme-ov-file#installation
+lspconfig.mesonlsp = add_lsp {
+  name = "mesonlsp",
+  language = "meson",
+  file_patterns = { "meson%.build$", "meson_options%.txt$" },
+  command = { "mesonlsp", "--lsp" },
+  verbose = true
 }
 
 ---# svelte-language-server
