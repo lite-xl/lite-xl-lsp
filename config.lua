@@ -337,6 +337,43 @@ lspconfig.fortls = add_lsp {
   verbose = false
 }
 
+---# F# - fsautocomplete
+--- __Status__: Works
+--- __Site__: https://github.com/ionide/FsAutoComplete
+--- __Installation__: Install .NET then run dotnet tool install --global fsautocomplete
+--- then add ~/.dotnet/tools to PATH
+lspconfig.fsharp = add_lsp {
+    name = "fsac",
+    language = "fsharp",
+    file_patterns = { "%.fs$", "%.fsx$", "%.fsi$" },
+    command = { "fsautocomplete", "--adaptive-lsp-server-enabled" },
+    verbose = false,
+
+    init_options = {
+        AutomaticWorkspaceInit = true,
+    },
+    settings = {
+        FSharp = {
+            keywordsAutocomplete = true,
+                  ExternalAutocomplete = false,
+                  Linter = true,
+                  UnionCaseStubGeneration = true,
+                  UnionCaseStubGenerationBody = 'failwith "Not Implemented"',
+                  RecordStubGeneration = true,
+                  RecordStubGenerationBody = 'failwith "Not Implemented"',
+                  InterfaceStubGeneration = true,
+                  InterfaceStubGenerationObjectIdentifier = 'this',
+                  InterfaceStubGenerationMethodBody = 'failwith "Not Implemented"',
+                  UnusedOpensAnalyzer = true,
+                  UnusedDeclarationsAnalyzer = true,
+                  UseSdkScripts = true,
+                  SimplifyNameAnalyzer = true,
+                  ResolveNamespaces = true,
+                  EnableReferenceCodeLens = true,
+        },
+    },
+}
+
 ---# Gleam
 --- __Status__: Works (the gleam lsp itself acts kinda weird)
 --- __Site__: https://gleam.run/
