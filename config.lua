@@ -446,6 +446,8 @@ lspconfig.flow = add_lsp {
 --- __Status__: Works
 --- __Site__: https://github.com/quick-lint/quick-lint-js
 --- __Installation__: https://github.com/quick-lint/quick-lint-js?tab=readme-ov-file#installing
+-- NOTE: Guldoman: "Making a note here that I added this in #113, but it is likely wrong and will have to be fixed in a future PR."
+-- NOTE: the PR in question: https://github.com/lite-xl/lite-xl-lsp/pull/113
 lspconfig.quick_lint_js = add_lsp {
   name = "quick_lint_js",
   language = {
@@ -568,7 +570,7 @@ lspconfig.lua_ls = add_lsp {
 --- __Installation__: https://github.com/artempyanykh/marksman/blob/main/docs/install.md
 lspconfig.marksman = add_lsp {
   name = "marksman",
-  language = "Markdown",
+  language = "markdown",
   file_patterns = { "%.md$" },
   command = { "marksman" },
   verbose = false
@@ -890,6 +892,18 @@ lspconfig.typst_lsp = add_lsp {
     exportPdf = "never", -- Choose onType, onSave or never.
     experimentalFormatterMode = "on" -- Choose on, or off
   }
+}
+
+---# Typst - tinymist
+--- __Status: Works
+--- __Site__: https://github.com/Myriad-Dreamin/tinymist
+--- __Instalation__: https://github.com/Myriad-Dreamin/tinymist?tab=readme-ov-file#installation
+lspconfig.tinymist = add_lsp {
+  name = "tinymist",
+  language = "typst",
+  file_patterns = { "%.typ$" },
+  command = { "tinymist" },
+  verbose = false
 }
 
 ---# V - v_analyzer
