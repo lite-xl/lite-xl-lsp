@@ -806,6 +806,16 @@ function lsp.start_server(filename, project_directory)
           end
         end
 
+
+        -- Respond to client/registerCapability request
+        -- Note: This response ensures certain LSP servers to continue processing
+        client:add_request_listener(
+          "client/registerCapability",
+          function(server, request)
+            server:push_response(request.method, request.id, json.null)
+          end
+        )
+
         -- Respond to workspace/configuration request
         client:add_request_listener(
           "workspace/configuration",
