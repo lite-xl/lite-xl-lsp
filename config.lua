@@ -95,6 +95,8 @@ lspconfig.bash_ls = add_lsp {
   incremental_changes = true,
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.bashls = lspconfig.bash_ls
 
 ---# C/C++ - ccls
 --- __Status__: Works
@@ -182,6 +184,8 @@ lspconfig.vscode_css_ls = add_lsp {
   fake_snippets = true,
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.cssls = lspconfig.vscode_css_ls
 
 ---# C# - omnisharp
 --- __Status__: Works, but freezes on large projects (https://github.com/ppy/osu.git)
@@ -264,6 +268,8 @@ lspconfig.deno_ls = add_lsp {
     }
   }
 }
+-- NOTE: for retro-compatibility
+lspconfig.deno = lspconfig.deno_ls
 
 ---# Dockerfile - dockerfile_ls_nodejs
 --- __Status__: Untested
@@ -276,6 +282,8 @@ lspconfig.dockerfile_ls_nodejs = add_lsp {
   command = { "docker-langserver", "--stdio" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.dockerls = lspconfig.dockerfile_ls_nodejs
 
 ---# Elixir - elixir_ls
 --- __Status__: Works
@@ -288,6 +296,8 @@ lspconfig.elixir_ls = add_lsp {
   command = { "elixir-ls" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.elixirls = lspconfig.elixir_ls
 
 ---# Elm - elm_ls
 --- __Status__: Works
@@ -300,6 +310,8 @@ lspconfig.elm_ls = add_lsp {
   command = { "elm-language-server" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.elmls = lspconfig.elm_ls
 
 ---# Erlang - erlang_ls
 --- __Status__: Works
@@ -312,6 +324,8 @@ lspconfig.erlang_ls = add_lsp {
   command = { "Erlang", "LS", "-t", "stdio" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.erlangls = lspconfig.erlang_ls
 
 ---# Fennel - fennel_ls
 --- __Status__: Works
@@ -324,6 +338,8 @@ lspconfig.fennel_ls = add_lsp {
   command = { "fennel-ls" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.fennells = lspconfig.fennel_ls
 
 ---# Fortran - fort_ls
 --- __Status__: Works
@@ -336,6 +352,8 @@ lspconfig.fort_ls = add_lsp {
   command = { "fortls", "--notify_init" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.fortls = lspconfig.fort_ls
 
 ---# Gleam - gleam_ls
 --- __Status__: Works (the gleam lsp itself acts kinda weird)
@@ -348,6 +366,8 @@ lspconfig.gleam_ls = add_lsp {
 	command = { "gleam", "lsp" },
 	verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.gleam = lspconfig.gleam_ls
 
 ---# glsl - glsl_analyzer
 --- __Status__: Works
@@ -446,8 +466,6 @@ lspconfig.flow = add_lsp {
 --- __Status__: Works
 --- __Site__: https://github.com/quick-lint/quick-lint-js
 --- __Installation__: https://github.com/quick-lint/quick-lint-js?tab=readme-ov-file#installing
--- NOTE: Guldoman: "Making a note here that I added this in #113, but it is likely wrong and will have to be fixed in a future PR."
--- NOTE: the PR in question: https://github.com/lite-xl/lite-xl-lsp/pull/113
 lspconfig.quick_lint_js = add_lsp {
   name = "quick_lint_js",
   language = {
@@ -493,6 +511,8 @@ lspconfig.kotlin_ls = add_lsp {
   command = { "kotlin-language-server" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.kotlin_language_server = lspconfig.kotlin_ls
 
 ---# LaTeX - texlab
 --- __Status__: Works
@@ -625,6 +645,8 @@ lspconfig.ols = add_lsp {
   command = { "ols" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.odinls = lspconfig.ols
 
 ---# Perl - perlnavigator
 --- __Status__: Works
@@ -678,6 +700,8 @@ lspconfig.python_ls = add_lsp {
   command = { "pylsp" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.pylsp = lspconfig.python_ls
 
 --# Python - basedpyright
 --- __Status__: Works
@@ -726,6 +750,8 @@ lspconfig.r_ls = add_lsp {
   command = {"R", "--slave", "-e", "languageserver::run()"},
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.rlanguageserver = lspconfig.r_ls
 
 ---# Ruby - ruby_lsp
 --- __Status__: Works
@@ -786,6 +812,8 @@ lspconfig.rust_ls = add_lsp {
   command = { "rls" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.rls = lspconfig.rust_ls
 
 ---# Rust - rust_analyzer
 --- __Status__: Works
@@ -822,6 +850,8 @@ lspconfig.sql_ls = add_lsp {
   command = { "sql-language-server", "up", "--method", "stdio" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.sqlls = lspconfig.sql_ls
 
 ---# Svelte - svelte_ls
 --- __Status__: Works
@@ -848,6 +878,8 @@ lspconfig.tailwind_css_ls = add_lsp {
   fake_snippets = true,
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.tailwindcss = lspconfig.tailwind_css_ls
 
 ---# TOML - taplo
 --- __Status__: Works
@@ -877,6 +909,8 @@ lspconfig.typescript_ls = add_lsp {
   command = { "typescript-language-server", "--stdio" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.tsserver = lspconfig.typescript_ls
 
 ---# Typst - typst_lsp
 --- __Status: Works
@@ -929,6 +963,8 @@ lspconfig.v_ls = add_lsp {
   command = { "vlang-vls" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.vls = lspconfig.v_ls
 
 ---# Vala - vala_ls
 --- __Status__: Works
@@ -977,6 +1013,8 @@ lspconfig.yaml_ls = add_lsp {
   command = { "yaml-language-server", "--stdio" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.yamlls = lspconfig.yaml_ls
 
 ---# Zig - zls
 --- __Status__: Untested
