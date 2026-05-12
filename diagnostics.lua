@@ -239,14 +239,14 @@ function diagnostics.lintplus_clear_messages(filename, force)
       return
     end
     if filename then
-      lintplus.clear_messages(filename)
+      lintplus.clear_messages(filename, "lsp")
     else
       for fname, _ in pairs(lintplus.messages) do
         if lintplus_delays[fname] then
           lintplus_delays[fname]:stop()
           lintplus_delays[fname] = nil
         end
-        lintplus.clear_messages(fname)
+        lintplus.clear_messages(fname, "lsp")
       end
     end
   end
@@ -265,7 +265,7 @@ function diagnostics.lintplus_populate(filename)
           local text = message.message
           local kind = lintplus_kinds[message.severity or diagnostics.severity.ERROR]
 
-          lintplus.add_message(fname, line, col, kind, text)
+          lintplus.add_message(fname, line, col, kind, text, nil, "lsp")
         end
       end
     else
@@ -278,7 +278,7 @@ function diagnostics.lintplus_populate(filename)
 
           lintplus.add_message(
             core.normalize_to_project_dir(filename),
-            line, col, kind, text
+            line, col, kind, text, nil, "lsp"
           )
         end
       end
