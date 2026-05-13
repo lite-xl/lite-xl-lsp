@@ -467,10 +467,10 @@ function Server:initialize(workspace, editor_name, editor_version)
           --  tooltipSupport = true
           -- },
           -- colorProvider = {dynamicRegistration = false}, -- not supported
-          -- rename = {
-          --  dynamicRegistration = false, -- not supported
-          --  prepareSupport = false
-          -- },
+          rename = {
+           dynamicRegistration = false, -- not supported
+           -- prepareSupport = false
+          },
           publishDiagnostics = {
             relatedInformation = true,
             tagSupport = {
