@@ -1028,4 +1028,16 @@ lspconfig.zls = add_lsp {
   verbose = false
 }
 
+---# Nushell Language Server
+--- __Status__: Works
+--- __Site__: https://github.com/nushell/nushell
+--- __Installation__: Install Nushell, the language server is included
+lspconfig.nuls = add_lsp {
+  name = "nuls",
+  language = "nu",
+  file_patterns = { "%.nu$" },
+  command = { 'nu', '--lsp' },
+  verbose = false
+}
+
 return lspconfig
