@@ -1419,6 +1419,15 @@ function lsp.request_completion(doc, line, col, forced)
             desc = desc:gsub("[%s\n]+$", "")
               :gsub("\n\n\n+", "\n\n")
 
+            if lsp.servers[server.name].replace_label then
+              local chars = {"\u{0}", "\u{1}", "\u{2}", "\u{3}", "\u{4}", "\u{5}", "\u{6}", "\u{7}", "\u{8}", "\u{9}"}
+              local toAdd = ""
+              local symbolCountStr = tostring(symbol_count)
+              for i=1, #symbolCountStr do
+                toAdd = toAdd .. chars[tonumber(symbolCountStr:sub(i, i)) + 1]
+              end
+              label = label .. toAdd
+            end
             symbols.items[label] = {
               info = info,
               desc = desc,
