@@ -893,6 +893,18 @@ lspconfig.taplo = add_lsp {
   verbose = false
 }
 
+---# Teal, a typed dialect of Lua
+--- __Status: Works
+--- __Site__: https://github.com/teal-language/teal-language-server/
+--- __Instalation__: luarocks install teal-language-server
+lspconfig.teal_ls = lspconfig.add_lsp {
+  name = "teal_ls",
+  language = "teal",
+  file_patterns = { "%.tl$" },
+  command = { "teal-language-server" },
+  verbose = false
+}
+
 ---# Typescript - typescript_ls
 --- __Status__: Works
 --- __Site__: https://github.com/typescript-language-server/typescript-language-server
