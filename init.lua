@@ -590,6 +590,7 @@ function lsp.goto_location(location)
     location.range or location.targetRange, doc_view.doc
   )
   doc_view.doc:set_selection(line1, col1, line1, col1)
+  doc_view:scroll_to_line(line1, false, true)
 end
 
 lsp.get_location_preview = get_location_preview
