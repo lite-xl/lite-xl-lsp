@@ -8,6 +8,7 @@
 local core = require "core"
 local common = require "core.common"
 local command = require "core.command"
+local config = require "core.config"
 local style = require "core.style"
 local keymap = require "core.keymap"
 local util = require "plugins.lsp.util"
@@ -48,6 +49,8 @@ local listbox = {}
 ---@field selected_item_idx integer
 ---@field show_items_count boolean
 ---@field max_height integer
+---@field visible_items integer|nil
+---@field scroll_offset integer
 ---@field active_view core.docview | nil
 ---@field line integer | nil
 ---@field col integer | nil
@@ -63,6 +66,11 @@ local settings = {
   selected_item_idx = 1,
   show_items_count = false,
   max_height = 6,
+  -- Amount of items that actually fit and are currently being drawn.
+  -- Computed dynamically each time the box is measured/drawn.
+  visible_items = nil,
+  -- Used to scroll non-list (tooltip) content that doesn't fit on screen.
+  scroll_offset = 0,
   active_view = nil,
   line = nil,
   col = nil,
@@ -85,6 +93,20 @@ local function get_active_view()
   if getmetatable(core.active_view) == DocView then
     return core.active_view
   end
+end
+
+---Amount of items that can be rendered without overflowing the screen.
+---@param max_items integer
+---@return integer
+local function get_visible_items_count()
+  return settings.visible_items or settings.max_height
+end
+
+---Highest valid scroll offset given the current amount of shown items.
+---@return integer
+local function get_max_scroll()
+  local max_height = get_visible_items_count()
+  return math.max(#settings.shown_items - max_height, 0)
 end
 
 ---@param active_view core.docview
@@ -130,6 +152,7 @@ local function get_suggestions_rect(active_view)
 
   local font = settings.is_list and active_view:get_font() or style.font
   local text_height = font:get_height()
+  local line_full_height = text_height + (padding_y/4)
 
   local max_width = 0
   for _, item in ipairs(settings.shown_items) do
@@ -146,8 +169,39 @@ local function get_suggestions_rect(active_view)
   end
 
   local max_items = #settings.shown_items
-  if settings.is_list and max_items > settings.max_height then
-    max_items = settings.max_height
+  if settings.is_list then
+    -- Selection lists keep a fixed amount of visible rows, the
+    -- selected_item_idx is used to "scroll" through them.
+    if max_items > settings.max_height then
+      max_items = settings.max_height
+    end
+  else
+    -- Non-list content (eg: hover tooltips) can be arbitrarily long
+    -- (a manpage, a big docstring, etc), so instead of overflowing the
+    -- screen we cap it to whatever fits and let the user scroll it.
+    local win_h = core.root_view.size.y
+    local bottom_margin = padding_y
+    local available_height = win_h - y - bottom_margin - (padding_y * 2)
+    local max_fit = math.floor(available_height / line_full_height)
+    if max_fit < 1 then max_fit = 1 end
+    if max_items > max_fit then
+      max_items = max_fit
+    end
+  end
+
+  -- Reserve a bit of horizontal space for the scrollbar when needed.
+  if #settings.shown_items > max_items then
+    max_width = max_width + 8
+  end
+
+  settings.visible_items = max_items
+
+  -- Clamp any previous scroll position now that we know how much fits.
+  if not settings.is_list then
+    local max_scroll = get_max_scroll()
+    if settings.scroll_offset > max_scroll then
+      settings.scroll_offset = max_scroll
+    end
   end
 
   -- additional line to display total items
@@ -159,7 +213,7 @@ local function get_suggestions_rect(active_view)
     max_width = 150
   end
 
-  local height = max_items * (text_height + (padding_y/4)) + (padding_y*2)
+  local height = max_items * line_full_height + (padding_y*2)
   local width = max_width + padding_x * 2
 
   x = x - padding_x
@@ -209,15 +263,21 @@ local function draw_listbox(av)
   local line_height = font:get_height() + (padding_y / 4)
   local y = ry + padding_y
 
-  local max_height = settings.max_height
+  local max_height = get_visible_items_count()
 
-  local show_count = (
-    #settings.shown_items <= max_height or not settings.is_list
-    ) and
-    #settings.shown_items or max_height
+  local show_count = math.min(#settings.shown_items, max_height)
 
-  local start_index = settings.selected_item_idx > max_height and
-    (settings.selected_item_idx-(max_height-1)) or 1
+  local start_index
+  if settings.is_list then
+    start_index = settings.selected_item_idx > max_height and
+      (settings.selected_item_idx-(max_height-1)) or 1
+  else
+    local max_scroll = get_max_scroll()
+    if settings.scroll_offset > max_scroll then
+      settings.scroll_offset = max_scroll
+    end
+    start_index = settings.scroll_offset + 1
+  end
 
   for i=start_index, start_index+show_count-1, 1 do
     if not settings.shown_items[i] then
@@ -268,6 +328,41 @@ local function draw_listbox(av)
       rx, y, rw - padding_x, line_height
     )
   end
+
+  -- draw a small scrollbar when there is more content than what fits
+  if #settings.shown_items > max_height then
+    local scrollbar_width = 4
+    local track_height = rh - (padding_y * 2)
+    local ratio = max_height / #settings.shown_items
+    local thumb_height = math.max(track_height * ratio, 10)
+
+    local scroll_pos = 0
+    local max_scroll = #settings.shown_items - max_height
+    if max_scroll > 0 then
+      if settings.is_list then
+        scroll_pos = (start_index - 1) / max_scroll
+      else
+        scroll_pos = settings.scroll_offset / max_scroll
+      end
+    end
+
+    local thumb_y = ry + padding_y + (track_height - thumb_height) * scroll_pos
+
+    renderer.draw_rect(
+      rx + rw - scrollbar_width - 2,
+      ry + padding_y,
+      scrollbar_width,
+      track_height,
+      style.dim
+    )
+    renderer.draw_rect(
+      rx + rw - scrollbar_width - 2,
+      thumb_y,
+      scrollbar_width,
+      thumb_height,
+      style.scrollbar or style.caret
+    )
+  end
 end
 
 ---Set the document position where the listbox will be draw.
@@ -303,6 +398,8 @@ function listbox.clear()
   settings.shown_items = {}
   settings.line = nil
   settings.col = nil
+  settings.scroll_offset = 0
+  settings.visible_items = nil
 end
 
 ---@param element lsp.listbox.item
@@ -316,6 +413,8 @@ function listbox.hide()
   settings.col = nil
   settings.selected_item_idx = 1
   settings.shown_items = {}
+  settings.scroll_offset = 0
+  settings.visible_items = nil
   core.redraw = true
 end
 
@@ -331,6 +430,7 @@ function listbox.show(is_list, position)
     if settings.items and #settings.items > 0 then
       settings.is_list = is_list or false
       settings.shown_items = settings.items
+      settings.scroll_offset = 0
     end
   end
   core.redraw = true
@@ -340,7 +440,21 @@ end
 ---@param position? lsp.listbox.position
 function listbox.show_text(text, position)
   if text and type("text") == "string" then
-    local win_w = core.root_view.size.x - style.padding.x * 6
+    -- Use the width of the active DocView instead of the whole window,
+    -- so the hover tooltip doesn't stretch across wide/ultra-wide screens.
+    local active_view = get_active_view()
+    local view_w = active_view and active_view.size.x or core.root_view.size.x
+    local win_w = view_w - style.padding.x * 6
+
+    -- The DocView width alone isn't a reliable cap: with a single,
+    -- maximized pane (no splits) the DocView is essentially as wide as
+    -- the whole window, so it wouldn't constrain anything by itself.
+    -- Clamp to a configurable hard limit too and use whichever is smaller.
+    local max_width = config.plugins.lsp.mouse_hover_max_width
+    if type(max_width) == "number" and max_width > 0 and win_w > max_width then
+      win_w = max_width
+    end
+
     text = util.wrap_text(text, style.font, win_w)
 
     local items = {}
@@ -520,47 +634,82 @@ RootView.draw = function(...)
   root_view_draw(...)
 end
 
+-- Best-effort mouse wheel scrolling support. Guarded because not every
+-- version/branch of RootView is guaranteed to expose on_mouse_wheel; if it
+-- doesn't exist we simply skip this and keyboard scrolling still works.
+if RootView.on_mouse_wheel then
+  local root_view_on_mouse_wheel = RootView.on_mouse_wheel
+  RootView.on_mouse_wheel = function(self, y, ...)
+    if
+      settings.active_view
+      and
+      #settings.shown_items > 0
+      and
+      not settings.is_list
+    then
+      local max_scroll = get_max_scroll()
+      if max_scroll > 0 then
+        if y > 0 then
+          settings.scroll_offset = math.max(settings.scroll_offset - 1, 0)
+        elseif y < 0 then
+          settings.scroll_offset = math.min(settings.scroll_offset + 1, max_scroll)
+        end
+        core.redraw = true
+        return
+      end
+    end
+    return root_view_on_mouse_wheel(self, y, ...)
+  end
+end
+
 --------------------------------------------------------------------------------
 -- Commands
 --------------------------------------------------------------------------------
-local function predicate()
+
+-- Navigation/selection only makes sense for actual selection lists (eg:
+-- autocomplete, symbol search). A hover tooltip (is_list == false) must
+-- NOT capture up/down/tab: this predicate simply won't match in that
+-- case, so the key falls through to the regular editor command bound to
+-- it (eg: move caret up/down) and the caret keeps moving normally while
+-- the tooltip stays on screen.
+local function predicate_list()
+  local av = get_active_view()
+  return av and settings.active_view and settings.is_list
+    and #settings.shown_items > 0, av
+end
+
+-- Escape should always be able to dismiss whatever is currently shown,
+-- be it a selection list or a tooltip.
+local function predicate_any()
   local av = get_active_view()
   return av and settings.active_view and #settings.shown_items > 0, av
 end
 
-command.add(predicate, {
+command.add(predicate_list, {
   ["listbox:select"] = function(av)
     ---@cast av core.docview
-    if settings.is_list then
-      local doc = av.doc
-      local item = settings.shown_items[settings.selected_item_idx]
+    local doc = av.doc
+    local item = settings.shown_items[settings.selected_item_idx]
 
-      if settings.callback then
-        settings.callback(doc, item)
-      end
-
-      listbox.hide()
+    if settings.callback then
+      settings.callback(doc, item)
     end
+
+    listbox.hide()
   end,
 
   ["listbox:previous"] = function()
-    if settings.is_list then
-      settings.selected_item_idx = math.max(settings.selected_item_idx - 1, 1)
-    else
-      listbox.hide()
-    end
+    settings.selected_item_idx = math.max(settings.selected_item_idx - 1, 1)
   end,
 
   ["listbox:next"] = function()
-    if settings.is_list then
-      settings.selected_item_idx = math.min(
-        settings.selected_item_idx + 1, #settings.shown_items
-      )
-    else
-      listbox.hide()
-    end
+    settings.selected_item_idx = math.min(
+      settings.selected_item_idx + 1, #settings.shown_items
+    )
   end,
+})
 
+command.add(predicate_any, {
   ["listbox:cancel"] = function()
     listbox.hide()
   end,
