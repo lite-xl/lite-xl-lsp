@@ -406,6 +406,8 @@ lspconfig.groovy_ls = add_lsp {
   command = { "groovy-language-server" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.groovyls = lspconfig.groovy_ls
 
 ---# Haskell - haskell_ls
 --- __Status__: Untested
@@ -418,6 +420,8 @@ lspconfig.haskell_ls = add_lsp {
   command = { "haskell-language-server-wrapper", "--lsp" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.hls = lspconfig.haskell_ls
 
 ---# HTML - vscode_html_ls
 --- __Status__: Works
@@ -437,6 +441,8 @@ lspconfig.vscode_html_ls = add_lsp {
   },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.html = lspconfig.vscode_html_ls
 
 ---# Java - jdtls
 --- __Status__: Works
@@ -480,6 +486,8 @@ lspconfig.quick_lint_js = add_lsp {
   command = { "quick-lint-js", "--lsp-server" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.quicklintjs = lspconfig.quick_lint_js
 
 ---# JSON - vscode_json_ls
 --- __Status__: Works
@@ -499,6 +507,8 @@ lspconfig.vscode_json_ls = add_lsp {
   },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.jsonls = lspconfig.vscode_json_ls
 
 ---# Kotlin - kotlin_ls
 --- __Status__: Works
@@ -583,6 +593,8 @@ lspconfig.lua_ls = add_lsp {
     }
   }
 }
+-- NOTE: for retro-compatibility
+lspconfig.sumneko_lua = lspconfig.lua_ls
 
 ---# Markdown - marksman
 --- __Status__: Works
@@ -607,6 +619,8 @@ lspconfig.nil_ls = add_lsp {
   command = { "nil" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.nillsp = lspconfig.nil_ls
 
 ---# Nim - nimlsp
 --- __Status__: Works
@@ -688,6 +702,8 @@ lspconfig.python_ls_palantir = add_lsp {
   command = { "pyls" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.pyls = lspconfig.python_ls_palantir
 
 ---# Python - python_ls
 --- __Status__: Works
@@ -865,6 +881,8 @@ lspconfig.svelte_ls = add_lsp {
   command = { "svelteserver", "--stdio" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.sveltels = lspconfig.svelte_ls
 
 ---# Tailwind CSS - tailwind_css_ls
 --- __Status__: Broken (freezes when writing class names inside html doc, requires new implementation of json.lua)
@@ -989,6 +1007,8 @@ lspconfig.vim_ls = add_lsp {
   command = { "vim-language-server", "--stdio" },
   verbose = false
 }
+-- NOTE: for retro-compatibility
+lspconfig.vimls = lspconfig.vim_ls
 
 ---# XML - lemminx
 --- __Status__: Works
